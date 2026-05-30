@@ -33,7 +33,7 @@ const getHostName = (srv: ServerItem) => {
 
 export default function PlayerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ url: string; gambar: string; seriUrl: string; judul: string; autoPlayHost?: string; }>();
+  const params = useLocalSearchParams<{ url: string; gambar: string; seriUrl: string; judul: string; autoPlayHost?: string; autoFullscreen?: string; }>();
 
   const [loading, setLoading] = useState(true);
   const [playerLoading, setPlayerLoading] = useState(false);
@@ -238,6 +238,12 @@ export default function PlayerScreen() {
     AsyncStorage.getItem('playback_speed').then(val => {
       if (val) setPlaybackSpeed(parseFloat(val));
     });
+    // Restore fullscreen orientation jika navigasi episode dari mode fullscreen
+    if (params.autoFullscreen === '1') {
+      setIsFullscreen(true);
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -677,13 +683,9 @@ export default function PlayerScreen() {
     setShowEpisodesModal(false);
     saveCurrentProgress();
     if (player) player.pause();
-    
-    // Pastikan keluar dari fullscreen sebelum berpindah navigasi
-    if (isFullscreen) {
-      exitFullscreen().catch(() => {});
-    }
 
     // Gunakan router.replace agar episode sebelumnya tidak menumpuk (overlapping)
+    // Teruskan status fullscreen agar layar tidak berputar balik ke portrait
     router.replace({
       pathname: '/player',
       params: { 
@@ -691,7 +693,8 @@ export default function PlayerScreen() {
         gambar: params.gambar, 
         seriUrl: params.seriUrl, 
         judul: '',
-        autoPlayHost: preferredHostRef.current || activeHost
+        autoPlayHost: preferredHostRef.current || activeHost,
+        autoFullscreen: isFullscreen ? '1' : '0'
       }
     });
   };
