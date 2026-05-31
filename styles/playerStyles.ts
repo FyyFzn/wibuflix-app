@@ -52,7 +52,7 @@ export const styles = StyleSheet.create({
   wvTouchOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
   wvBackBtn: { position: 'absolute', top: Spacing.xl, left: Spacing.xl, padding: Spacing.sm, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: BorderRadius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   wvBackText: { color: Colors.white, fontSize: FontSize.md, fontWeight: 'bold' },
-  wvControlsGroup: { flexDirection: 'row', gap: 30, alignItems: 'center' },
+  wvControlsGroup: { flexDirection: 'row', width: '90%', maxWidth: 600, justifyContent: 'space-around', alignItems: 'center' },
 
   centerControls: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   playPauseBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },

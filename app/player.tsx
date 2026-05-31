@@ -111,6 +111,17 @@ export default function PlayerScreen() {
     player.play();
   });
 
+  const stopAllMedia = useCallback(() => {
+    try {
+      if (player) player.pause();
+    } catch (e) {}
+    try {
+      if (webviewRef.current) {
+        webviewRef.current.injectJavaScript('var v=document.querySelectorAll("video");for(var i=0;i<v.length;i++){v[i].pause();}true;');
+      }
+    } catch (e) {}
+  }, [player]);
+
   const { status, error: playerError } = useEvent(player, 'statusChange', { status: player.status, error: undefined });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
   useEffect(() => {
@@ -365,6 +376,7 @@ export default function PlayerScreen() {
     }
     return () => {
       isMounted.current = false;
+      stopAllMedia();
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -375,6 +387,7 @@ export default function PlayerScreen() {
 
   const handleUIBackPress = useCallback(() => {
     saveCurrentProgress();
+    stopAllMedia();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -572,7 +585,7 @@ export default function PlayerScreen() {
         setFallbackWebviewUrl(iframeUrl);
         
         let customHeaders = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
           'Referer': iframeUrl,
         };
         
@@ -608,7 +621,7 @@ export default function PlayerScreen() {
     }
     console.log(`[HostSwitch] pos=${pos}, lastRef=${lastKnownPositionRef.current}, currentPosition=${currentPosition}, playerMode=${playerMode}, targetHost=${hostName}`);
     
-    if (player) player.pause();
+    stopAllMedia();
     saveCurrentProgress();
     if (pos > 5) {
       setSavedProgress(pos);
@@ -658,7 +671,7 @@ export default function PlayerScreen() {
     }
     console.log(`[ResSwitch] pos=${pos}, lastRef=${lastKnownPositionRef.current}, currentPosition=${currentPosition}, playerMode=${playerMode}`);
     
-    if (player) player.pause();
+    stopAllMedia();
     saveCurrentProgress();
     if (pos > 5) {
       setSavedProgress(pos);
@@ -691,7 +704,7 @@ export default function PlayerScreen() {
   const navigateEpisode = (url: string) => {
     setShowEpisodesModal(false);
     saveCurrentProgress();
-    if (player) player.pause();
+    stopAllMedia();
 
     // Gunakan router.replace agar episode sebelumnya tidak menumpuk (overlapping)
     // Teruskan status fullscreen agar layar tidak berputar balik ke portrait
