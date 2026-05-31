@@ -124,6 +124,7 @@ export default function PlayerScreen() {
         const signal = abortControllerRef.current.signal;
         
         playServer(fallbackWebviewUrl, activeServerName, true, signal).then(success => {
+          if (signal.aborted) return; // Mencegah pemaksaan webview jika user ganti server
           if (!success) {
             setPlayerMode('webview');
             setWebviewUrl(fallbackWebviewUrl);
@@ -238,12 +239,14 @@ export default function PlayerScreen() {
     AsyncStorage.getItem('playback_speed').then(val => {
       if (val) setPlaybackSpeed(parseFloat(val));
     });
-    // Restore fullscreen orientation jika navigasi episode dari mode fullscreen
-    if (params.autoFullscreen === '1') {
-      setIsFullscreen(true);
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-    }
+  }, []);
+
+  // Cleanup orientasi global hanya saat screen benar-benar unmount (keluar ke beranda)
+  useEffect(() => {
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      NavigationBar.setVisibilityAsync('visible').catch(() => {});
+    };
   }, []);
 
   useEffect(() => {
@@ -341,11 +344,16 @@ export default function PlayerScreen() {
   useEffect(() => {
     isMounted.current = true;
     
-    // Pastikan orientasi kembali ke portrait dan Navigation Bar terlihat saat memuat halaman episode baru
-    // Hal ini mencegah bug di mana screen baru termount tapi masih stuck di setting landscape dari screen sebelumnya
-    setIsFullscreen(false);
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    NavigationBar.setVisibilityAsync('visible').catch(() => {});
+    // Jaga agar tetap fullscreen jika parameter autoFullscreen di-set '1' (seamless transition)
+    if (params.autoFullscreen === '1') {
+      setIsFullscreen(true);
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
+      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
+    } else {
+      setIsFullscreen(false);
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      NavigationBar.setVisibilityAsync('visible').catch(() => {});
+    }
 
     if (params.url) {
       setRestoredVideoUrl('');
@@ -362,8 +370,6 @@ export default function PlayerScreen() {
       }
       saveCurrentProgress();
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-      NavigationBar.setVisibilityAsync('visible').catch(() => {});
     };
   }, [params.url]);
 
@@ -383,15 +389,12 @@ export default function PlayerScreen() {
         return true; // Cegah tombol back keluar layar, cukup keluar fullscreen
       }
       
-      saveCurrentProgress();
-      
-      // Kembalikan false agar sistem navigasi bawaan Expo Router mengambil alih.
-      // Jika kita menggunakan router.back() dan return true di sini, itu bisa bentrok
-      // dengan handler bawaan Expo yang menyebabkan double-pop atau aplikasi tertutup.
-      return false; 
+      // Jika tidak fullscreen, gunakan navigasi manual kita agar aplikasi tidak tertutup paksa
+      handleUIBackPress();
+      return true; // Beri tahu Android bahwa kita sudah menangani tombol back
     });
     return () => backHandler.remove();
-  }, [isFullscreen, saveCurrentProgress]);
+  }, [isFullscreen, handleUIBackPress]);
 
   const loadEpisode = async (url: string) => {
     setLoading(true);
@@ -401,6 +404,8 @@ export default function PlayerScreen() {
     setNativeVideoUrl('');
     setActiveHost('');
     setActiveServerName('');
+    setFallbackWebviewUrl('');
+    setRetryCount(0);
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -615,6 +620,8 @@ export default function PlayerScreen() {
     setWebviewUrl('');
     setPlayerLoading(true);
     setError(null);
+    setFallbackWebviewUrl('');
+    setRetryCount(0);
     
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -663,6 +670,8 @@ export default function PlayerScreen() {
     setWebviewUrl('');
     setPlayerLoading(true);
     setError(null);
+    setFallbackWebviewUrl('');
+    setRetryCount(0);
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();

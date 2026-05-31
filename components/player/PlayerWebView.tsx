@@ -85,9 +85,14 @@ export default function PlayerWebView({
         javaScriptEnabled={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
-        allowsFullscreenVideo={true}
+        allowsFullscreenVideo={false}
         setSupportMultipleWindows={false}
-        injectedJavaScript={injectedJS}
+        injectedJavaScript={`
+          const style = document.createElement('style');
+          style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; }';
+          document.head.appendChild(style);
+          ${injectedJS}
+        `}
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);
@@ -141,14 +146,22 @@ export default function PlayerWebView({
             <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); navPrev && navigateEpisode(navPrev); }} disabled={!navPrev}>
               <Text style={[styles.wvCtrlIcon, !navPrev && styles.opacity30]}>⏮</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); skipWebview(-10); }}>
               <Ionicons name="play-back" size={36} color={Colors.white} />
               <Text style={styles.wvCtrlText}>-10s</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); isFullscreen ? exitFullscreen() : enterFullscreen(); }}>
+              <Ionicons name={isFullscreen ? "contract" : "expand"} size={36} color={Colors.white} />
+              <Text style={styles.wvCtrlText}>{isFullscreen ? 'Perkecil' : 'Penuh'}</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); skipWebview(10); }}>
               <Ionicons name="play-forward" size={36} color={Colors.white} />
               <Text style={styles.wvCtrlText}>+10s</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); navNext && navigateEpisode(navNext); }} disabled={!navNext}>
               <Text style={[styles.wvCtrlIcon, !navNext && styles.opacity30]}>⏭</Text>
             </TouchableOpacity>

@@ -13,6 +13,7 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
@@ -38,6 +39,17 @@ export default function AnimeDetailScreen() {
   useEffect(() => {
     loadEpisodes();
   }, []);
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) {
+        router.back();
+        return true; // Beritahu Android bahwa kita yang handle navigasinya
+      }
+      return false; // Biarkan default (keluar aplikasi) jika tidak bisa kembali
+    });
+    return () => backHandler.remove();
+  }, [router]);
 
   const loadEpisodes = async () => {
     if (!params.url) return;
