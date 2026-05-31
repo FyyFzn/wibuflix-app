@@ -388,10 +388,14 @@ export default function PlayerScreen() {
   const handleUIBackPress = useCallback(() => {
     saveCurrentProgress();
     stopAllMedia();
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/');
+    try {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.push('/');
+      }
+    } catch (e) {
+      router.push('/');
     }
   }, [saveCurrentProgress, router]);
 
@@ -399,12 +403,10 @@ export default function PlayerScreen() {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (isFullscreen) {
         exitFullscreen();
-        return true; // Cegah tombol back keluar layar, cukup keluar fullscreen
+        return true;
       }
-      
-      // Jika tidak fullscreen, gunakan navigasi manual kita agar aplikasi tidak tertutup paksa
       handleUIBackPress();
-      return true; // Beri tahu Android bahwa kita sudah menangani tombol back
+      return true;
     });
     return () => backHandler.remove();
   }, [isFullscreen, handleUIBackPress]);

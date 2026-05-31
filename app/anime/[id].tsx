@@ -42,14 +42,21 @@ export default function AnimeDetailScreen() {
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (router.canGoBack()) {
-        router.back();
-        return true; // Beritahu Android bahwa kita yang handle navigasinya
+      try {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.push('/');
+        }
+      } catch (e) {
+        router.push('/');
       }
-      return false; // Biarkan default (keluar aplikasi) jika tidak bisa kembali
+      return true;
     });
     return () => backHandler.remove();
   }, [router]);
+
+
 
   const loadEpisodes = async () => {
     if (!params.url) return;
