@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView, ActivityIndicator, Dimensions, BackHandler, Modal, FlatList, StatusBar, Alert, Animated, Easing
+  View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView, ActivityIndicator, Dimensions, BackHandler, Modal, FlatList, StatusBar, Alert, Animated, Easing, useWindowDimensions
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -845,7 +845,7 @@ export default function PlayerScreen() {
     }
   }, [isPlaying]);
 
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
   const playerWrapperStyle = isFullscreen ? { flex: 1 } : { height: (screenWidth * 9) / 16 };
 
   const getResName = (nama: string) => {
