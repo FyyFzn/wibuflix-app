@@ -471,10 +471,28 @@ export default function PlayerScreen() {
           if (idxB === -1) idxB = 999;
           if (idxA !== idxB) return idxA - idxB;
 
-          // Jika dari host yang sama, urutkan resolusi dari yang terbesar ke terkecil
-          const resA = parseInt(a.nama.match(/(\d+)p/)?.[1] || '0', 10);
-          const resB = parseInt(b.nama.match(/(\d+)p/)?.[1] || '0', 10);
-          return resB - resA;
+          // Jika dari host yang sama, urutkan berdasarkan Format (MKV > MP4 > x265) lalu Resolusi
+          const getFormatRank = (nama: string) => {
+            const upper = nama.toUpperCase();
+            if (upper.includes('MKV')) return 1;
+            if (upper.includes('MP4')) return 2;
+            if (upper.includes('X265') || upper.includes('HEVC')) return 3;
+            return 4;
+          };
+          const getResValue = (nama: string) => {
+            const upper = nama.toUpperCase();
+            if (upper.includes('4K')) return 4000;
+            if (upper.includes('FULLHD')) return 1080;
+            if (upper.includes('MP4HD')) return 720;
+            const match = upper.match(/(\d+)P/);
+            return match ? parseInt(match[1], 10) : 0;
+          };
+
+          const formatA = getFormatRank(a.nama);
+          const formatB = getFormatRank(b.nama);
+          if (formatA !== formatB) return formatA - formatB;
+
+          return getResValue(b.nama) - getResValue(a.nama);
         });
 
         setServers(validServers);

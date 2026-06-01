@@ -78,7 +78,7 @@ export default function ServerSelector({
             <View style={styles.resolutionsWrap}>
               {group.items.map((srv, i) => {
                 const resName = srv.nama.split('·')[0]?.trim() || srv.nama;
-                const isResActive = activeServerName === srv.nama;
+                const isResActive = activeServerName === srv.nama && activeHost === group.hostName;
                 
                 return (
                   <TouchableOpacity
@@ -86,7 +86,6 @@ export default function ServerSelector({
                     style={[styles.resBtn, isResActive && styles.resBtnActive, disabled && { opacity: 0.5 }]}
                     onPress={() => {
                       if (!isResActive) {
-                        onSelectHost(group.hostName, group.items);
                         onSelectResolution(srv);
                       }
                     }}
