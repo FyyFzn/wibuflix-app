@@ -82,5 +82,14 @@ export const styles = StyleSheet.create({
   modalItemText: { color: Colors.text, fontSize: FontSize.md },
   modalItemTextActive: { color: Colors.accent, fontWeight: FontWeight.bold },
   modalCloseBtn: { padding: Spacing.md, alignItems: 'center', backgroundColor: Colors.surface2, marginTop: Spacing.sm },
-  modalCloseText: { color: Colors.accent, fontWeight: FontWeight.bold, fontSize: FontSize.md }
+  modalCloseText: { color: Colors.accent, fontWeight: FontWeight.bold, fontSize: FontSize.md },
+
+  // Format Group UI for Resolution Modal
+  formatBlock: { backgroundColor: Colors.surface2, marginHorizontal: Spacing.lg, marginTop: Spacing.md, padding: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border2 },
+  formatTitle: { color: Colors.textMuted, fontSize: FontSize.sm, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
+  resolutionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  resChip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: Colors.border2, backgroundColor: Colors.surface },
+  resChipActive: { borderColor: Colors.accent, backgroundColor: 'rgba(230,57,70,0.15)' },
+  resChipText: { color: Colors.text, fontSize: FontSize.sm },
+  resChipTextActive: { color: Colors.accent, fontWeight: FontWeight.bold }
 });

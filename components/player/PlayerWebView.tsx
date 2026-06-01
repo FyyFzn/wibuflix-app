@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,8 @@ export default function PlayerWebView({
   navPrev, navNext, navigateEpisode, webviewControlsTimeoutRef,
   isSkipOPVisible, isSkipEDVisible, handleSkipOP, handleSkipED
 }: PlayerWebViewProps) {
+  const [showMiniNav, setShowMiniNav] = useState(false);
+  const miniNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const skipWebview = (amount: number) => {
     if (webviewRef.current) {
@@ -102,9 +104,15 @@ export default function PlayerWebView({
               setNativeVideoUrl(data.url);
               setPlayerMode('native');
             } else if (data.type === 'webviewClick') {
-              setShowWebviewControls(true);
-              if (webviewControlsTimeoutRef.current) clearTimeout(webviewControlsTimeoutRef.current);
-              webviewControlsTimeoutRef.current = setTimeout(() => setShowWebviewControls(false), 4000);
+              if (isFullscreen) {
+                setShowMiniNav(true);
+                if (miniNavTimeoutRef.current) clearTimeout(miniNavTimeoutRef.current);
+                miniNavTimeoutRef.current = setTimeout(() => setShowMiniNav(false), 4000);
+              } else {
+                setShowWebviewControls(true);
+                if (webviewControlsTimeoutRef.current) clearTimeout(webviewControlsTimeoutRef.current);
+                webviewControlsTimeoutRef.current = setTimeout(() => setShowWebviewControls(false), 4000);
+              }
             } else if (data.type === 'progress') {
               const t = Math.floor(data.currentTime);
               setCurrentPosition(t);
@@ -119,14 +127,30 @@ export default function PlayerWebView({
         }}
         onLoadEnd={() => setPlayerLoading(false)}
       />
-      {/* Permanent Escape Button for Webview Fullscreen */}
-      {isFullscreen && !showWebviewControls && (
-        <TouchableOpacity 
-          style={styles.wvPermExitBtn} 
-          onPress={exitFullscreen}
-        >
-          <Text style={styles.wvPermExitText}>←</Text>
-        </TouchableOpacity>
+      {/* Mini Nav Controls (Only in Fullscreen) */}
+      {isFullscreen && !showWebviewControls && showMiniNav && (
+        <>
+          <TouchableOpacity 
+            style={styles.wvPermExitBtn} 
+            onPress={exitFullscreen}
+          >
+            <Ionicons name="contract" size={24} color={Colors.white} />
+            <Text style={[styles.wvPermExitText, { marginLeft: 8, fontSize: 16 }]}>Keluar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.wvPermExitBtn, { left: undefined, right: Spacing.xl }]} 
+            onPress={() => {
+              setShowMiniNav(false);
+              setShowWebviewControls(true);
+              if (webviewControlsTimeoutRef.current) clearTimeout(webviewControlsTimeoutRef.current);
+              webviewControlsTimeoutRef.current = setTimeout(() => setShowWebviewControls(false), 4000);
+            }}
+          >
+            <Ionicons name="menu" size={24} color={Colors.white} />
+            <Text style={[styles.wvPermExitText, { marginLeft: 8, fontSize: 16 }]}>Menu Navigasi</Text>
+          </TouchableOpacity>
+        </>
       )}
 
       {showWebviewControls && (

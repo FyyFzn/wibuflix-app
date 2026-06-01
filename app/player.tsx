@@ -913,6 +913,12 @@ export default function PlayerScreen() {
           />
         ) : !loading && error ? (
           <View style={styles.playerError}>
+            {isFullscreen && (
+              <TouchableOpacity style={styles.wvPermExitBtn} onPress={exitFullscreen}>
+                <Ionicons name="contract" size={24} color={Colors.white} />
+                <Text style={[styles.wvPermExitText, { marginLeft: 8 }]}>Tutup Fullscreen</Text>
+              </TouchableOpacity>
+            )}
             <Text style={styles.playerErrorText}>{error}</Text>
           </View>
         ) : null}
