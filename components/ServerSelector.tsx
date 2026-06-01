@@ -71,34 +71,62 @@ export default function ServerSelector({
   return (
     <View style={styles.container}>
       {groups.map((group) => {
+        // Kelompokkan berdasarkan format (MKV, MP4, x265)
+        const formatGroups: Record<string, ServerItem[]> = {};
+        group.items.forEach(srv => {
+          const upperName = srv.nama.toUpperCase();
+          let format = 'Lainnya';
+          if (upperName.includes('MKV')) format = 'MKV';
+          else if (upperName.includes('MP4') && !upperName.includes('MP4HD')) format = 'MP4';
+          else if (upperName.includes('MP4HD')) format = 'MP4'; // gabungkan MP4HD ke MP4
+          else if (upperName.includes('X265') || upperName.includes('HEVC')) format = 'x265';
+          
+          if (!formatGroups[format]) formatGroups[format] = [];
+          formatGroups[format].push(srv);
+        });
+        
+        const formatKeys = ['MKV', 'MP4', 'x265', 'Lainnya'].filter(k => formatGroups[k] && formatGroups[k].length > 0);
+
         return (
           <View key={group.hostName} style={styles.serverGroup}>
             <Text style={styles.serverGroupLabel}>{group.label}</Text>
             
-            <View style={styles.resolutionsWrap}>
-              {group.items.map((srv, i) => {
-                const resName = srv.nama.split('·')[0]?.trim() || srv.nama;
-                const isResActive = activeServerName === srv.nama && activeHost === group.hostName;
-                
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    style={[styles.resBtn, isResActive && styles.resBtnActive, disabled && { opacity: 0.5 }]}
-                    onPress={() => {
-                      if (!isResActive) {
-                        onSelectResolution(srv);
-                      }
-                    }}
-                    activeOpacity={0.7}
-                    disabled={disabled}
-                  >
-                    <Text style={[styles.resBtnText, isResActive && styles.resBtnTextActive]}>
-                      {resName}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {formatKeys.map((fmt, fIdx) => (
+              <View key={fmt} style={[styles.formatBlock, fIdx > 0 && { marginTop: Spacing.md }]}>
+                <Text style={styles.formatLabel}>{fmt}</Text>
+                <View style={styles.resolutionsWrap}>
+                  {formatGroups[fmt].map((srv, i) => {
+                    // Buang nama format dari tombol agar lebih bersih (contoh: "1080p MKV" jadi "1080p")
+                    let resName = srv.nama.split('·')[0]?.trim() || srv.nama;
+                    if (fmt !== 'Lainnya') {
+                      // Hapus string format (case-insensitive)
+                      const regex = new RegExp(fmt, 'i');
+                      resName = resName.replace(regex, '').trim();
+                    }
+                    
+                    const isResActive = activeServerName === srv.nama && activeHost === group.hostName;
+                    
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        style={[styles.resBtn, isResActive && styles.resBtnActive, disabled && { opacity: 0.5 }]}
+                        onPress={() => {
+                          if (!isResActive) {
+                            onSelectResolution(srv);
+                          }
+                        }}
+                        activeOpacity={0.7}
+                        disabled={disabled}
+                      >
+                        <Text style={[styles.resBtnText, isResActive && styles.resBtnTextActive]}>
+                          {resName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
           </View>
         );
       })}
@@ -129,6 +157,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     paddingBottom: Spacing.xs,
+  },
+  formatBlock: {
+    marginTop: Spacing.xs,
+  },
+  formatLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    color: Colors.textMuted,
+    marginBottom: Spacing.xs,
+    letterSpacing: 0.5,
   },
   resolutionsWrap: {
     flexDirection: 'row',
