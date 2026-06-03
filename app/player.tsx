@@ -83,6 +83,7 @@ export default function PlayerScreen() {
   // Double Tap State
   const lastTapRef = useRef<{ time: number; side: 'left' | 'right' } | null>(null);
   const skipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const singleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [skipInfo, setSkipInfo] = useState<{ side: 'left' | 'right', amount: number, wasPlaying?: boolean } | null>(null);
   const rippleAnim = useRef(new Animated.Value(0)).current;
   const [playerLayoutWidth, setPlayerLayoutWidth] = useState(Dimensions.get('window').width);
@@ -833,6 +834,7 @@ export default function PlayerScreen() {
       lastTapRef.current.side === side;
 
     if (isComboTap) {
+      if (singleTapTimeoutRef.current) clearTimeout(singleTapTimeoutRef.current);
       const addAmount = side === 'right' ? 10 : -10;
       
       // Pause hanya sekali saat combo BARU dimulai (bukan setiap tap tambahan)
@@ -867,7 +869,7 @@ export default function PlayerScreen() {
       // biarkan window 250ms dihitung dari tap terakhir yang valid
       lastTapRef.current = { time: now, side };
     } else {
-      // Single tap → toggle controls
+      // Single tap → Delay toggleControls
       // Reset skipInfo jika ada (user tap sisi berbeda → batalkan combo)
       if (lastTapRef.current && lastTapRef.current.side !== side) {
         if (skipTimeoutRef.current) clearTimeout(skipTimeoutRef.current);
@@ -880,7 +882,12 @@ export default function PlayerScreen() {
           return null;
         });
       }
-      toggleControls();
+
+      if (singleTapTimeoutRef.current) clearTimeout(singleTapTimeoutRef.current);
+      singleTapTimeoutRef.current = setTimeout(() => {
+        toggleControls();
+      }, 250);
+
       lastTapRef.current = { time: now, side };
     }
   };
