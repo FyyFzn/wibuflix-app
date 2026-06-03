@@ -195,6 +195,28 @@ export default function PlayerWebView({
         }}
         onLoadEnd={() => setPlayerLoading(false)}
       />
+      {/* Tombol Darurat / Floating Menu saat terjebak di cross-origin iframe */}
+      {!showWebviewControls && !showMiniNav && (
+        <TouchableOpacity 
+          style={{
+            position: 'absolute',
+            top: isFullscreen ? Spacing.xl : Spacing.md,
+            left: isFullscreen ? Spacing.xl : Spacing.md,
+            padding: 8,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: 8,
+            zIndex: 9999
+          }}
+          onPress={() => {
+            setShowMiniNav(true);
+            if (miniNavTimeoutRef.current) clearTimeout(miniNavTimeoutRef.current);
+            miniNavTimeoutRef.current = setTimeout(() => setShowMiniNav(false), 4000);
+          }}
+        >
+          <Ionicons name="grid" size={24} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      )}
+
       {/* Mini Nav Controls (Applies to both modes) */}
       {!showWebviewControls && showMiniNav && (
         <>
