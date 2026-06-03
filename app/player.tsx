@@ -978,6 +978,7 @@ export default function PlayerScreen() {
             navigateEpisode={navigateEpisode} webviewControlsTimeoutRef={webviewControlsTimeoutRef}
             isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
             handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
+            playbackSpeed={playbackSpeed} setShowSpeedModal={setShowSpeedModal}
           />
         ) : !loading && error ? (
           <View style={styles.playerError}>

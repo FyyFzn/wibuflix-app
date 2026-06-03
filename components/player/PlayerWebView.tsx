@@ -31,6 +31,8 @@ interface PlayerWebViewProps {
   isSkipEDVisible: boolean;
   handleSkipOP: (e: any) => void;
   handleSkipED: (e: any) => void;
+  playbackSpeed: number;
+  setShowSpeedModal: (val: boolean) => void;
 }
 
 export default function PlayerWebView({
@@ -39,7 +41,8 @@ export default function PlayerWebView({
   setWebviewUrl, setCurrentPosition, setTotalDuration, lastKnownPositionRef,
   enterFullscreen, exitFullscreen, setPlayerLoading, handleUIBackPress,
   navPrev, navNext, navigateEpisode, webviewControlsTimeoutRef,
-  isSkipOPVisible, isSkipEDVisible, handleSkipOP, handleSkipED
+  isSkipOPVisible, isSkipEDVisible, handleSkipOP, handleSkipED,
+  playbackSpeed, setShowSpeedModal
 }: PlayerWebViewProps) {
   const [showMiniNav, setShowMiniNav] = useState(false);
   const miniNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,6 +112,26 @@ export default function PlayerWebView({
       }, 500);
     `;
   }
+
+  React.useEffect(() => {
+    if (webviewRef.current) {
+      webviewRef.current.injectJavaScript(`
+        try {
+          const v = document.querySelector('video');
+          if (v) v.playbackRate = ${playbackSpeed};
+          // Coba ubah di dalam iframe jika se-domain (tidak akan jalan untuk iframe lintas domain seperti Mirror 2 karena CORS)
+          const iframes = document.querySelectorAll('iframe');
+          for (const f of Array.from(iframes)) {
+             try {
+               const v2 = f.contentDocument && f.contentDocument.querySelector('video');
+               if (v2) v2.playbackRate = ${playbackSpeed};
+             } catch(e) {}
+          }
+        } catch(e) {}
+        true;
+      `);
+    }
+  }, [playbackSpeed]);
 
   const skipWebview = (amount: number) => {
     if (webviewRef.current) {
@@ -275,7 +298,12 @@ export default function PlayerWebView({
               <Ionicons name="play-forward" size={36} color={Colors.white} />
               <Text style={styles.wvCtrlText}>+10s</Text>
             </TouchableOpacity>
-            
+
+            <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); setShowSpeedModal(true); }}>
+              <Ionicons name="speedometer-outline" size={36} color={Colors.white} />
+              <Text style={styles.wvCtrlText}>{playbackSpeed}x</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.wvCtrlBtn} onPress={(e) => { e.stopPropagation(); navNext && navigateEpisode(navNext); }} disabled={!navNext}>
               <Text style={[styles.wvCtrlIcon, !navNext && styles.opacity30]}>⏭</Text>
             </TouchableOpacity>
