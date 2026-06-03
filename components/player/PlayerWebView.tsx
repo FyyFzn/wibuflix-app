@@ -65,7 +65,7 @@ export default function PlayerWebView({
       <WebView
         ref={webviewRef}
         source={
-          webviewUrl.toLowerCase().includes('wibufile')
+          webviewUrl.toLowerCase().includes('wibufile') || webviewUrl.toLowerCase().includes('acefile')
             ? {
                 html: `
                   <!DOCTYPE html>
