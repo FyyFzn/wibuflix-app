@@ -785,9 +785,9 @@ export default function PlayerScreen() {
   const handleSkipOP = (e: any) => {
     e.stopPropagation();
     if (playerMode === 'native' && player) {
-      player.currentTime = Math.min(totalDuration, (player.currentTime || 0) + 90);
+      player.currentTime = Math.min(totalDuration, (player.currentTime || 0) + 85);
     } else if (playerMode === 'webview') {
-      skipWebview(90);
+      skipWebview(85);
     }
   };
 
