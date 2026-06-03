@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Pressable, Animated } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,6 +50,19 @@ export default function PlayerNativeControls({
   navigateEpisode, formatDuration, controlsTimeoutRef, setControlsVisible,
   handleSkipOP, handleSkipED
 }: PlayerNativeControlsProps) {
+  // State untuk seek preview bubble
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekingValue, setSeekingValue] = useState(0);
+  const [seekBubbleLeft, setSeekBubbleLeft] = useState(0);
+  const sliderWidthRef = useRef(0);
+
+  const getSeekBubbleLeft = (val: number, max: number, sliderWidth: number) => {
+    const THUMB_RADIUS = 10;
+    const BUBBLE_WIDTH = 68;
+    const percent = max > 0 ? val / max : 0;
+    const rawLeft = percent * (sliderWidth - THUMB_RADIUS * 2) + THUMB_RADIUS - BUBBLE_WIDTH / 2;
+    return Math.max(0, Math.min(rawLeft, sliderWidth - BUBBLE_WIDTH));
+  };
   return (
     <Pressable 
       style={styles.touchOverlay} 
@@ -123,22 +136,45 @@ export default function PlayerNativeControls({
           {/* Bottom Bar */}
           <View style={styles.bottomBar}>
             <Text style={styles.timeText}>{formatDuration(currentPosition)}</Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={totalDuration || 1}
-              value={currentPosition}
-              onValueChange={() => {
-                if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-              }}
-              onSlidingComplete={(val) => { 
-                player.currentTime = val; 
-                controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 4000);
-              }}
-              minimumTrackTintColor={Colors.accent}
-              maximumTrackTintColor="rgba(255,255,255,0.3)"
-              thumbTintColor={Colors.accent}
-            />
+            <View
+              style={styles.sliderContainer}
+              onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
+            >
+              {/* Seek Preview Bubble */}
+              {isSeeking && (
+                <View
+                  style={[
+                    styles.seekBubble,
+                    { left: seekBubbleLeft }
+                  ]}
+                  pointerEvents="none"
+                >
+                  <Text style={styles.seekBubbleText}>{formatDuration(Math.round(seekingValue))}</Text>
+                </View>
+              )}
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={totalDuration || 1}
+                value={currentPosition}
+                onValueChange={(val) => {
+                  if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+                  setIsSeeking(true);
+                  setSeekingValue(val);
+                  setSeekBubbleLeft(
+                    getSeekBubbleLeft(val, totalDuration || 1, sliderWidthRef.current)
+                  );
+                }}
+                onSlidingComplete={(val) => {
+                  setIsSeeking(false);
+                  player.currentTime = val;
+                  controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 4000);
+                }}
+                minimumTrackTintColor={Colors.accent}
+                maximumTrackTintColor="rgba(255,255,255,0.3)"
+                thumbTintColor={Colors.accent}
+              />
+            </View>
             <Text style={styles.timeText}>{formatDuration(totalDuration)}</Text>
             
             <View style={styles.bottomRightGroup}>

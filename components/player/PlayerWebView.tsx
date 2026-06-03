@@ -87,11 +87,11 @@ export default function PlayerWebView({
         javaScriptEnabled={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
-        allowsFullscreenVideo={false}
+        allowsFullscreenVideo={true}
         setSupportMultipleWindows={false}
         injectedJavaScript={`
           const style = document.createElement('style');
-          style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; }';
+          style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; } html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; }';
           document.head.appendChild(style);
           ${injectedJS}
         `}
@@ -104,15 +104,9 @@ export default function PlayerWebView({
               setNativeVideoUrl(data.url);
               setPlayerMode('native');
             } else if (data.type === 'webviewClick') {
-              if (isFullscreen) {
-                setShowMiniNav(true);
-                if (miniNavTimeoutRef.current) clearTimeout(miniNavTimeoutRef.current);
-                miniNavTimeoutRef.current = setTimeout(() => setShowMiniNav(false), 4000);
-              } else {
-                setShowWebviewControls(true);
-                if (webviewControlsTimeoutRef.current) clearTimeout(webviewControlsTimeoutRef.current);
-                webviewControlsTimeoutRef.current = setTimeout(() => setShowWebviewControls(false), 4000);
-              }
+              setShowMiniNav(true);
+              if (miniNavTimeoutRef.current) clearTimeout(miniNavTimeoutRef.current);
+              miniNavTimeoutRef.current = setTimeout(() => setShowMiniNav(false), 4000);
             } else if (data.type === 'progress') {
               const t = Math.floor(data.currentTime);
               setCurrentPosition(t);
@@ -127,15 +121,15 @@ export default function PlayerWebView({
         }}
         onLoadEnd={() => setPlayerLoading(false)}
       />
-      {/* Mini Nav Controls (Only in Fullscreen) */}
-      {isFullscreen && !showWebviewControls && showMiniNav && (
+      {/* Mini Nav Controls (Applies to both modes) */}
+      {!showWebviewControls && showMiniNav && (
         <>
           <TouchableOpacity 
             style={styles.wvPermExitBtn} 
-            onPress={exitFullscreen}
+            onPress={isFullscreen ? exitFullscreen : handleUIBackPress}
           >
-            <Ionicons name="contract" size={24} color={Colors.white} />
-            <Text style={[styles.wvPermExitText, { marginLeft: 8, fontSize: 16 }]}>Keluar</Text>
+            <Ionicons name={isFullscreen ? "contract" : "arrow-back"} size={24} color={Colors.white} />
+            <Text style={[styles.wvPermExitText, { marginLeft: 8, fontSize: 16 }]}>{isFullscreen ? 'Keluar' : 'Kembali'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

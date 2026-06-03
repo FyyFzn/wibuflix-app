@@ -8,7 +8,7 @@ export const styles = StyleSheet.create({
   backText: { color: Colors.accent, fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   title: { flex: 1, fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.text },
   
-  playerWrapper: { width: '100%', backgroundColor: Colors.black, position: 'relative' },
+  playerWrapper: { width: '100%', backgroundColor: Colors.black, position: 'relative', overflow: 'hidden' },
   loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 10, gap: Spacing.md },
   overlayText: { color: Colors.textMuted, fontSize: FontSize.md },
   video: { width: '100%', height: '100%' },
@@ -60,7 +60,29 @@ export const styles = StyleSheet.create({
 
   bottomBar: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, backgroundColor: 'rgba(0,0,0,0.6)' },
   timeText: { color: Colors.white, fontSize: FontSize.xs, fontWeight: FontWeight.medium, width: 45, textAlign: 'center' },
-  slider: { flex: 1, marginHorizontal: Spacing.sm, height: 40 },
+
+  // Slider dengan seek bubble
+  sliderContainer: { flex: 1, position: 'relative', marginHorizontal: Spacing.sm, justifyContent: 'center' },
+  slider: { width: '100%', height: 40 },
+  seekBubble: {
+    position: 'absolute',
+    bottom: 44, // Di atas thumb (slider height 40 + gap 4)
+    minWidth: 68,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(20,20,20,0.92)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(230,57,70,0.5)',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+  },
+  seekBubbleText: { color: Colors.white, fontSize: FontSize.sm, fontWeight: FontWeight.bold, letterSpacing: 0.5 },
+
   bottomRightGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   smallNavBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   smallNavIcon: { color: Colors.white, fontSize: FontSize.lg, fontWeight: FontWeight.bold },

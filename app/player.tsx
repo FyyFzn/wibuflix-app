@@ -617,6 +617,16 @@ export default function PlayerScreen() {
         setPlayerLoading(false);
         return true;
       }
+
+      // Jika server WebView-only (wibufile, mega, gofile, dll) atau ekstraksi gagal:
+      // Langsung fallback ke WebView — jangan return false dan biarkan video tidak jalan.
+      // result.webviewOnly === true berarti backend sudah pasti tidak bisa ekstrak native URL.
+      if ((result as any).webviewOnly || !isAutoPlay) {
+        setPlayerMode('webview');
+        setWebviewUrl(iframeUrl);
+        setPlayerLoading(false);
+        return true;
+      }
     } catch {}
 
     if (isAutoPlay) return false;
@@ -816,37 +826,60 @@ export default function PlayerScreen() {
     const effectiveWidth = playerLayoutWidth || Dimensions.get('window').width;
     const side = locationX > effectiveWidth / 2 ? 'right' : 'left';
 
-    // Deteksi double tap atau rentetan ketukan (waktu diperpendek agar harus diketuk cepat)
-    if (lastTapRef.current && (now - lastTapRef.current.time < 250) && lastTapRef.current.side === side) {
+    // Cek apakah ini kelanjutan combo yang sedang berjalan (skipInfo aktif di sisi yang sama)
+    // ATAU double tap baru (tap dalam 250ms di sisi yang sama dengan lastTap)
+    const isComboTap = lastTapRef.current &&
+      (now - lastTapRef.current.time < 250) &&
+      lastTapRef.current.side === side;
+
+    if (isComboTap) {
       const addAmount = side === 'right' ? 10 : -10;
       
-      const isCurrentlyPlaying = player.playing;
-      if (isCurrentlyPlaying) {
+      // Pause hanya sekali saat combo BARU dimulai (bukan setiap tap tambahan)
+      // Cek lewat skipInfo: jika belum ada skipInfo berarti ini double tap pertama
+      setSkipInfo(prev => {
+        const isFirstDoubleTap = !prev || prev.side !== side;
+        if (isFirstDoubleTap && player.playing) {
           player.pause();
-      }
+        }
+        return {
+          side,
+          amount: prev && prev.side === side ? prev.amount + addAmount : addAmount,
+          wasPlaying: prev && prev.side === side ? prev.wasPlaying : player.playing
+        };
+      });
 
-      setSkipInfo(prev => ({
-        side,
-        amount: prev && prev.side === side ? prev.amount + addAmount : addAmount,
-        wasPlaying: prev ? prev.wasPlaying : isCurrentlyPlaying
-      }));
-
+      // Reset timeout eksekusi skip — diperpanjang setiap tap tambahan
       if (skipTimeoutRef.current) clearTimeout(skipTimeoutRef.current);
       skipTimeoutRef.current = setTimeout(() => {
         setSkipInfo(prev => {
           if (prev) {
             player.currentTime = Math.max(0, player.currentTime + prev.amount);
             if (prev.wasPlaying) {
-                player.play();
+              player.play();
             }
           }
           return null;
         });
-      }, 500); // Waktu eksekusi diperpendek dari 800ms menjadi 500ms
+      }, 500);
 
+      // JANGAN update lastTapRef saat accumulating combo —
+      // biarkan window 250ms dihitung dari tap terakhir yang valid
       lastTapRef.current = { time: now, side };
     } else {
-      // Single tap -> toggle controls
+      // Single tap → toggle controls
+      // Reset skipInfo jika ada (user tap sisi berbeda → batalkan combo)
+      if (lastTapRef.current && lastTapRef.current.side !== side) {
+        if (skipTimeoutRef.current) clearTimeout(skipTimeoutRef.current);
+        setSkipInfo(prev => {
+          if (prev) {
+            // Eksekusi skip yang sudah terkumpul sebelum batal
+            player.currentTime = Math.max(0, player.currentTime + prev.amount);
+            if (prev.wasPlaying) player.play();
+          }
+          return null;
+        });
+      }
       toggleControls();
       lastTapRef.current = { time: now, side };
     }
@@ -864,7 +897,11 @@ export default function PlayerScreen() {
   }, [isPlaying]);
 
   const { width: screenWidth } = useWindowDimensions();
-  const playerWrapperStyle = isFullscreen ? { flex: 1 } : { height: (screenWidth * 9) / 16 };
+  // Saat fullscreen: lepas dari flow SafeAreaView dengan absoluteFillObject + zIndex tinggi
+  // agar tidak terkena efek safe area inset saat orientasi berubah
+  const playerWrapperStyle = isFullscreen
+    ? { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#000' }
+    : { height: (screenWidth * 9) / 16 };
 
   const getResName = (nama: string) => {
     const p = nama.split('·');
@@ -872,9 +909,14 @@ export default function PlayerScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={isFullscreen ? [] : ['top']}>
-      {isFullscreen && <StatusBar hidden />}
-      
+    <>
+      {/* StatusBar di luar SafeAreaView agar tidak ada race condition dengan SafeArea re-calculation */}
+      <StatusBar
+        hidden={isFullscreen}
+        translucent
+        backgroundColor="transparent"
+      />
+      <SafeAreaView style={styles.container} edges={isFullscreen ? [] : ['top']}>
       {!isFullscreen && (
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={handleUIBackPress}>
@@ -977,5 +1019,6 @@ export default function PlayerScreen() {
       />
 
     </SafeAreaView>
+    </>
   );
 }
