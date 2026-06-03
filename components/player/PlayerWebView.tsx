@@ -76,7 +76,7 @@ export default function PlayerWebView({
               }
             }
           }
-          // Jika video sedang berjalan, paksa video untuk menutupi seluruh layar (menutupi tombol Mirror dll)
+          // Jika video (Default server) sedang berjalan, paksa fullscreen
           const v = document.querySelector('video');
           if (v && v.currentTime > 0) {
             v.style.position = 'fixed';
@@ -87,6 +87,23 @@ export default function PlayerWebView({
             v.style.zIndex = '2147483647';
             v.style.background = 'black';
             v.style.objectFit = 'contain';
+          }
+          // Jika menggunakan Mirror 2 (muncul iframe player baru), paksa iframe tersebut fullscreen
+          const iframes = Array.from(document.querySelectorAll('iframe'));
+          for (const frame of iframes) {
+             const h = frame.getAttribute('height');
+             const w = frame.getAttribute('width');
+             // Abaikan iframe tracking/invisible
+             if (h !== '1' && w !== '1' && frame.style.visibility !== 'hidden' && frame.style.display !== 'none') {
+                frame.style.position = 'fixed';
+                frame.style.top = '0px';
+                frame.style.left = '0px';
+                frame.style.width = '100vw';
+                frame.style.height = '100vh';
+                frame.style.zIndex = '2147483646';
+                frame.style.background = 'black';
+                frame.style.border = 'none';
+             }
           }
         } catch(e){}
       }, 500);
