@@ -90,7 +90,7 @@ export default function PlayerNativeControls({
         >
            <View style={styles.skipBubble}>
              <Ionicons name={skipInfo.side === 'left' ? 'play-back' : 'play-forward'} size={32} color={Colors.white} />
-             <Text style={styles.skipText}>{skipInfo.amount > 0 ? '+' : ''}{skipInfo.amount}s</Text>
+             <Text style={styles.skipText}>{skipInfo.amount > 0 ? `+${skipInfo.amount}` : `${skipInfo.amount}`} detik</Text>
            </View>
         </Animated.View>
       )}
