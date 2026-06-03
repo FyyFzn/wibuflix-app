@@ -60,17 +60,19 @@ export default function PlayerWebView({
     `;
   }
 
-  if (webviewUrl.includes('acefile')) {
+  if (webviewUrl.includes('acefile') || webviewUrl.includes('filedon') || webviewUrl.includes('pucuk')) {
     injectedJS += `
       setInterval(() => {
         try {
-          // Hapus popup "Klik Disini" dan Copyright
-          const texts = Array.from(document.querySelectorAll('div, span, a, p'));
-          for (const el of texts) {
-            if (el.innerText && (el.innerText.includes('untuk menyalin dan memutar') || el.innerText.includes('Copyright ©') || el.innerText.includes('login terlebih dahulu'))) {
-              if (!el.querySelector('video') && !el.querySelector('iframe')) {
-                el.style.display = 'none';
-                el.style.pointerEvents = 'none';
+          // Hapus popup "Klik Disini" dan Copyright (khusus acefile)
+          if (window.location.href.includes('acefile')) {
+            const texts = Array.from(document.querySelectorAll('div, span, a, p'));
+            for (const el of texts) {
+              if (el.innerText && (el.innerText.includes('untuk menyalin dan memutar') || el.innerText.includes('Copyright ©') || el.innerText.includes('login terlebih dahulu'))) {
+                if (!el.querySelector('video') && !el.querySelector('iframe')) {
+                  el.style.display = 'none';
+                  el.style.pointerEvents = 'none';
+                }
               }
             }
           }
