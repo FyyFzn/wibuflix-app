@@ -44,6 +44,53 @@ export default function PlayerWebView({
   const [showMiniNav, setShowMiniNav] = useState(false);
   const miniNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  if (webviewUrl.includes('vidhide')) {
+    injectedJS += `
+      setInterval(() => {
+        try {
+          const overlays = document.querySelectorAll('div, iframe');
+          overlays.forEach(o => {
+             const z = window.getComputedStyle(o).zIndex;
+             if (z && !isNaN(z) && parseInt(z) > 1000 && o.id !== 'vjs_video_3') {
+                o.style.display = 'none';
+             }
+          });
+        } catch(e){}
+      }, 1000);
+    `;
+  }
+
+  if (webviewUrl.includes('acefile')) {
+    injectedJS += `
+      setInterval(() => {
+        try {
+          // Hapus popup "Klik Disini" dan Copyright
+          const texts = Array.from(document.querySelectorAll('div, span, a, p'));
+          for (const el of texts) {
+            if (el.innerText && (el.innerText.includes('untuk menyalin dan memutar') || el.innerText.includes('Copyright ©') || el.innerText.includes('login terlebih dahulu'))) {
+              if (!el.querySelector('video') && !el.querySelector('iframe')) {
+                el.style.display = 'none';
+                el.style.pointerEvents = 'none';
+              }
+            }
+          }
+          // Jika video sedang berjalan, paksa video untuk menutupi seluruh layar (menutupi tombol Mirror dll)
+          const v = document.querySelector('video');
+          if (v && v.currentTime > 0) {
+            v.style.position = 'fixed';
+            v.style.top = '0px';
+            v.style.left = '0px';
+            v.style.width = '100vw';
+            v.style.height = '100vh';
+            v.style.zIndex = '2147483647';
+            v.style.background = 'black';
+            v.style.objectFit = 'contain';
+          }
+        } catch(e){}
+      }, 500);
+    `;
+  }
+
   const skipWebview = (amount: number) => {
     if (webviewRef.current) {
       webviewRef.current.injectJavaScript(`
