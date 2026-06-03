@@ -117,6 +117,9 @@ export default function PlayerWebView({
     if (webviewRef.current) {
       webviewRef.current.injectJavaScript(`
         try {
+          if (typeof jwplayer === 'function' && jwplayer().setPlaybackRate) {
+            jwplayer().setPlaybackRate(${playbackSpeed});
+          }
           const v = document.querySelector('video');
           if (v) v.playbackRate = ${playbackSpeed};
           // Coba ubah di dalam iframe jika se-domain (tidak akan jalan untuk iframe lintas domain seperti Mirror 2 karena CORS)
@@ -137,9 +140,13 @@ export default function PlayerWebView({
     if (webviewRef.current) {
       webviewRef.current.injectJavaScript(`
         try {
-          const v = document.querySelector('video');
-          if (v) {
-            v.currentTime = Math.max(0, v.currentTime + (${amount}));
+          if (typeof jwplayer === 'function' && jwplayer().seek && jwplayer().getPosition) {
+            jwplayer().seek(jwplayer().getPosition() + (${amount}));
+          } else {
+            const v = document.querySelector('video');
+            if (v) {
+              v.currentTime = Math.max(0, v.currentTime + (${amount}));
+            }
           }
         } catch(e){}
         true;
