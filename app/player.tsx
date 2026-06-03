@@ -821,11 +821,12 @@ export default function PlayerScreen() {
   };
   const handleVideoTap = (evt: any) => {
     const now = Date.now();
-    const { locationX } = evt.nativeEvent;
+    const { pageX } = evt.nativeEvent;
     
-    // Gunakan playerLayoutWidth agar akurat di mode landscape maupun portrait
-    const effectiveWidth = playerLayoutWidth || Dimensions.get('window').width;
-    const side = locationX > effectiveWidth / 2 ? 'right' : 'left';
+    // Gunakan pageX (koordinat absolut layar) agar selalu akurat mendeteksi separuh layar
+    // Tidak terpengaruh jika tap mengenai elemen child di dalam overlay
+    const screenWidth = Dimensions.get('window').width;
+    const side = pageX > screenWidth / 2 ? 'right' : 'left';
 
     // Cek apakah ini kelanjutan combo yang sedang berjalan (skipInfo aktif di sisi yang sama)
     // ATAU double tap baru (tap dalam 250ms di sisi yang sama dengan lastTap)
