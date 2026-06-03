@@ -91,7 +91,7 @@ export default function PlayerWebView({
         setSupportMultipleWindows={false}
         injectedJavaScript={`
           const style = document.createElement('style');
-          style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; } html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; }';
+          style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; } html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; } #kelik, #btmx, #dloadmen { display: none !important; pointer-events: none !important; }';
           document.head.appendChild(style);
           const meta = document.createElement('meta');
           meta.name = 'viewport';
