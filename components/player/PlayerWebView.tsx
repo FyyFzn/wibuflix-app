@@ -65,7 +65,7 @@ export default function PlayerWebView({
       <WebView
         ref={webviewRef}
         source={
-          webviewUrl.toLowerCase().includes('wibufile') || webviewUrl.toLowerCase().includes('acefile')
+          webviewUrl.toLowerCase().includes('wibufile')
             ? {
                 html: `
                   <!DOCTYPE html>
@@ -93,6 +93,14 @@ export default function PlayerWebView({
           const style = document.createElement('style');
           style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; } html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; }';
           document.head.appendChild(style);
+          const meta = document.createElement('meta');
+          meta.name = 'viewport';
+          meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+          document.head.appendChild(meta);
+          window.addEventListener('resize', () => {
+            document.body.style.height = window.innerHeight + 'px';
+            document.body.style.width = window.innerWidth + 'px';
+          });
           ${injectedJS}
         `}
         onMessage={(event) => {
