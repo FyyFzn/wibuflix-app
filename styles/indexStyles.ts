@@ -170,4 +170,31 @@ export const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.accent,
   },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    gap: Spacing.md,
+  },
+  tabBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tabBtnActive: {
+    backgroundColor: 'rgba(229, 9, 20, 0.1)',
+    borderColor: Colors.accent,
+  },
+  tabBtnText: {
+    color: Colors.textMuted,
+    fontWeight: FontWeight.bold,
+    fontSize: FontSize.sm,
+  },
+  tabBtnTextActive: {
+    color: Colors.accent,
+  },
 });

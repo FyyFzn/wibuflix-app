@@ -34,6 +34,7 @@ export default function KatalogScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'anime' | 'toku'>('anime');
 
   // New states for Features
   const [historyList, setHistoryList] = useState<WatchHistoryItem[]>([]);
@@ -45,12 +46,12 @@ export default function KatalogScreen() {
     }, [])
   );
 
-  const loadKatalog = useCallback(async (page: number, search: string, isRefresh = false) => {
+  const loadKatalog = useCallback(async (page: number, search: string, tab: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
 
     try {
-      const json = await fetchKatalog(page, search);
+      const json = await fetchKatalog(page, search, tab);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       setAnimeList(json.data.list || []);
@@ -72,17 +73,24 @@ export default function KatalogScreen() {
   }, []);
 
   useEffect(() => {
-    loadKatalog(currentPage, searchQuery);
-  }, [currentPage, searchQuery, loadKatalog]);
+    loadKatalog(currentPage, searchQuery, activeTab);
+  }, [currentPage, searchQuery, activeTab, loadKatalog]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
   };
 
+  const handleTabChange = (tab: 'anime' | 'toku') => {
+    if (activeTab === tab) return;
+    setActiveTab(tab);
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
-    loadKatalog(currentPage, searchQuery, true);
+    loadKatalog(currentPage, searchQuery, activeTab, true);
   };
 
   const handleAnimePress = (item: AnimeItem) => {
@@ -178,7 +186,7 @@ export default function KatalogScreen() {
 
       {/* Catalog Header */}
       <View style={[styles.catalogHeader, (historyList.length > 0 || hotAnime.length > 0) && !searchQuery && { marginTop: Spacing.lg }]}>
-        <Text style={styles.sectionTitle}>{searchQuery ? 'HASIL PENCARIAN' : 'ANIME TERBARU'}</Text>
+        <Text style={styles.sectionTitle}>{searchQuery ? 'HASIL PENCARIAN' : 'PERPUSTAKAAN'}</Text>
       </View>
     </View>
   );
@@ -187,7 +195,7 @@ export default function KatalogScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => { setSearchQuery(''); setCurrentPage(1); }}>
+        <TouchableOpacity onPress={() => { setSearchQuery(''); setCurrentPage(1); setActiveTab('anime'); }}>
           <Text style={styles.logoText}>
             WIBU<Text style={styles.logoAccent}>FLIX</Text>
           </Text>
@@ -203,10 +211,24 @@ export default function KatalogScreen() {
 
       <View style={styles.headerLine} />
 
-      <View style={styles.headerLine} />
-
       <View style={styles.searchWrapper}>
         <SearchBar onSearch={handleSearch} />
+      </View>
+      
+      {/* Tabs */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity 
+          style={[styles.tabBtn, activeTab === 'anime' && styles.tabBtnActive]} 
+          onPress={() => handleTabChange('anime')}
+        >
+          <Text style={[styles.tabBtnText, activeTab === 'anime' && styles.tabBtnTextActive]}>Anime</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tabBtn, activeTab === 'toku' && styles.tabBtnActive]} 
+          onPress={() => handleTabChange('toku')}
+        >
+          <Text style={[styles.tabBtnText, activeTab === 'toku' && styles.tabBtnTextActive]}>Tokusatsu</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -217,7 +239,7 @@ export default function KatalogScreen() {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={() => loadKatalog(currentPage, searchQuery)}
+            onPress={() => loadKatalog(currentPage, searchQuery, activeTab)}
           >
             <Text style={styles.retryText}>Coba Lagi</Text>
           </TouchableOpacity>
