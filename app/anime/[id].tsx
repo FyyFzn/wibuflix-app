@@ -131,7 +131,7 @@ export default function AnimeDetailScreen() {
     <FlatList
       style={styles.container}
       data={filteredEpisodes}
-      keyExtractor={(item, index) => item.url + index}
+      keyExtractor={(item, index) => (item.url ? item.url.toString() : '') + index.toString()}
       renderItem={({ item }) => (
         <EpisodeItem
           judul={item.judul}
