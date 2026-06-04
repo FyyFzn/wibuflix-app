@@ -162,6 +162,7 @@ export default function PlayerScreen() {
   const isBlogger = activeHost.toLowerCase().includes('blog');
 
   const isVidhide = activeHost.toLowerCase().includes('vidhide') || activeHost.toLowerCase().includes('vidlion');
+  const isGdrive = activeHost.toLowerCase().includes('drive') || activeHost.toLowerCase().includes('gdrive');
 
   let injectedJS = `
     window.open = function() { return null; };
@@ -182,13 +183,13 @@ export default function PlayerScreen() {
     });
   `;
 
-  if (isBlogger) {
+  if (isBlogger || isGdrive) {
     injectedJS += `
       let extracted = false;
       setInterval(() => {
         if(extracted) return;
         try {
-          const playBtn = document.querySelector('.ytp-large-play-button, .play-button, button, [role="button"]');
+          const playBtn = document.querySelector('.ytp-large-play-button, .play-button, button, .ndfHFb-c4YZDc-Wrql6b, [role="button"]');
           if (playBtn) playBtn.click();
           
           const v = document.querySelector('video');
@@ -218,7 +219,7 @@ export default function PlayerScreen() {
   }
 
   // Universal Video Auto-Play & Progress Resume for ALL WebView Servers
-  if (!isBlogger) {
+  if (!isBlogger && !isGdrive) {
     injectedJS += `
       console.log('[InjectedJS] savedProgress=${savedProgress}');
       setInterval(() => {

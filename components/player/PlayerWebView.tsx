@@ -203,7 +203,7 @@ export default function PlayerWebView({
           try {
             const data = JSON.parse(event.nativeEvent.data);
             if (data.type === 'videoUrl') {
-              if (!isBlogger) return;
+              if (!isBlogger && !webviewUrl.includes('drive.google.com')) return;
               setWebviewUrl('');
               setNativeVideoUrl(data.url);
               setPlayerMode('native');
