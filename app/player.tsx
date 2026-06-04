@@ -371,10 +371,14 @@ export default function PlayerScreen() {
     if (params.url) {
       setRestoredVideoUrl('');
       setSavedProgress(0);
-      getProgress(params.url).then(saved => {
+      let realUrl = params.url as string;
+      if (realUrl.includes('___HASH_NEOSATSU___')) {
+        realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
+      }
+      getProgress(realUrl).then(saved => {
          if (saved && saved.progress > 5) setSavedProgress(saved.progress);
       });
-      loadEpisode(params.url);
+      loadEpisode(realUrl);
     }
     return () => {
       isMounted.current = false;
@@ -736,14 +740,22 @@ export default function PlayerScreen() {
   const navigateEpisode = (url: string) => {
     setShowEpisodesModal(false);
     saveCurrentProgress();
+    isMounted.current = false;
     stopAllMedia();
+    if (abortControllerRef.current) abortControllerRef.current.abort();
 
-    // Gunakan router.replace agar episode sebelumnya tidak menumpuk (overlapping)
-    // Teruskan status fullscreen agar layar tidak berputar balik ke portrait
+    // HACK: expo-router memotong bagian URL setelah '#' (menganggapnya fragment).
+    // Karena API Azure mungkin masih mengirim '#neosatsu_ep_', kita harus mencegah pemotongan ini
+    // dengan mengubahnya ke string aman sebelum masuk ke router.
+    let safeUrl = url;
+    if (safeUrl.includes('#neosatsu_ep_')) {
+      safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
+    }
+
     router.replace({
       pathname: '/player',
       params: { 
-        url, 
+        url: safeUrl, 
         gambar: params.gambar, 
         seriUrl: params.seriUrl, 
         judul: '',
