@@ -185,6 +185,7 @@ export default function PlayerWebView({
         mediaPlaybackRequiresUserAction={false}
         allowsFullscreenVideo={false}
         setSupportMultipleWindows={false}
+        userAgent={webviewUrl.includes('drive.google.com') ? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' : undefined}
         injectedJavaScript={`
           const style = document.createElement('style');
           style.innerHTML = '.vjs-fullscreen-control, .jw-icon-fullscreen, .plyr__control[data-plyr="fullscreen"], .fp-fullscreen { display: none !important; } html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; } #kelik, #btmx, #dloadmen { display: none !important; pointer-events: none !important; }';
