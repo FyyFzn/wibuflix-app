@@ -14,7 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../styles/theme';
+import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import {
   getRiwayat,
   hapusRiwayat,
@@ -22,7 +22,7 @@ import {
   formatWaktuYangLalu,
   formatDuration,
   WatchHistoryItem,
-} from '../services/storage';
+} from '../../services/storage';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const NUM_COLUMNS = SCREEN_WIDTH > 600 ? 4 : 3;

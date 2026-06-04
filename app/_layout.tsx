@@ -30,9 +30,8 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen
-          name="index"
+          name="(tabs)"
           options={{
-            headerTitle: () => null,
             headerShown: false,
           }}
         />
@@ -48,13 +47,6 @@ export default function RootLayout() {
           options={{
             headerTitle: 'Player',
             headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="history"
-          options={{
-            headerTitle: 'Riwayat Tontonan',
-            headerBackTitle: 'Kembali',
           }}
         />
       </Stack>
