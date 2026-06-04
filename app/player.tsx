@@ -589,7 +589,7 @@ export default function PlayerScreen() {
     }
 
     const serverLower = serverName.toLowerCase();
-    const isBypassWebView = ['mega', 'bstation', 'bilibili', 'pucuk', 'filedon', 'gdrive'].some(n => serverLower.includes(n));
+    const isBypassWebView = ['mega', 'bstation', 'bilibili', 'pucuk', 'filedon'].some(n => serverLower.includes(n));
     if (isBypassWebView) {
       setPlayerMode('webview');
       setWebviewUrl(iframeUrl);
