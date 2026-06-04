@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import {
   getRiwayat,
@@ -117,9 +118,11 @@ export default function HistoryScreen() {
           />
 
           {/* Episode badge */}
-          <View style={styles.epBadge}>
-            <Text style={styles.epBadgeText}>Eps {item.nomorEp}</Text>
-          </View>
+          {item.nomorEp ? (
+            <View style={styles.epBadge}>
+              <Text style={styles.epBadgeText}>Eps {item.nomorEp}</Text>
+            </View>
+          ) : null}
 
           {/* Progress bar overlay */}
           {progressPercent > 0 && (
@@ -147,7 +150,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header actions */}
       {history.length > 0 && (
         <View style={styles.headerActions}>
@@ -181,7 +184,7 @@ export default function HistoryScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

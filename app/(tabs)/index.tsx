@@ -8,27 +8,27 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '../../styles/theme';
 import { fetchKatalog, fetchHotAnime, AnimeItem } from '../../services/api';
-import { getRiwayat, WatchHistoryItem } from '../../services/storage';
 import AnimeCard from '../../components/AnimeCard';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import SearchBar from '../../components/SearchBar';
+import CatalogView from '../../components/CatalogView';
 
 export default function BerandaScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  const [historyList, setHistoryList] = useState<WatchHistoryItem[]>([]);
   const [hotAnime, setHotAnime] = useState<AnimeItem[]>([]);
   const [latestAnime, setLatestAnime] = useState<AnimeItem[]>([]);
   const [latestToku, setLatestToku] = useState<AnimeItem[]>([]);
   const [randomAnime, setRandomAnime] = useState<AnimeItem[]>([]);
-  const [recommendations, setRecommendations] = useState<AnimeItem[]>([]);
-  const [recommendationTitle, setRecommendationTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Shuffle array utility
   const shuffle = (array: any[]) => array.sort(() => 0.5 - Math.random());
@@ -37,34 +37,26 @@ export default function BerandaScreen() {
     if (!isRefresh) setLoading(true);
     
     try {
-      // 1. History
-      const history = await getRiwayat();
-      setHistoryList(history.slice(0, 10));
+      const randomAnimePage = Math.floor(Math.random() * 20) + 1;
+      const randomTokuPage = Math.floor(Math.random() * 2) + 1;
 
-      // 2. Fetch all other sections in parallel
-      const randomPage = Math.floor(Math.random() * 10) + 1;
-      const recPage = Math.floor(Math.random() * 5) + 1;
-      const isLastWatchedToku = history.length > 0 && history[0].url.includes('neosatsu');
-
-      if (history.length > 0) {
-        setRecommendationTitle(`Karena kamu menonton ${history[0].judulSeri}`);
-      } else {
-        setRecommendationTitle(`Rekomendasi Spesial Buatmu`);
-      }
-
-      const [hotRes, latestAnimeRes, latestTokuRes, randomRes, recRes] = await Promise.allSettled([
+      const [hotRes, latestAnimeRes, latestTokuRes, randomAnimeRes, randomTokuRes] = await Promise.allSettled([
         fetchHotAnime(),
         fetchKatalog(1, '', 'anime'),
         fetchKatalog(1, '', 'toku'),
-        fetchKatalog(randomPage, '', 'anime'),
-        fetchKatalog(recPage, '', isLastWatchedToku ? 'toku' : 'anime'),
+        fetchKatalog(randomAnimePage, '', 'anime'),
+        fetchKatalog(randomTokuPage, '', 'toku'),
       ]);
 
       if (hotRes.status === 'fulfilled') setHotAnime(hotRes.value.data.list || []);
       if (latestAnimeRes.status === 'fulfilled') setLatestAnime(latestAnimeRes.value.data.list || []);
       if (latestTokuRes.status === 'fulfilled') setLatestToku(latestTokuRes.value.data.list || []);
-      if (randomRes.status === 'fulfilled') setRandomAnime(shuffle(randomRes.value.data.list || []).slice(0, 10));
-      if (recRes.status === 'fulfilled') setRecommendations(shuffle(recRes.value.data.list || []).slice(0, 10));
+      
+      let randomMixed: AnimeItem[] = [];
+      if (randomAnimeRes.status === 'fulfilled') randomMixed = [...randomMixed, ...(randomAnimeRes.value.data.list || [])];
+      if (randomTokuRes.status === 'fulfilled') randomMixed = [...randomMixed, ...(randomTokuRes.value.data.list || [])];
+      
+      setRandomAnime(shuffle(randomMixed).slice(0, 10));
 
     } catch (e) {
       console.error(e);
@@ -74,18 +66,20 @@ export default function BerandaScreen() {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      // Update history when screen is focused
-      getRiwayat().then(history => {
-         setHistoryList(history.slice(0, 10));
-      });
-    }, [])
-  );
-
   useEffect(() => {
     loadData();
   }, []);
+
+  // Listen to tab press to clear search
+  useEffect(() => {
+    const unsubscribe = (navigation as any).addListener('tabPress', (e: any) => {
+      // If we are currently searching, clear the search and return to normal view
+      if (searchQuery) {
+        setSearchQuery('');
+      }
+    });
+    return unsubscribe;
+  }, [navigation, searchQuery]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -104,31 +98,6 @@ export default function BerandaScreen() {
     });
   };
 
-  const renderHistoryItem = ({ item }: { item: WatchHistoryItem }) => {
-    const progressPercent = item.duration > 0 ? Math.min(100, (item.progress / item.duration) * 100) : 0;
-    return (
-      <TouchableOpacity
-        style={styles.historyCard}
-        activeOpacity={0.7}
-        onPress={() => router.push({
-          pathname: '/player',
-          params: { url: encodeURIComponent(item.url), title: encodeURIComponent(item.judulSeri + ' - ' + item.nomorEp) }
-        })}
-      >
-        <View style={styles.historyThumbContainer}>
-          <AnimeCard gambar={item.gambar} judul="" onPress={() => {}} customStyle={{ width: 140, height: 80, marginBottom: 0 }} hideTitle />
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-          </View>
-          <View style={styles.historyOverlay}>
-            <Text style={styles.historyEpText}>Eps {item.nomorEp}</Text>
-          </View>
-        </View>
-        <Text style={styles.historyTitle} numberOfLines={1}>{item.judulSeri}</Text>
-      </TouchableOpacity>
-    );
-  };
-
   const renderHorizontalItem = ({ item }: { item: AnimeItem }) => (
     <View style={{ width: 140, marginRight: Spacing.sm }}>
       <AnimeCard
@@ -138,6 +107,20 @@ export default function BerandaScreen() {
         skor={item.skor}
         status={item.status}
         onPress={() => handleAnimePress(item)}
+        customStyle={{ width: '100%', marginBottom: 0 }}
+      />
+    </View>
+  );
+
+  const renderHotItem = ({ item }: { item: AnimeItem }) => (
+    <View style={{ width: 140, marginRight: Spacing.sm }}>
+      <AnimeCard
+        judul={item.judul}
+        gambar={item.gambar}
+        tipe={item.tipe}
+        skor={item.skor}
+        onPress={() => handleAnimePress(item)}
+        customStyle={{ width: '100%', marginBottom: 0 }}
       />
     </View>
   );
@@ -173,7 +156,24 @@ export default function BerandaScreen() {
       </View>
       <View style={styles.headerLine} />
 
-      <ScrollView 
+      <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
+        <SearchBar onSearch={setSearchQuery} />
+      </View>
+
+      {searchQuery ? (
+        <View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ color: Colors.text, fontSize: 16, fontWeight: '600' }}>
+              Hasil pencarian: <Text style={{ color: Colors.accent }}>"{searchQuery}"</Text>
+            </Text>
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Tutup (X)</Text>
+            </TouchableOpacity>
+          </View>
+          <CatalogView category="all" externalSearchQuery={searchQuery} hideSearchBar={true} onClearSearch={() => setSearchQuery('')} />
+        </View>
+      ) : (
+        <ScrollView 
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -185,14 +185,13 @@ export default function BerandaScreen() {
           />
         }
       >
-        {renderSection("LANJUTKAN MENONTON", historyList, renderHistoryItem)}
-        {renderSection(recommendationTitle.toUpperCase(), recommendations, renderHorizontalItem)}
-        {renderSection("SEDANG HANGAT 🔥", hotAnime, renderHorizontalItem)}
+        {renderSection("SEDANG HANGAT 🔥", hotAnime, renderHotItem)}
         {renderSection("KEJUTAN ACAK BUATMU 🎲", randomAnime, renderHorizontalItem)}
         {renderSection("ANIME TERBARU", latestAnime, renderHorizontalItem)}
         {renderSection("TOKUSATSU TERBARU", latestToku, renderHorizontalItem)}
         <View style={{ height: 40 }} />
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

@@ -22,7 +22,11 @@ export default function SearchBar({
   const [query, setQuery] = useState(initialValue);
 
   const handleSubmit = () => {
-    onSearch(query.trim());
+    const trimmed = query.trim();
+    if (trimmed) {
+      onSearch(trimmed);
+      setQuery('');
+    }
   };
 
   return (

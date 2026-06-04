@@ -8,7 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { styles } from '../styles/indexStyles';
 import { Colors, Spacing } from '../styles/theme';
 import { fetchKatalog, AnimeItem } from '../services/api';
@@ -20,11 +20,15 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const NUM_COLUMNS = SCREEN_WIDTH > 600 ? 4 : 3;
 
 interface CatalogViewProps {
-  category: 'anime' | 'toku';
+  category: 'anime' | 'toku' | 'all';
+  externalSearchQuery?: string;
+  hideSearchBar?: boolean;
+  onClearSearch?: () => void;
 }
 
-export default function CatalogView({ category }: CatalogViewProps) {
+export default function CatalogView({ category, externalSearchQuery, hideSearchBar, onClearSearch }: CatalogViewProps) {
   const router = useRouter();
+  const navigation = useNavigation();
   const [animeList, setAnimeList] = useState<AnimeItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +59,23 @@ export default function CatalogView({ category }: CatalogViewProps) {
   useEffect(() => {
     loadKatalog(currentPage, searchQuery);
   }, [currentPage, searchQuery, loadKatalog]);
+
+  useEffect(() => {
+    if (externalSearchQuery !== undefined) {
+      setSearchQuery(externalSearchQuery);
+      setCurrentPage(1);
+    }
+  }, [externalSearchQuery]);
+
+  useEffect(() => {
+    const unsubscribe = (navigation as any).addListener('tabPress', (e: any) => {
+      if (searchQuery) {
+        setSearchQuery('');
+        if (onClearSearch) onClearSearch();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, searchQuery, onClearSearch]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -91,14 +112,27 @@ export default function CatalogView({ category }: CatalogViewProps) {
 
   return (
     <View style={localStyles.container}>
-      <View style={styles.searchWrapper}>
-        <SearchBar onSearch={handleSearch} />
-      </View>
+      {!hideSearchBar && (
+        <View style={styles.searchWrapper}>
+          <SearchBar onSearch={handleSearch} />
+        </View>
+      )}
 
-      {/* Catalog Header */}
-      <View style={[styles.catalogHeader, { marginTop: Spacing.sm }]}>
-        <Text style={styles.sectionTitle}>{searchQuery ? 'HASIL PENCARIAN' : 'PERPUSTAKAAN'}</Text>
-      </View>
+      {/* Catalog Header or Search Result Info */}
+      {searchQuery && !hideSearchBar ? (
+        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: Colors.text, fontSize: 16, fontWeight: '600' }}>
+            Hasil pencarian: <Text style={{ color: Colors.accent }}>"{searchQuery}"</Text>
+          </Text>
+          <TouchableOpacity onPress={() => { setSearchQuery(''); if (onClearSearch) onClearSearch(); }}>
+            <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Tutup (X)</Text>
+          </TouchableOpacity>
+        </View>
+      ) : !hideSearchBar ? (
+        <View style={[styles.catalogHeader, { marginTop: Spacing.sm }]}>
+          <Text style={styles.sectionTitle}>PERPUSTAKAAN</Text>
+        </View>
+      ) : null}
 
       {loading && !refreshing ? (
         <LoadingOverlay message="Memuat daftar..." />
