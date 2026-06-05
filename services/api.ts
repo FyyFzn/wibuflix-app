@@ -151,10 +151,11 @@ async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 36
   return json;
 }
 
-export async function fetchKatalog(page = 1, search = '', tab = 'anime', signal?: AbortSignal): Promise<KatalogResponse> {
+export async function fetchKatalog(page = 1, search = '', tab = 'anime', typeFilter = '', signal?: AbortSignal): Promise<KatalogResponse> {
   let url = `${API.katalog}?page=${page}&tab=${tab}`;
   if (search) url += `&s=${encodeURIComponent(search)}`;
-  const cacheKey = `katalog_${page}_${search}_${tab}`;
+  if (typeFilter && typeFilter !== 'Semua') url += `&typeFilter=${encodeURIComponent(typeFilter)}`;
+  const cacheKey = `katalog_${page}_${search}_${tab}_${typeFilter}`;
   return fetchWithCache<KatalogResponse>(url, cacheKey, 3600000, signal); // Cache 1 jam
 }
 

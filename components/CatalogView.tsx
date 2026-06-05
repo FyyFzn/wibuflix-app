@@ -7,6 +7,7 @@ import {
   Dimensions,
   RefreshControl,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { styles } from '../styles/indexStyles';
@@ -36,13 +37,18 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState('Semua');
 
-  const loadKatalog = useCallback(async (page: number, search: string, isRefresh = false) => {
+  const filterOptions = category === 'toku' 
+    ? ['Semua', 'Series', 'Movie', 'Special', 'V-Cinema']
+    : ['Semua', 'TV', 'Movie', 'OVA', 'ONA', 'Special'];
+
+  const loadKatalog = useCallback(async (page: number, search: string, filter: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
 
     try {
-      const json = await fetchKatalog(page, search, category);
+      const json = await fetchKatalog(page, search, category, filter);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       setAnimeList(json.data.list || []);
@@ -57,8 +63,8 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   }, [category]);
 
   useEffect(() => {
-    loadKatalog(currentPage, searchQuery);
-  }, [currentPage, searchQuery, loadKatalog]);
+    loadKatalog(currentPage, searchQuery, activeFilter);
+  }, [currentPage, searchQuery, activeFilter, loadKatalog]);
 
   useEffect(() => {
     if (externalSearchQuery !== undefined) {
@@ -82,9 +88,15 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     setCurrentPage(1);
   };
 
+  const handleFilterChange = (filter: string) => {
+    setActiveFilter(filter);
+    setCurrentPage(1);
+    setAnimeList([]);
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
-    loadKatalog(currentPage, searchQuery, true);
+    loadKatalog(currentPage, searchQuery, activeFilter, true);
   };
 
   const handleAnimePress = (item: AnimeItem) => {
@@ -134,6 +146,30 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         </View>
       ) : null}
 
+      {/* Filter Chips */}
+      <View style={{ marginBottom: Spacing.sm }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, gap: Spacing.sm }}>
+          {filterOptions.map(opt => {
+            const isActive = activeFilter === opt;
+            return (
+              <TouchableOpacity
+                key={opt}
+                onPress={() => handleFilterChange(opt)}
+                style={[
+                  localStyles.filterChip,
+                  isActive && localStyles.filterChipActive
+                ]}
+              >
+                <Text style={[
+                  localStyles.filterText,
+                  isActive && localStyles.filterTextActive
+                ]}>{opt}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      </View>
+
       {loading && !refreshing ? (
         <LoadingOverlay message="Memuat daftar..." />
       ) : error ? (
@@ -141,7 +177,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={() => loadKatalog(currentPage, searchQuery)}
+            onPress={() => loadKatalog(currentPage, searchQuery, activeFilter)}
           >
             <Text style={styles.retryText}>Coba Lagi</Text>
           </TouchableOpacity>
@@ -209,5 +245,25 @@ const localStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.bg,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  filterChipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  filterText: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterTextActive: {
+    color: Colors.white,
   }
 });
