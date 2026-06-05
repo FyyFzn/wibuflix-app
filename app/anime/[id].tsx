@@ -107,6 +107,7 @@ export default function AnimeDetailScreen() {
         gambar: coverImage,
         seriUrl: params.url,
         judul: ep.judul,
+        seriJudul: judulSeri,
         autoPlayHost: host
       },
     });

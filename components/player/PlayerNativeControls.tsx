@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, Pressable, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, Animated, ActivityIndicator } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../styles/playerStyles';
@@ -8,6 +8,7 @@ import { ServerItem, EpisodeItem } from '../../services/api';
 
 interface PlayerNativeControlsProps {
   player: any;
+  status: string;
   title: string;
   isFullscreen: boolean;
   controlsVisible: boolean;
@@ -42,7 +43,7 @@ interface PlayerNativeControlsProps {
 }
 
 export default function PlayerNativeControls({
-  player, title, isFullscreen, controlsVisible, isPlaying, currentPosition, totalDuration,
+  player, status, title, isFullscreen, controlsVisible, isPlaying, currentPosition, totalDuration,
   playbackSpeed, activeServerName, activeHostItems, episodes, navPrev, navNext,
   skipInfo, rippleAnim, isSkipOPVisible, isSkipEDVisible,
   handleVideoTap, setPlayerLayoutWidth, exitFullscreen, enterFullscreen,
@@ -125,12 +126,18 @@ export default function PlayerNativeControls({
 
           {/* Center Play/Pause */}
           <View style={styles.centerControls}>
-            <TouchableOpacity 
-              style={styles.playPauseBtn} 
-              onPress={() => isPlaying ? player.pause() : player.play()}
-            >
-              <Ionicons name={isPlaying ? 'pause' : 'play'} style={[styles.playPauseIcon, isPlaying ? styles.ml0 : styles.ml4]} />
-            </TouchableOpacity>
+            {status === 'loading' ? (
+              <View style={styles.playPauseBtn}>
+                <ActivityIndicator size="large" color={Colors.white} />
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.playPauseBtn} 
+                onPress={() => isPlaying ? player.pause() : player.play()}
+              >
+                <Ionicons name={isPlaying ? 'pause' : 'play'} style={[styles.playPauseIcon, isPlaying ? styles.ml0 : styles.ml4]} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Bottom Bar */}

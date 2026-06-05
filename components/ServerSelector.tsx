@@ -31,10 +31,28 @@ export default function ServerSelector({
   disabled = false,
 }: ServerSelectorProps) {
   
+  const sources = useMemo(() => {
+    const list = [...new Set(servers.map(s => s.source || 'Samehadaku'))];
+    return list;
+  }, [servers]);
+
+  const [activeTab, setActiveTab] = React.useState<string>(sources.includes('Samehadaku') ? 'Samehadaku' : sources[0]);
+
+  // Sync tab if sources change and current tab is no longer valid
+  React.useEffect(() => {
+    if (!sources.includes(activeTab) && sources.length > 0) {
+      setActiveTab(sources.includes('Samehadaku') ? 'Samehadaku' : sources[0]);
+    }
+  }, [sources, activeTab]);
+
+  const filteredServers = useMemo(() => {
+    return servers.filter(s => (s.source || 'Samehadaku') === activeTab);
+  }, [servers, activeTab]);
+
   const groups = useMemo(() => {
     const groupsMap: Record<string, ServerGroup> = {};
 
-    servers.forEach((srv, i) => {
+    filteredServers.forEach((srv, i) => {
       let key: string;
       if (srv.namaHost) {
         key = srv.namaHost.toLowerCase();
@@ -66,10 +84,30 @@ export default function ServerSelector({
     });
 
     return Object.values(groupsMap);
-  }, [servers]);
+  }, [filteredServers]);
 
   return (
     <View style={styles.container}>
+      {sources.length > 1 && (
+        <View style={styles.tabsContainer}>
+          {sources.map(src => {
+            const isActive = src === activeTab;
+            return (
+              <TouchableOpacity
+                key={src}
+                style={[styles.tabBtn, isActive && styles.tabBtnActive]}
+                onPress={() => setActiveTab(src)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  {src}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       {groups.map((group) => {
         // Kelompokkan berdasarkan format (MKV, MP4, x265)
         const formatGroups: Record<string, ServerItem[]> = {};
@@ -139,6 +177,32 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    paddingBottom: Spacing.md,
+  },
+  tabBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'transparent',
+  },
+  tabBtnActive: {
+    backgroundColor: Colors.accentDim,
+  },
+  tabText: {
+    color: Colors.textDim,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  tabTextActive: {
+    color: Colors.accent,
   },
   serverGroup: {
     backgroundColor: Colors.surface2,

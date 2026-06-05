@@ -27,13 +27,22 @@ const getHostName = (srv: ServerItem) => {
   const nama = srv.nama || '';
   const parts = nama.split('·');
   let candidate = (parts[parts.length - 1].trim().split(' ')[0] || 'unknown').toLowerCase();
-  if (candidate === 'server' || candidate === 'unknown') return 'alternatif';
+  
+  if (candidate === 'server' || candidate === 'unknown') {
+    candidate = 'alternatif';
+  }
+  
+  // Jika Otakudesu, tambahkan prefix/suffix agar tidak bentrok dengan Samehadaku
+  if (srv.source && srv.source === 'Otakudesu') {
+    candidate = `[otaku] ${candidate}`;
+  }
+  
   return candidate;
 };
 
 export default function PlayerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ url: string; gambar: string; seriUrl: string; judul: string; autoPlayHost?: string; autoFullscreen?: string; }>();
+  const params = useLocalSearchParams<{ url: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; }>();
 
   const [loading, setLoading] = useState(true);
   const [playerLoading, setPlayerLoading] = useState(false);
@@ -439,7 +448,7 @@ export default function PlayerScreen() {
     }
 
     try {
-      const json = await scrapeVideo(url, signal);
+      const json = await scrapeVideo(url, params.seriJudul as string, params.judul as string, signal);
       if (!isMounted.current || signal.aborted) return;
       if (json.status !== 'success') throw new Error(json.data?.judul || 'Gagal');
 
@@ -964,7 +973,7 @@ export default function PlayerScreen() {
                </View>
             )}
             <PlayerNativeControls
-              player={player} title={title} isFullscreen={isFullscreen} controlsVisible={controlsVisible}
+              player={player} status={status} title={title} isFullscreen={isFullscreen} controlsVisible={controlsVisible}
               isPlaying={isPlaying} currentPosition={currentPosition} totalDuration={totalDuration}
               playbackSpeed={playbackSpeed} activeServerName={activeServerName} activeHostItems={activeHostItems}
               episodes={episodes} navPrev={navPrev} navNext={navNext} skipInfo={skipInfo} rippleAnim={rippleAnim}

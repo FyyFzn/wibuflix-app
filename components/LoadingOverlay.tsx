@@ -30,6 +30,7 @@ export default function LoadingOverlay({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,

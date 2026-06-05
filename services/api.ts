@@ -90,6 +90,7 @@ export interface ServerItem {
   aktif: boolean;
   iframeUrl?: string;
   namaHost?: string;
+  source?: string;
 }
 
 export interface ScrapeResponse {
@@ -168,8 +169,11 @@ export async function fetchEpisodes(targetUrl: string, signal?: AbortSignal): Pr
   return fetchWithCache<EpisodesResponse>(url, cacheKey, 86400000, signal); // Cache 24 jam (episode anime lawas jarang berubah)
 }
 
-export async function scrapeVideo(targetUrl: string, signal?: AbortSignal): Promise<ScrapeResponse> {
-  const res = await fetch(`${API.scrape}?url=${encodeURIComponent(targetUrl)}`, { signal });
+export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episodeTitle?: string, signal?: AbortSignal): Promise<ScrapeResponse> {
+  let url = `${API.scrape}?url=${encodeURIComponent(targetUrl)}`;
+  if (seriesTitle) url += `&series=${encodeURIComponent(seriesTitle)}`;
+  if (episodeTitle) url += `&episode=${encodeURIComponent(episodeTitle)}`;
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
