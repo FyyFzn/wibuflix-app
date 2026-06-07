@@ -625,6 +625,9 @@ export default function PlayerScreen() {
   const playServer = async (iframeUrl: string, serverName: string, isAutoPlay = false, signal: AbortSignal) => {
     setPlayerLoading(true);
 
+    const serverLower = serverName.toLowerCase();
+    const isPreferred = preferredHostRef.current ? serverLower.includes(preferredHostRef.current) : false;
+
     const isDirectVideo = iframeUrl.toLowerCase().match(/\.(mp4|mkv|m3u8)(?:\?|$)/);
     if (isDirectVideo) {
       setPlayerMode('native');
@@ -634,7 +637,6 @@ export default function PlayerScreen() {
       return true;
     }
 
-    const serverLower = serverName.toLowerCase();
     const isBypassWebView = ['mega', 'bstation', 'bilibili', 'pucuk', 'filedon'].some(n => serverLower.includes(n));
     if (isBypassWebView) {
       setPlayerMode('webview');
@@ -669,7 +671,7 @@ export default function PlayerScreen() {
       // Jika server WebView-only (wibufile, mega, gofile, dll) atau ekstraksi gagal:
       // Langsung fallback ke WebView — jangan return false dan biarkan video tidak jalan.
       // result.webviewOnly === true berarti backend sudah pasti tidak bisa ekstrak native URL.
-      if ((result as any).webviewOnly || !isAutoPlay) {
+      if ((result as any).webviewOnly || (!isAutoPlay || isPreferred)) {
         setPlayerMode('webview');
         setWebviewUrl(iframeUrl);
         setPlayerLoading(false);
@@ -677,7 +679,7 @@ export default function PlayerScreen() {
       }
     } catch {}
 
-    if (isAutoPlay) return false;
+    if (isAutoPlay && !isPreferred) return false;
 
     setPlayerMode('webview');
     setWebviewUrl(iframeUrl);
@@ -780,11 +782,14 @@ export default function PlayerScreen() {
   };
 
   const navigateEpisode = (url: string) => {
-    setShowEpisodesModal(false);
-    saveCurrentProgress();
-    isMounted.current = false;
     stopAllMedia();
-    if (abortControllerRef.current) abortControllerRef.current.abort();
+    // Beri jeda sedikit agar Native Player benar-benar memutus koneksi streaming lama
+    // Mencegah terkena rate limit Google Drive (403) pada pemanggilan server Acefile berikutnya
+    setTimeout(() => {
+      setShowEpisodesModal(false);
+      saveCurrentProgress();
+      isMounted.current = false;
+      if (abortControllerRef.current) abortControllerRef.current.abort();
 
     let safeUrl = url;
     if (safeUrl.includes('#neosatsu_ep_')) {
@@ -810,6 +815,7 @@ export default function PlayerScreen() {
         autoFullscreen: isFullscreen ? '1' : '0'
       }
     });
+    }, 500);
   };
 
   const enterFullscreen = async () => {
