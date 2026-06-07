@@ -156,10 +156,14 @@ export default function PlayerWebView({
     webviewControlsTimeoutRef.current = setTimeout(() => setShowWebviewControls(false), 4000);
   };
 
+  const isMega = webviewUrl.toLowerCase().includes('mega');
+  const desktopUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36";
+
   return (
     <View style={styles.flex1}>
       <WebView
         ref={webviewRef}
+        userAgent={isMega ? desktopUA : undefined}
         source={
           webviewUrl.toLowerCase().includes('wibufile')
             ? {
