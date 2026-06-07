@@ -70,12 +70,27 @@ export default function BerandaScreen() {
     loadData();
   }, []);
 
-  // Listen to tab press to clear search
+  const lastTapRef = React.useRef(0);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  // Listen to tab press to clear search or double tap to refresh
   useEffect(() => {
     const unsubscribe = (navigation as any).addListener('tabPress', (e: any) => {
-      // If we are currently searching, clear the search and return to normal view
-      if (searchQuery) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTapRef.current < 300;
+      lastTapRef.current = now;
+
+      if (isDoubleTap) {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
         setSearchQuery('');
+        handleRefresh();
+      } else {
+        // If we are currently searching, clear the search and return to normal view
+        if (searchQuery) {
+          setSearchQuery('');
+        }
       }
     });
     return unsubscribe;
@@ -174,6 +189,7 @@ export default function BerandaScreen() {
         </View>
       ) : (
         <ScrollView 
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

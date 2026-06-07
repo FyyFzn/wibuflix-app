@@ -118,6 +118,7 @@ export default function ServerSelector({
           else if (upperName.includes('MP4') && !upperName.includes('MP4HD')) format = 'MP4';
           else if (upperName.includes('MP4HD')) format = 'MP4'; // gabungkan MP4HD ke MP4
           else if (upperName.includes('X265') || upperName.includes('HEVC')) format = 'x265';
+          else if (upperName.includes('4K') || upperName.includes('1080P') || upperName.includes('720P')) format = 'MP4'; // Fallback to MP4 for typical resolutions that miss the format text
           
           if (!formatGroups[format]) formatGroups[format] = [];
           formatGroups[format].push(srv);

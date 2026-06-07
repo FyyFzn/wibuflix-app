@@ -41,10 +41,11 @@ export async function simpanKeRiwayat(
   gambar: string,
   progress: number = 0,
   duration: number = 0,
-  host?: string
+  host?: string,
+  seriJudul?: string
 ): Promise<void> {
-  const judulSeri = judul.replace(/\s+Episode\s+.*/i, '').trim();
-  const epMatch = judul.match(/Episode\s+(\d+)/i);
+  const judulSeri = seriJudul || judul.replace(/\s+Episode\s+.*/i, '').trim();
+  const epMatch = judul.match(/Episode\s+(\d+)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
   const nomorEp = epMatch ? epMatch[1] : '';
 
   let riwayat = await getRiwayat();
