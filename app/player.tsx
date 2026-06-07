@@ -50,6 +50,7 @@ export default function PlayerScreen() {
   const [nativeVideoHeaders, setNativeVideoHeaders] = useState<Record<string, string>>({});
   const [title, setTitle] = useState(params.judul || '');
   const [servers, setServers] = useState<ServerItem[]>([]);
+  const [serverTab, setServerTab] = useState<string>('Samehadaku');
   const [navPrev, setNavPrev] = useState<string | null>(null);
   const [navNext, setNavNext] = useState<string | null>(null);
 
@@ -68,7 +69,8 @@ export default function PlayerScreen() {
   const [savedProgress, setSavedProgress] = useState(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isSwitchingHost, setIsSwitchingHost] = useState(false);
-  const preferredHostRef = useRef<string>('');
+  const preferredHostRef = useRef<string | null>(null);
+  const currentEpisodeUrlRef = useRef<string | null>(null);
   const lastKnownPositionRef = useRef<number>(0);
   const webviewControlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -172,6 +174,21 @@ export default function PlayerScreen() {
 
   const isVidhide = activeHost.toLowerCase().includes('vidhide') || activeHost.toLowerCase().includes('vidlion');
   const isGdrive = activeHost.toLowerCase().includes('drive') || activeHost.toLowerCase().includes('gdrive');
+
+  const availableSources = React.useMemo(() => {
+    const sources = new Set(servers.map(s => s.source || 'Samehadaku'));
+    return Array.from(sources);
+  }, [servers]);
+
+  React.useEffect(() => {
+    if (availableSources.length > 0 && !availableSources.includes(serverTab)) {
+      setServerTab(availableSources[0]);
+    }
+  }, [availableSources, serverTab]);
+
+  const visibleServers = React.useMemo(() => {
+    return servers.filter(s => (s.source || 'Samehadaku') === serverTab);
+  }, [servers, serverTab]);
 
   let injectedJS = `
     window.open = function() { return null; };
@@ -358,10 +375,10 @@ export default function PlayerScreen() {
   }, [playerMode, isPlaying, params.url, player]);
 
   const saveCurrentProgress = useCallback(async () => {
-    if (params.url && currentPosition > 0) {
-      await updateProgress(params.url, currentPosition, totalDuration, activeHost);
+    if (currentEpisodeUrlRef.current && currentPosition > 0) {
+      await updateProgress(currentEpisodeUrlRef.current, currentPosition, totalDuration, activeHost);
     }
-  }, [params.url, currentPosition, totalDuration, activeHost]);
+  }, [currentPosition, totalDuration, activeHost]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -436,6 +453,7 @@ export default function PlayerScreen() {
     setActiveServerName('');
     setFallbackWebviewUrl('');
     setRetryCount(0);
+    currentEpisodeUrlRef.current = url;
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -453,7 +471,11 @@ export default function PlayerScreen() {
       if (json.status !== 'success') throw new Error(json.data?.judul || 'Gagal');
 
       const data = json.data;
-      setTitle(data.judul);
+      // Hanya update judul dari backend jika params.judul kosong/tidak tersedia
+      // Ini mencegah judul bersih dari episode list ditimpa oleh judul raw scraping
+      if (!params.judul && data.judul) {
+          setTitle(data.judul);
+      }
       setNavPrev(data.nav_prev);
       setNavNext(data.nav_next);
 
@@ -511,12 +533,13 @@ export default function PlayerScreen() {
         });
 
         setServers(validServers);
-        await simpanKeRiwayat(data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, preferredHostRef.current || undefined);
+        await simpanKeRiwayat((params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, preferredHostRef.current || undefined, params.seriJudul as string);
 
         if (preferredHostRef.current) {
           const prefHost = preferredHostRef.current;
           const preferredItems = validServers.filter(s => getHostName(s) === prefHost);
           if (preferredItems.length > 0) {
+            setServerTab(preferredItems[0].source || 'Samehadaku');
             const success = await attemptToPlayServers(preferredItems, url, signal);
             if (!isMounted.current || signal.aborted) return;
             if (!success) {
@@ -1017,15 +1040,37 @@ export default function PlayerScreen() {
 
       {!isFullscreen && (
         <ScrollView style={styles.controlsContainer} contentContainerStyle={styles.controlsContent}>
-          {servers.length > 0 && (
+          {availableSources.length > 1 && (
+            <View style={{ flexDirection: 'row', marginBottom: 10, gap: 10, paddingHorizontal: 16 }}>
+              {availableSources.map(source => (
+                <TouchableOpacity 
+                  key={source}
+                  onPress={() => setServerTab(source)}
+                  style={{
+                    paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20,
+                    backgroundColor: serverTab === source ? Colors.accent : Colors.surface2,
+                  }}
+                >
+                  <Text style={{ 
+                    color: serverTab === source ? Colors.white : Colors.textDim,
+                    fontWeight: 'bold', fontSize: 12
+                  }}>{source}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {visibleServers.length > 0 ? (
             <ServerSelector 
-              servers={servers} 
+              servers={visibleServers} 
               activeHost={activeHost} 
               activeServerName={activeServerName}
               onSelectHost={handleSelectHost} 
               onSelectResolution={handleSelectResolution}
               disabled={isSwitchingHost} 
             />
+          ) : servers.length > 0 && (
+             <Text style={{ textAlign: 'center', color: Colors.textDim, marginBottom: 10 }}>Tidak ada server di tab ini.</Text>
           )}
 
           <View style={styles.navRow}>
