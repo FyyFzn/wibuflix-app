@@ -26,7 +26,31 @@ export async function getRiwayat(): Promise<WatchHistoryItem[]> {
   try {
     const data = await AsyncStorage.getItem(HISTORY_KEY);
     if (!data) return [];
-    return JSON.parse(data);
+    const parsed = JSON.parse(data) as WatchHistoryItem[];
+    
+    // Pembersihan On-The-Fly untuk riwayat lama agar ter-deduplikasi
+    const cleanedMap = new Map<string, WatchHistoryItem>();
+    
+    parsed.forEach(item => {
+      let jt = item.judulSeri || '';
+      jt = jt.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');
+      jt = jt.replace(/\s*\d+\s*-\s*\d+\s*(?:Tamat|End)?.*$/i, '');
+      jt = jt.replace(/(?:Episode|Eps)\s*\d+.*$/i, '');
+      jt = jt.replace(/\s*OVA\s*\d*.*$/i, '');
+      jt = jt.replace(/(?:\s*[\(\[]?BD[\)\]]?\s*)?(?:\s*[\(\[]?Batch[\)\]]?\s*)/gi, '');
+      jt = jt.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
+      jt = jt.replace(/[-\s]+$/, '').trim();
+      
+      if (!jt) jt = item.judulSeri;
+      
+      const existing = cleanedMap.get(jt);
+      // Simpan yang paling baru (yang pertama kali masuk di array parsed karena urutan desc)
+      if (!existing) {
+        cleanedMap.set(jt, { ...item, judulSeri: jt });
+      }
+    });
+    
+    return Array.from(cleanedMap.values());
   } catch {
     return [];
   }
@@ -54,7 +78,17 @@ export async function simpanKeRiwayat(
     baseJudul = baseJudul.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
     baseJudul = baseJudul.replace(/[-\s]+$/, '').trim();
   }
-  const judulSeri = seriJudul || baseJudul;
+  let finalJudulSeri = seriJudul || baseJudul;
+  finalJudulSeri = finalJudulSeri.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');
+  finalJudulSeri = finalJudulSeri.replace(/\s*\d+\s*-\s*\d+\s*(?:Tamat|End)?.*$/i, '');
+  finalJudulSeri = finalJudulSeri.replace(/(?:Episode|Eps)\s*\d+.*$/i, '');
+  finalJudulSeri = finalJudulSeri.replace(/\s*OVA\s*\d*.*$/i, '');
+  finalJudulSeri = finalJudulSeri.replace(/(?:\s*[\(\[]?BD[\)\]]?\s*)?(?:\s*[\(\[]?Batch[\)\]]?\s*)/gi, '');
+  finalJudulSeri = finalJudulSeri.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
+  finalJudulSeri = finalJudulSeri.replace(/[-\s]+$/, '').trim();
+  if (!finalJudulSeri) finalJudulSeri = seriJudul || baseJudul;
+  
+  const judulSeri = finalJudulSeri;
   
   const epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
   const nomorEp = epMatch ? epMatch[1] : '';
