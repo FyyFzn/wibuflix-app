@@ -111,8 +111,14 @@ export default function ServerSelector({
       {groups.map((group) => {
         // Kelompokkan berdasarkan format (MKV, MP4, x265)
         const formatGroups: Record<string, ServerItem[]> = {};
+        const seenRes = new Set<string>(); // Failsafe deduplication per group
         group.items.forEach(srv => {
-          const upperName = srv.nama.toUpperCase();
+          const rawName = srv.nama.replace(/\s+/g, ' ').trim();
+          const dedupKey = rawName.toLowerCase();
+          if (seenRes.has(dedupKey)) return;
+          seenRes.add(dedupKey);
+
+          const upperName = rawName.toUpperCase();
           let format = 'Lainnya';
           if (upperName.includes('MKV')) format = 'MKV';
           else if (upperName.includes('MP4') && !upperName.includes('MP4HD')) format = 'MP4';
