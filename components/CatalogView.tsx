@@ -40,7 +40,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   const [activeFilter, setActiveFilter] = useState('Semua');
 
   const filterOptions = category === 'toku' 
-    ? ['Semua', 'Kamen Rider', 'Super Sentai', 'Ultraman', 'Lainnya']
+    ? ['Semua', 'Kamen Rider', 'Super Sentai', 'Power Rangers', 'Ultraman', 'Lainnya']
     : ['Semua', 'TV', 'Movie', 'OVA', 'ONA', 'Special'];
 
   const loadKatalog = useCallback(async (page: number, search: string, filter: string, isRefresh = false) => {
