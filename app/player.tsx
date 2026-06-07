@@ -776,13 +776,17 @@ export default function PlayerScreen() {
     stopAllMedia();
     if (abortControllerRef.current) abortControllerRef.current.abort();
 
-    // HACK: expo-router memotong bagian URL setelah '#' (menganggapnya fragment).
-    // Karena API Azure mungkin masih mengirim '#neosatsu_ep_', kita harus mencegah pemotongan ini
-    // dengan mengubahnya ke string aman sebelum masuk ke router.
     let safeUrl = url;
     if (safeUrl.includes('#neosatsu_ep_')) {
       safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
     }
+
+    // Cari judul episode target dari daftar episodes
+    const targetEp = episodes.find(e => 
+      e.url === url || 
+      (e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
+    );
+    const nextJudul = targetEp ? targetEp.judul : '';
 
     router.replace({
       pathname: '/player',
@@ -790,7 +794,8 @@ export default function PlayerScreen() {
         url: safeUrl, 
         gambar: params.gambar, 
         seriUrl: params.seriUrl, 
-        judul: '',
+        judul: nextJudul,
+        seriJudul: params.seriJudul,
         autoPlayHost: preferredHostRef.current || activeHost,
         autoFullscreen: isFullscreen ? '1' : '0'
       }
