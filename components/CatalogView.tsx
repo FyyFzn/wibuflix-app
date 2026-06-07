@@ -40,7 +40,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   const [activeFilter, setActiveFilter] = useState('Semua');
 
   const filterOptions = category === 'toku' 
-    ? ['Semua', 'Series', 'Movie', 'Special', 'V-Cinema']
+    ? ['Semua', 'Kamen Rider', 'Super Sentai', 'Ultraman', 'Lainnya']
     : ['Semua', 'TV', 'Movie', 'OVA', 'ONA', 'Special'];
 
   const loadKatalog = useCallback(async (page: number, search: string, filter: string, isRefresh = false) => {
@@ -73,11 +73,32 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     }
   }, [externalSearchQuery]);
 
+  const lastTapRef = React.useRef(0);
+  const flatListRef = React.useRef<FlatList>(null);
+
   useEffect(() => {
     const unsubscribe = (navigation as any).addListener('tabPress', (e: any) => {
-      if (searchQuery) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTapRef.current < 300;
+      lastTapRef.current = now;
+
+      if (isDoubleTap) {
+        if (flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        }
         setSearchQuery('');
         if (onClearSearch) onClearSearch();
+        setCurrentPage(1);
+        handleFilterChange('Semua'); // Optionally reset filter too
+        
+        // Force refresh
+        setRefreshing(true);
+        loadKatalog(1, '', 'Semua', true);
+      } else {
+        if (searchQuery) {
+          setSearchQuery('');
+          if (onClearSearch) onClearSearch();
+        }
       }
     });
     return unsubscribe;
@@ -188,6 +209,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={animeList}
           renderItem={renderItem}
           keyExtractor={(item, index) => item.url + index}

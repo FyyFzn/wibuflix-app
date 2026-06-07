@@ -72,10 +72,32 @@ export default function AnimeDetailScreen() {
       setEpisodes(data.daftar_episode || []);
       setMalInfo(data.mal || null);
 
+      let finalCover = params.gambar || '';
       if (data.mal?.cover) {
         setCoverImage(data.mal.cover);
+        finalCover = data.mal.cover;
       } else if (data.cover_scraper) {
         setCoverImage(data.cover_scraper);
+        finalCover = data.cover_scraper;
+      }
+
+      if (data.daftar_episode && data.daftar_episode.length === 1) {
+        const ep = data.daftar_episode[0];
+        const riwayat = await getRiwayat();
+        const historyItem = riwayat.find(r => r.seriUrl === params.url);
+        
+        router.replace({
+          pathname: '/player',
+          params: {
+            url: ep.url,
+            gambar: finalCover,
+            seriUrl: params.url,
+            judul: ep.judul,
+            seriJudul: data.judul_seri,
+            autoPlayHost: historyItem?.host || ''
+          },
+        });
+        return;
       }
     } catch (err: any) {
       setError(err.message || 'Gagal memuat daftar episode');
