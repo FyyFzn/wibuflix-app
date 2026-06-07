@@ -187,7 +187,7 @@ export default function PlayerWebView({
         javaScriptEnabled={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
-        allowsFullscreenVideo={false}
+        allowsFullscreenVideo={true}
         setSupportMultipleWindows={false}
         injectedJavaScript={`
           const style = document.createElement('style');
