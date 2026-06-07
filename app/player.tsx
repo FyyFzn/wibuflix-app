@@ -174,6 +174,7 @@ export default function PlayerScreen() {
 
   const isVidhide = activeHost.toLowerCase().includes('vidhide') || activeHost.toLowerCase().includes('vidlion');
   const isGdrive = activeHost.toLowerCase().includes('drive') || activeHost.toLowerCase().includes('gdrive');
+  const isMega = activeHost.toLowerCase().includes('mega');
 
   const availableSources = React.useMemo(() => {
     const sources = new Set(servers.map(s => s.source || 'Samehadaku'));
@@ -241,6 +242,15 @@ export default function PlayerScreen() {
           });
         } catch(e){}
       }, 1000);
+    `;
+  }
+
+  if (isMega) {
+    injectedJS += `
+      const meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      document.head.appendChild(meta);
     `;
   }
 

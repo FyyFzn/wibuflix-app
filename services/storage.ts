@@ -44,8 +44,19 @@ export async function simpanKeRiwayat(
   host?: string,
   seriJudul?: string
 ): Promise<void> {
-  const judulSeri = seriJudul || judul.replace(/\s+Episode\s+.*/i, '').trim();
-  const epMatch = judul.match(/Episode\s+(\d+)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
+  let baseJudul = judul;
+  // Jika tidak ada seriJudul, kita ekstrak dari judul
+  if (!seriJudul) {
+    baseJudul = baseJudul.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');
+    baseJudul = baseJudul.replace(/(?:Episode|Eps)\s*\d+.*$/i, '');
+    baseJudul = baseJudul.replace(/\s*OVA\s*\d*.*$/i, '');
+    baseJudul = baseJudul.replace(/(?:\s*[\(\[]?BD[\)\]]?\s*)?(?:\s*[\(\[]?Batch[\)\]]?\s*)/gi, '');
+    baseJudul = baseJudul.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
+    baseJudul = baseJudul.replace(/[-\s]+$/, '').trim();
+  }
+  const judulSeri = seriJudul || baseJudul;
+  
+  const epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
   const nomorEp = epMatch ? epMatch[1] : '';
 
   let riwayat = await getRiwayat();
