@@ -19,12 +19,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo } from '../../services/api';
 import { getRiwayat } from '../../services/storage';
-import EpisodeItem from '../../components/EpisodeItem';
+import EpisodeItemComponent from '../../components/EpisodeItem';
 import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function AnimeDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ url: string; gambar: string; judul: string }>();
+  const params = useLocalSearchParams<{ url: string; gambar: string; judul: string; sources?: string }>();
 
   const [episodes, setEpisodes] = useState<EpisodeItemType[]>([]);
   const [malInfo, setMalInfo] = useState<MalInfo | null>(null);
@@ -38,7 +38,7 @@ export default function AnimeDetailScreen() {
 
   useEffect(() => {
     loadEpisodes();
-  }, []);
+  }, [params.url, params.sources]);
 
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -64,7 +64,20 @@ export default function AnimeDetailScreen() {
     setError(null);
 
     try {
-      const json = await fetchEpisodes(params.url);
+      let urlsObj = undefined;
+      if (params.sources) {
+        try {
+          const parsed = JSON.parse(params.sources);
+          if (parsed.samehadaku && parsed.otakudesu) {
+            urlsObj = {
+              samehadaku: parsed.samehadaku.url,
+              otakudesu: `/anime/${parsed.otakudesu.id}`
+            };
+          }
+        } catch (e) {}
+      }
+
+      const json = await fetchEpisodes(params.url, urlsObj);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       const data = json.data;
@@ -89,7 +102,8 @@ export default function AnimeDetailScreen() {
         router.replace({
           pathname: '/player',
           params: {
-            url: ep.url,
+            url: ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu : ''),
+            urls: ep.urls ? JSON.stringify(ep.urls) : '',
             gambar: finalCover,
             seriUrl: params.url,
             judul: ep.judul,
@@ -125,7 +139,8 @@ export default function AnimeDetailScreen() {
     router.push({
       pathname: '/player',
       params: {
-        url: ep.url,
+        url: ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu : ''),
+        urls: ep.urls ? JSON.stringify(ep.urls) : '',
         gambar: coverImage,
         seriUrl: params.url,
         judul: ep.judul,
@@ -143,12 +158,13 @@ export default function AnimeDetailScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={loadEpisodes}>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => loadEpisodes()}>
           <Text style={styles.retryText}>Coba Lagi</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
 
   return (
     <FlatList
@@ -156,7 +172,7 @@ export default function AnimeDetailScreen() {
       data={filteredEpisodes}
       keyExtractor={(item, index) => (item.url ? item.url.toString() : '') + index.toString()}
       renderItem={({ item }) => (
-        <EpisodeItem
+        <EpisodeItemComponent
           judul={item.judul}
           tanggal={item.tanggal}
           malJudul={item.malJudul}
@@ -236,6 +252,10 @@ export default function AnimeDetailScreen() {
               <Text style={styles.fallbackTitleText}>{judulSeri}</Text>
             </View>
           )}
+
+          <View style={styles.listHeader}>
+            <Text style={styles.sectionTitle}>Daftar Episode</Text>
+          </View>
 
           {/* Episode controls */}
           <View style={styles.epsControls}>
@@ -465,5 +485,53 @@ const styles = StyleSheet.create({
     color: Colors.textDim,
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
+  },
+  
+  // ── Source Picker ──
+  sourcePickerContainer: {
+    marginBottom: Spacing.xl,
+    paddingHorizontal: 2,
+  },
+  sourcePickerLabel: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  sourceButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  sourceBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.surface2,
+    borderWidth: 1,
+    borderColor: Colors.border2,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  sourceBtnActive: {
+    backgroundColor: 'rgba(230, 57, 70, 0.1)',
+    borderColor: Colors.accent,
+  },
+  sourceBtnText: {
+    color: Colors.textDim,
+    fontSize: FontSize.base,
+    fontWeight: '600',
+  },
+  sourceBtnTextActive: {
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  listHeader: {
+    marginBottom: Spacing.md,
+  },
+  sectionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    color: Colors.textDim,
   },
 });

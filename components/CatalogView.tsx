@@ -128,6 +128,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         url: item.url,
         gambar: item.gambar,
         judul: item.judul,
+        sources: item.sources ? JSON.stringify(item.sources) : undefined,
       },
     });
   };

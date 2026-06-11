@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
-import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Spacing } from '../../styles/theme';
+import { Colors, Spacing, BorderRadius, FontSize, FontWeight } from '../../styles/theme';
 import { fetchKatalog, fetchHotAnime, AnimeItem } from '../../services/api';
 import AnimeCard from '../../components/AnimeCard';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -109,12 +109,13 @@ export default function BerandaScreen() {
         url: item.url,
         gambar: item.gambar,
         judul: item.judul,
+        sources: item.sources ? JSON.stringify(item.sources) : undefined,
       },
     });
   };
 
   const renderHorizontalItem = ({ item }: { item: AnimeItem }) => (
-    <View style={{ width: 140, marginRight: Spacing.sm }}>
+    <View style={styles.animeCardWrapper}>
       <AnimeCard
         judul={item.judul}
         gambar={item.gambar}
@@ -122,20 +123,20 @@ export default function BerandaScreen() {
         skor={item.skor}
         status={item.status}
         onPress={() => handleAnimePress(item)}
-        customStyle={{ width: '100%', marginBottom: 0 }}
+        customStyle={styles.animeCardStyle}
       />
     </View>
   );
 
   const renderHotItem = ({ item }: { item: AnimeItem }) => (
-    <View style={{ width: 140, marginRight: Spacing.sm }}>
+    <View style={styles.animeCardWrapper}>
       <AnimeCard
         judul={item.judul}
         gambar={item.gambar}
         tipe={item.tipe}
         skor={item.skor}
         onPress={() => handleAnimePress(item)}
-        customStyle={{ width: '100%', marginBottom: 0 }}
+        customStyle={styles.animeCardStyle}
       />
     </View>
   );
@@ -171,42 +172,40 @@ export default function BerandaScreen() {
       </View>
       <View style={styles.headerLine} />
 
-      <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md }}>
+      <View style={styles.searchBarContainer}>
         <SearchBar onSearch={setSearchQuery} />
       </View>
 
       {searchQuery ? (
-        <View style={{ flex: 1 }}>
-          <View style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ color: Colors.text, fontSize: 16, fontWeight: '600' }}>
-              Hasil pencarian: <Text style={{ color: Colors.accent }}>"{searchQuery}"</Text>
+        <View style={styles.searchResultContainer}>
+          <View style={styles.searchResultHeader}>
+            <Text style={styles.searchResultText}>
+              Hasil pencarian: <Text style={styles.searchResultAccent}>"{searchQuery}"</Text>
             </Text>
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Tutup (X)</Text>
+              <Text style={styles.searchResultCloseText}>Tutup (X)</Text>
             </TouchableOpacity>
           </View>
           <CatalogView category="all" externalSearchQuery={searchQuery} hideSearchBar={true} onClearSearch={() => setSearchQuery('')} />
         </View>
       ) : (
         <ScrollView 
-        ref={scrollViewRef}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={Colors.accent}
-            colors={[Colors.accent]}
-            progressBackgroundColor={Colors.surface}
-          />
-        }
-      >
-        {renderSection("SEDANG HANGAT 🔥", hotAnime, renderHotItem)}
-        {renderSection("KEJUTAN ACAK BUATMU 🎲", randomAnime, renderHorizontalItem)}
-        {renderSection("ANIME TERBARU", latestAnime, renderHorizontalItem)}
-        {renderSection("TOKUSATSU TERBARU", latestToku, renderHorizontalItem)}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.accent}
+              colors={[Colors.accent]}
+            />
+          }
+        >
+          {renderSection("Sedang Populer 🔥", hotAnime, renderHotItem)}
+          {renderSection("Anime Terbaru 📺", latestAnime, renderHorizontalItem)}
+          {renderSection("Tokusatsu Terbaru 🏍️", latestToku, renderHorizontalItem)}
+          {renderSection("Rekomendasi Acak 🎲", randomAnime, renderHorizontalItem)}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -218,17 +217,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bg,
   },
   header: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
   logoText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#fff',
-    letterSpacing: 1,
+    color: Colors.white,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(230, 57, 70, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   logoAccent: {
     color: Colors.accent,
@@ -253,45 +255,38 @@ const styles = StyleSheet.create({
   horizontalList: {
     paddingHorizontal: Spacing.lg,
   },
-  historyCard: {
+  animeCardWrapper: {
     width: 140,
-    marginRight: Spacing.md,
+    marginRight: Spacing.sm,
   },
-  historyThumbContainer: {
-    position: 'relative',
-    borderRadius: 8,
-    overflow: 'hidden',
+  animeCardStyle: {
+    width: '100%',
+    marginBottom: 0,
   },
-  progressTrack: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+  searchBarContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.accent,
+  searchResultContainer: {
+    flex: 1,
   },
-  historyOverlay: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  searchResultHeader: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  historyEpText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  historyTitle: {
-    color: '#fff',
-    fontSize: 12,
+  searchResultText: {
+    color: Colors.text,
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: 6,
-  }
+  },
+  searchResultAccent: {
+    color: Colors.accent,
+  },
+  searchResultCloseText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+  },
 });

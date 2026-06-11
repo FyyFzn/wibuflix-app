@@ -7,7 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ── Ganti dengan IP/URL VPS kamu ──────────────────────────
 // Development: 'http://192.168.x.x:3000' (IP lokal PC)
 // Production:  'https://api.wibuflix.com' (domain VPS)
-const API_BASE = 'https://wibuflix.azurewebsites.net';
+// Base URL diarahkan ke Cloudflare API untuk keamanan dan caching CDN
+const API_BASE = 'https://api.wibuflix.me';
 
 export function getApiBase(): string {
   return API_BASE;
@@ -32,6 +33,7 @@ export interface AnimeItem {
   tipe: string;
   skor: string;
   status: string;
+  sources?: any;
 }
 
 export interface KatalogResponse {
@@ -51,7 +53,8 @@ export interface HotAnimeResponse {
 
 export interface EpisodeItem {
   judul: string;
-  url: string;
+  url?: string; // Untuk backward compatibility
+  urls?: { samehadaku?: string; otakudesu?: string };
   tanggal: string;
   malJudul?: string;
 }
@@ -164,14 +167,21 @@ export async function fetchHotAnime(signal?: AbortSignal): Promise<HotAnimeRespo
   return fetchWithCache<HotAnimeResponse>(API.hot, cacheKey, 3600000, signal); // Cache 1 jam
 }
 
-export async function fetchEpisodes(targetUrl: string, signal?: AbortSignal): Promise<EpisodesResponse> {
-  const url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
-  const cacheKey = `episodes_${targetUrl}`;
-  return fetchWithCache<EpisodesResponse>(url, cacheKey, 86400000, signal); // Cache 24 jam (episode anime lawas jarang berubah)
+export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
+  let url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
+  let cacheKey = `episodes_${targetUrl}`;
+  
+  if (urls && urls.samehadaku && urls.otakudesu) {
+    url = `${API.episodes}?urlSamehadaku=${encodeURIComponent(urls.samehadaku)}&urlOtakudesu=${encodeURIComponent(urls.otakudesu)}`;
+    cacheKey = `episodes_merged_${urls.samehadaku}_${urls.otakudesu}`;
+  }
+  
+  return fetchWithCache<EpisodesResponse>(url, cacheKey, 86400000, signal); // Cache 24 jam
 }
 
-export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episodeTitle?: string, signal?: AbortSignal): Promise<ScrapeResponse> {
+export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episodeTitle?: string, signal?: AbortSignal, urls?: string): Promise<ScrapeResponse> {
   let url = `${API.scrape}?url=${encodeURIComponent(targetUrl)}`;
+  if (urls) url += `&urls=${encodeURIComponent(urls)}`;
   if (seriesTitle) url += `&series=${encodeURIComponent(seriesTitle)}`;
   if (episodeTitle) url += `&episode=${encodeURIComponent(episodeTitle)}`;
   const res = await fetch(url, { signal });
@@ -190,4 +200,31 @@ export async function extractVideoUrl(embedUrl: string, signal?: AbortSignal): P
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+export interface SmartPlayResponse {
+  success: boolean;
+  status: 'READY' | 'UPLOADING' | 'FAILED';
+  url?: string;
+  message?: string;
+}
+
+export async function fetchSmartPlay(
+  episodeUrl: string,
+  seriesUrl?: string,
+  nextEpisodeUrl?: string,
+  signal?: AbortSignal,
+  seriesTitle?: string,
+  episodeTitle?: string
+): Promise<SmartPlayResponse> {
+  let url = `${getApiBase()}/api/smart-play?episodeUrl=${encodeURIComponent(episodeUrl)}`;
+  if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
+  if (nextEpisodeUrl) url += `&nextEpisodeUrl=${encodeURIComponent(nextEpisodeUrl)}`;
+  if (seriesTitle) url += `&seriesTitle=${encodeURIComponent(seriesTitle)}`;
+  if (episodeTitle) url += `&episodeTitle=${encodeURIComponent(episodeTitle)}`;
+
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 

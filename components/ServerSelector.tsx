@@ -3,9 +3,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../styles/theme';
 import { ServerItem } from '../services/api';
+import { getHostName } from '../utils/hostUtils';
 
 interface ServerGroup {
   hostName: string;
@@ -52,26 +53,8 @@ export default function ServerSelector({
   const groups = useMemo(() => {
     const groupsMap: Record<string, ServerGroup> = {};
 
-    filteredServers.forEach((srv, i) => {
-      let key: string;
-      if (srv.namaHost) {
-        key = srv.namaHost.toLowerCase();
-      } else {
-        const nama = srv.nama || '';
-        const parts = nama.split('·');
-        let candidate = parts[parts.length - 1].trim().split(' ')[0].toLowerCase();
-        
-        if (candidate.includes('vidlion')) candidate = 'vidhide';
-        else if (candidate.includes('bili') || candidate.includes('bstation')) candidate = 'bilibili';
-        else if (candidate.includes('gdrive') || candidate.includes('google')) candidate = 'gdrive';
-        else if (candidate.includes('kraken')) candidate = 'krakenfiles';
-        else if (candidate.includes('wibu')) candidate = 'wibufile';
-
-        if (!candidate || candidate === 'server' || candidate === 'unknown') {
-          candidate = 'alternatif';
-        }
-        key = candidate;
-      }
+    filteredServers.forEach((srv) => {
+      const key = getHostName(srv);
 
       if (!groupsMap[key]) {
         groupsMap[key] = {

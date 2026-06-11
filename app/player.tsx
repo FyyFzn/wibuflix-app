@@ -1,26 +1,29 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView, ActivityIndicator, Dimensions, BackHandler, Modal, FlatList, StatusBar, Alert, Animated, Easing, useWindowDimensions
+  View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import * as NavigationBar from 'expo-navigation-bar';
-import Slider from '@react-native-community/slider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { styles } from '../styles/playerStyles';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../styles/theme';
-import { scrapeVideo, resolveServer, extractVideoUrl, ServerItem, fetchEpisodes, EpisodeItem } from '../services/api';
-import { simpanKeRiwayat, updateProgress, getProgress, formatDuration } from '../services/storage';
-import ServerSelector from '../components/ServerSelector';
+import { styles } from '../styles/playerStyles';
+import { Colors } from '../styles/theme';
+import { ServerItem } from '../services/api';
+import { updateProgress, getProgress, formatDuration } from '../services/storage';
 import PlayerNativeControls from '../components/player/PlayerNativeControls';
 import PlayerWebView from '../components/player/PlayerWebView';
 import PlayerModals from '../components/player/PlayerModals';
+
+// Custom Hooks
+import { usePlayerState } from '../hooks/usePlayerState';
+import { useServerPlayback } from '../hooks/useServerPlayback';
+import { useDoubleTapSkip } from '../hooks/useDoubleTapSkip';
+import { useFullscreen } from '../hooks/useFullscreen';
+import { useEpisodeNavigation } from '../hooks/useEpisodeNavigation';
 
 const getHostName = (srv: ServerItem) => {
   if (srv.namaHost) return srv.namaHost.toLowerCase();
@@ -32,7 +35,6 @@ const getHostName = (srv: ServerItem) => {
     candidate = 'alternatif';
   }
   
-  // Jika Otakudesu, tambahkan prefix/suffix agar tidak bentrok dengan Samehadaku
   if (srv.source && srv.source === 'Otakudesu') {
     candidate = `[otaku] ${candidate}`;
   }
@@ -42,79 +44,18 @@ const getHostName = (srv: ServerItem) => {
 
 export default function PlayerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ url: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; }>();
+  const params = useLocalSearchParams<{ url: string; urls?: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; }>();
 
-  const [loading, setLoading] = useState(true);
-  const [playerLoading, setPlayerLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [nativeVideoHeaders, setNativeVideoHeaders] = useState<Record<string, string>>({});
-  const [title, setTitle] = useState(params.judul || '');
-  const [servers, setServers] = useState<ServerItem[]>([]);
-  const [serverTab, setServerTab] = useState<string>('Samehadaku');
-  const [navPrev, setNavPrev] = useState<string | null>(null);
-  const [navNext, setNavNext] = useState<string | null>(null);
+  // 1. Initialize State Hook
+  const state = usePlayerState(params.judul || '');
 
-  // Active Server State
-  const [activeHost, setActiveHost] = useState('');
-  const [activeServerName, setActiveServerName] = useState('');
+  // 2. Initialize Navigation Hook
+  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
 
-  // Enhanced UI State
-  const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
-  const [showEpisodesModal, setShowEpisodesModal] = useState(false);
-  const [showSpeedModal, setShowSpeedModal] = useState(false);
-  const [showResModal, setShowResModal] = useState(false);
-  const [showWebviewControls, setShowWebviewControls] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
-  const [restoredVideoUrl, setRestoredVideoUrl] = useState<string>('');
-  const [savedProgress, setSavedProgress] = useState(0);
-  const [controlsVisible, setControlsVisible] = useState(true);
-  const [isSwitchingHost, setIsSwitchingHost] = useState(false);
-  const preferredHostRef = useRef<string | null>(null);
-  const currentEpisodeUrlRef = useRef<string | null>(null);
-  const lastKnownPositionRef = useRef<number>(0);
-  const webviewControlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Player state
-  const [playerMode, setPlayerMode] = useState<'webview' | 'native' | 'none'>('none');
-  const [webviewUrl, setWebviewUrl] = useState<string>('');
-  const [nativeVideoUrl, setNativeVideoUrl] = useState<string>('');
-  const [fallbackWebviewUrl, setFallbackWebviewUrl] = useState<string>('');
-  const [retryCount, setRetryCount] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const webviewRef = useRef<WebView>(null);
-
-  // Progress tracking
-  const [currentPosition, setCurrentPosition] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(0);
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isMounted = useRef<boolean>(true);
-
-  // Double Tap State
-  const lastTapRef = useRef<{ time: number; side: 'left' | 'right' } | null>(null);
-  const skipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const singleTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [skipInfo, setSkipInfo] = useState<{ side: 'left' | 'right', amount: number, wasPlaying?: boolean } | null>(null);
-  const rippleAnim = useRef(new Animated.Value(0)).current;
-  const [playerLayoutWidth, setPlayerLayoutWidth] = useState(Dimensions.get('window').width);
-
-  useEffect(() => {
-    if (skipInfo) {
-      rippleAnim.setValue(0);
-      Animated.timing(rippleAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.quad)
-      }).start();
-    }
-  }, [skipInfo]);
-
-  const videoSource = nativeVideoUrl ? {
-    uri: nativeVideoUrl,
-    headers: Object.keys(nativeVideoHeaders).length > 0 ? nativeVideoHeaders : {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  const videoSource = state.nativeVideoUrl ? {
+    uri: state.nativeVideoUrl,
+    headers: Object.keys(state.nativeVideoHeaders).length > 0 ? state.nativeVideoHeaders : {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
     }
   } : null;
 
@@ -122,6 +63,19 @@ export default function PlayerScreen() {
     player.preservesPitch = true;
     player.play();
   });
+
+  const { status, error: playerError } = useEvent(player, 'statusChange', { status: player.status, error: undefined });
+  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+
+  // 3. Initialize Playback Hook
+  const playback = useServerPlayback(state, player);
+
+  // 4. Initialize Fullscreen Hook
+  const webviewRef = useRef<WebView>(null);
+  const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen(params.autoFullscreen === '1', webviewRef, state.playerMode);
+
+  // 5. Initialize DoubleTap Skip Hook
+  const { skipInfo, rippleAnim, playerLayoutWidth, setPlayerLayoutWidth, handleDoubleTapSkip } = useDoubleTapSkip(player);
 
   const stopAllMedia = useCallback(() => {
     try {
@@ -134,62 +88,288 @@ export default function PlayerScreen() {
     } catch (e) {}
   }, [player]);
 
-  const { status, error: playerError } = useEvent(player, 'statusChange', { status: player.status, error: undefined });
-  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const saveCurrentProgress = useCallback(async () => {
+    if (state.currentEpisodeUrlRef.current && state.currentPosition > 0) {
+      await updateProgress(state.currentEpisodeUrlRef.current, state.currentPosition, state.totalDuration, state.activeHost);
+    }
+  }, [state.currentPosition, state.totalDuration, state.activeHost]);
+
+  // Handle native player status / auto-webview fallback
   useEffect(() => {
-    if (status === 'error' && playerError && playerMode === 'native' && fallbackWebviewUrl) {
-      if (retryCount < 2) {
-        console.log(`Native Player Error: ${playerError.message}. Retrying extraction (${retryCount + 1}/2)...`);
-        setRetryCount(prev => prev + 1);
+    if (status === 'error' && playerError && state.playerMode === 'native' && state.fallbackWebviewUrl) {
+      if (state.retryCount < 2) {
+        console.log(`Native Player Error: ${playerError.message}. Retrying extraction (${state.retryCount + 1}/2)...`);
+        state.setRetryCount((prev: number) => prev + 1);
         
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-        abortControllerRef.current = new AbortController();
-        const signal = abortControllerRef.current.signal;
+        if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+        state.abortControllerRef.current = new AbortController();
+        const signal = state.abortControllerRef.current.signal;
         
-        playServer(fallbackWebviewUrl, activeServerName, true, signal).then(success => {
-          if (signal.aborted) return; // Mencegah pemaksaan webview jika user ganti server
+        playback.playServer(state.fallbackWebviewUrl, state.activeServerName, true, signal).then(success => {
+          if (signal.aborted) return;
           if (!success) {
-            setPlayerMode('webview');
-            setWebviewUrl(fallbackWebviewUrl);
-            setNativeVideoUrl('');
-            setFallbackWebviewUrl('');
-            setRetryCount(0);
+            state.setPlayerMode('webview');
+            state.setWebviewUrl(state.fallbackWebviewUrl);
+            state.setNativeVideoUrl('');
+            state.setFallbackWebviewUrl('');
+            state.setRetryCount(0);
           }
         });
       } else {
         console.log('Max retries reached. Falling back to WebView');
-        setPlayerMode('webview');
-        setWebviewUrl(fallbackWebviewUrl);
-        setNativeVideoUrl('');
-        setFallbackWebviewUrl('');
-        setRetryCount(0);
+        state.setPlayerMode('webview');
+        state.setWebviewUrl(state.fallbackWebviewUrl);
+        state.setNativeVideoUrl('');
+        state.setFallbackWebviewUrl('');
+        state.setRetryCount(0);
       }
     }
-  }, [status, playerError, playerMode, fallbackWebviewUrl]);
+  }, [status, playerError, state.playerMode, state.fallbackWebviewUrl]);
 
+  // Load speed settings
+  useEffect(() => {
+    AsyncStorage.getItem('playback_speed').then(val => {
+      if (val) state.setPlaybackSpeed(parseFloat(val));
+    });
+  }, []);
 
-  // Filter items for current host
-  const activeHostItems = servers.filter(s => getHostName(s) === activeHost);
-  const isBlogger = activeHost.toLowerCase().includes('blog');
-
-  const isVidhide = activeHost.toLowerCase().includes('vidhide') || activeHost.toLowerCase().includes('vidlion');
-  const isGdrive = activeHost.toLowerCase().includes('drive') || activeHost.toLowerCase().includes('gdrive');
-  const isMega = activeHost.toLowerCase().includes('mega');
-
-  const availableSources = React.useMemo(() => {
-    const sources = new Set(servers.map(s => s.source || 'Samehadaku'));
-    return Array.from(sources);
-  }, [servers]);
-
-  React.useEffect(() => {
-    if (availableSources.length > 0 && !availableSources.includes(serverTab)) {
-      setServerTab(availableSources[0]);
+  // Sync playback speed with native player
+  useEffect(() => {
+    if (player && state.playerMode === 'native' && status === 'readyToPlay') {
+      player.playbackRate = state.playbackSpeed;
     }
-  }, [availableSources, serverTab]);
+  }, [state.playbackSpeed, player, state.playerMode, status]);
 
-  const visibleServers = React.useMemo(() => {
-    return servers.filter(s => (s.source || 'Samehadaku') === serverTab);
-  }, [servers, serverTab]);
+  const changeSpeed = async (speed: number) => {
+    state.setPlaybackSpeed(speed);
+    await AsyncStorage.setItem('playback_speed', speed.toString());
+    state.setShowSpeedModal(false);
+  };
+
+  // Restore saved progress
+  useEffect(() => {
+    if (status === 'readyToPlay' && state.nativeVideoUrl) {
+      if (player.duration) {
+        state.setTotalDuration(Math.floor(player.duration));
+      }
+      
+      if (state.restoredVideoUrl !== state.nativeVideoUrl && state.savedProgress > 5) {
+        console.log(`[Resume] Seeking to ${state.savedProgress}s on ${state.nativeVideoUrl.substring(0, 60)}`);
+        player.currentTime = state.savedProgress;
+        state.setRestoredVideoUrl(state.nativeVideoUrl);
+        
+        const retryTimer = setTimeout(() => {
+          try {
+            if (Math.floor(player.currentTime) < state.savedProgress - 3) {
+              console.log(`[Resume] Retry seek to ${state.savedProgress}s (was at ${Math.floor(player.currentTime)}s)`);
+              player.currentTime = state.savedProgress;
+            }
+          } catch {}
+        }, 1500);
+        return () => clearTimeout(retryTimer);
+      }
+    }
+  }, [status, player, state.savedProgress, state.restoredVideoUrl, state.nativeVideoUrl]);
+
+  // Progress tracking interval
+  useEffect(() => {
+    if (state.playerMode === 'native' && isPlaying) {
+      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+      state.progressIntervalRef.current = setInterval(() => {
+        try {
+          const curr = Math.floor(player.currentTime || 0);
+          state.setCurrentPosition(curr);
+          state.lastKnownPositionRef.current = curr;
+          if (curr > 0 && params.url) {
+            updateProgress(params.url, curr, Math.floor(player.duration || 0));
+          }
+        } catch (e) {
+          if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+        }
+      }, 1000);
+    } else {
+      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+    }
+    
+    return () => {
+      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+    };
+  }, [state.playerMode, isPlaying, params.url, player]);
+
+  // Load episode on mount or params.url change
+  useEffect(() => {
+    state.isMounted.current = true;
+    
+    if (params.autoFullscreen === '1') {
+      enterFullscreen();
+    } else {
+      exitFullscreen();
+    }
+
+    if (params.url) {
+      state.setRestoredVideoUrl('');
+      state.setSavedProgress(0);
+      let realUrl = params.url as string;
+      if (realUrl.includes('___HASH_NEOSATSU___')) {
+        realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
+      }
+      getProgress(realUrl).then(saved => {
+         if (saved && saved.progress > 5) state.setSavedProgress(saved.progress);
+      });
+      playback.loadEpisode(realUrl, params).then((data: any) => {
+        if (data) {
+          if (data.nav_prev) setNavPrev(data.nav_prev);
+          if (data.nav_next) setNavNext(data.nav_next);
+        }
+      });
+    }
+    return () => {
+      state.isMounted.current = false;
+      stopAllMedia();
+      if (state.abortControllerRef.current) {
+        state.abortControllerRef.current.abort();
+      }
+      saveCurrentProgress();
+      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+    };
+  }, [params.url]);
+
+  const handleUIBackPress = useCallback(() => {
+    saveCurrentProgress();
+    stopAllMedia();
+    try {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.push('/');
+      }
+    } catch (e) {
+      router.push('/');
+    }
+  }, [saveCurrentProgress, router]);
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isFullscreen) {
+        exitFullscreen();
+        return true;
+      }
+      handleUIBackPress();
+      return true;
+    });
+    return () => backHandler.remove();
+  }, [isFullscreen, handleUIBackPress]);
+
+  const navigateEpisode = (url: string) => {
+    stopAllMedia();
+    setTimeout(() => {
+      state.setShowEpisodesModal(false);
+      saveCurrentProgress();
+      state.isMounted.current = false;
+      if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+
+      let safeUrl = url;
+      if (safeUrl.includes('#neosatsu_ep_')) {
+        safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
+      }
+
+      const targetEp = episodes.find(e => 
+        e.url === url || 
+        (e.url && e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
+      );
+      const nextJudul = targetEp ? targetEp.judul : '';
+
+      router.replace({
+        pathname: '/player',
+        params: { 
+          url: safeUrl, 
+          gambar: params.gambar, 
+          seriUrl: params.seriUrl, 
+          judul: nextJudul,
+          seriJudul: params.seriJudul,
+          autoPlayHost: state.preferredHostRef.current || state.activeHost,
+          autoFullscreen: isFullscreen ? '1' : '0'
+        }
+      });
+    }, 500);
+  };
+
+  // Auto-next logic
+  useEffect(() => {
+    if (state.totalDuration > 0 && state.currentPosition > 0 && navNext) {
+      if (state.currentPosition >= state.totalDuration - 2) {
+        console.log('[Auto-Next] Triggered navigateEpisode');
+        navigateEpisode(navNext);
+      }
+    }
+  }, [state.currentPosition, state.totalDuration, navNext]);
+
+  const isSkipOPVisible = state.controlsVisible && state.totalDuration > 0 && state.currentPosition < 360;
+  const isSkipEDVisible = state.controlsVisible && state.totalDuration > 0 && state.currentPosition >= state.totalDuration - 90 && state.currentPosition < state.totalDuration - 2;
+
+  const handleSkipOP = (e: any) => {
+    e.stopPropagation();
+    if (state.playerMode === 'native' && player) {
+      player.currentTime = Math.min(state.totalDuration, (player.currentTime || 0) + 85);
+    } else if (state.playerMode === 'webview') {
+      skipWebview(85);
+    }
+  };
+
+  const handleSkipED = (e: any) => {
+    e.stopPropagation();
+    if (navNext) navigateEpisode(navNext);
+  };
+
+  const skipWebview = (amount: number) => {
+    if (webviewRef.current) {
+      webviewRef.current.injectJavaScript(`
+        try {
+          const v = document.querySelector('video');
+          if (v) {
+            v.currentTime = Math.max(0, v.currentTime + (${amount}));
+          }
+        } catch(e){}
+        true;
+      `);
+    }
+    if (state.webviewControlsTimeoutRef.current) clearTimeout(state.webviewControlsTimeoutRef.current);
+    state.webviewControlsTimeoutRef.current = setTimeout(() => state.setShowWebviewControls(false), 4000);
+  };
+
+  const toggleControls = () => {
+    state.setControlsVisible(!state.controlsVisible);
+    if (state.controlsTimeoutRef.current) clearTimeout(state.controlsTimeoutRef.current);
+    if (!state.controlsVisible && isPlaying) {
+      state.controlsTimeoutRef.current = setTimeout(() => state.setControlsVisible(false), 4000);
+    }
+  };
+
+  const handleVideoTap = (evt: any) => {
+    handleDoubleTapSkip(evt, state.controlsVisible, toggleControls);
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      if (state.controlsTimeoutRef.current) clearTimeout(state.controlsTimeoutRef.current);
+      state.controlsTimeoutRef.current = setTimeout(() => state.setControlsVisible(false), 4000);
+    } else {
+      state.setControlsVisible(true);
+      if (state.controlsTimeoutRef.current) clearTimeout(state.controlsTimeoutRef.current);
+    }
+  }, [isPlaying]);
+
+  const { width: screenWidth } = useWindowDimensions();
+  const playerWrapperStyle = isFullscreen
+    ? { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#000' }
+    : { height: (screenWidth * 9) / 16 };
+
+  // WebView Javascript setup
+  const activeHostItems = state.servers.filter(s => getHostName(s) === state.activeHost);
+  const isBlogger = state.activeHost.toLowerCase().includes('blog');
+  const isVidhide = state.activeHost.toLowerCase().includes('vidhide') || state.activeHost.toLowerCase().includes('vidlion');
+  const isGdrive = state.activeHost.toLowerCase().includes('drive') || state.activeHost.toLowerCase().includes('gdrive');
+  const isMega = state.activeHost.toLowerCase().includes('mega');
 
   let injectedJS = `
     window.open = function() { return null; };
@@ -201,7 +381,6 @@ export default function PlayerScreen() {
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'webviewClick' }));
     }, {passive: true, capture: true});
 
-    // Dengarkan perubahan fullscreen untuk merotasi perangkat
     ['fullscreenchange', 'webkitfullscreenchange'].forEach(evt => {
       document.addEventListener(evt, () => {
         const isFS = document.fullscreenElement || document.webkitFullscreenElement;
@@ -238,7 +417,7 @@ export default function PlayerScreen() {
              const z = window.getComputedStyle(o).zIndex;
              if (z && !isNaN(z) && parseInt(z) > 1000 && o.id !== 'vjs_video_3') {
                 o.style.display = 'none';
-             }
+              }
           });
         } catch(e){}
       }, 1000);
@@ -254,10 +433,9 @@ export default function PlayerScreen() {
     `;
   }
 
-  // Universal Video Auto-Play & Progress Resume for ALL WebView Servers
   if (!isBlogger && !isGdrive) {
     injectedJS += `
-      console.log('[InjectedJS] savedProgress=${savedProgress}');
+      console.log('[InjectedJS] savedProgress=${state.savedProgress}');
       setInterval(() => {
         try {
           const v = document.querySelector('video');
@@ -265,8 +443,8 @@ export default function PlayerScreen() {
              if (v.paused) {
                 v.play().catch(()=>{});
              }
-             if (!window.hasRestoredProgress && ${savedProgress} > 5 && v.readyState >= 1) {
-                v.currentTime = ${savedProgress};
+             if (!window.hasRestoredProgress && ${state.savedProgress} > 5 && v.readyState >= 1) {
+                v.currentTime = ${state.savedProgress};
                 window.hasRestoredProgress = true;
              }
              if (v.currentTime > 5 && v.duration > 0 && !v.paused) {
@@ -284,698 +462,20 @@ export default function PlayerScreen() {
 
   injectedJS += "true;";
 
-  useEffect(() => {
-    AsyncStorage.getItem('playback_speed').then(val => {
-      if (val) setPlaybackSpeed(parseFloat(val));
-    });
-  }, []);
-
-  // Cleanup orientasi global hanya saat screen benar-benar unmount (keluar ke beranda)
-  useEffect(() => {
-    return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-      NavigationBar.setVisibilityAsync('visible').catch(() => {});
-    };
-  }, []);
+  const availableSources = React.useMemo(() => {
+    const sources = new Set(state.servers.map(s => s.source || 'Samehadaku'));
+    return Array.from(sources);
+  }, [state.servers]);
 
   useEffect(() => {
-    if (player && playerMode === 'native' && status === 'readyToPlay') {
-      player.playbackRate = playbackSpeed;
+    if (availableSources.length > 0 && !availableSources.includes(state.serverTab)) {
+      state.setServerTab(availableSources[0]);
     }
-  }, [playbackSpeed, player, playerMode, status]);
+  }, [availableSources, state.serverTab]);
 
-  const changeSpeed = async (speed: number) => {
-    setPlaybackSpeed(speed);
-    await AsyncStorage.setItem('playback_speed', speed.toString());
-    setShowSpeedModal(false);
-  };
-
-  useEffect(() => {
-    if (params.seriUrl) {
-      fetchEpisodes(params.seriUrl)
-        .then(res => {
-          const epList = res.data.daftar_episode || [];
-          setEpisodes(epList);
-        })
-        .catch(() => {});
-    }
-  }, [params.seriUrl]);
-
-  // Fallback: If backend fails to extract nav_prev/nav_next, calculate them from the episodes list
-  useEffect(() => {
-    if (episodes.length > 0 && params.url) {
-      const currentIndex = episodes.findIndex(e => e.url === params.url);
-      if (currentIndex !== -1) {
-        // Episodes are typically sorted latest to oldest (index 0 is latest)
-        // Previous episode is currentIndex + 1
-        // Next episode is currentIndex - 1
-        setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? episodes[currentIndex + 1].url : null));
-        setNavNext(prev => prev || (currentIndex > 0 ? episodes[currentIndex - 1].url : null));
-      }
-    }
-  }, [episodes, params.url, navPrev, navNext]);
-
-  useEffect(() => {
-    if (status === 'readyToPlay' && nativeVideoUrl) {
-      if (player.duration) {
-        setTotalDuration(Math.floor(player.duration));
-      }
-      
-      if (restoredVideoUrl !== nativeVideoUrl && savedProgress > 5) {
-        console.log(`[Resume] Seeking to ${savedProgress}s on ${nativeVideoUrl.substring(0, 60)}`);
-        player.currentTime = savedProgress;
-        setRestoredVideoUrl(nativeVideoUrl);
-        
-        // Retry seek after delay - player may ignore the first seek if not fully buffered
-        const retryTimer = setTimeout(() => {
-          try {
-            if (Math.floor(player.currentTime) < savedProgress - 3) {
-              console.log(`[Resume] Retry seek to ${savedProgress}s (was at ${Math.floor(player.currentTime)}s)`);
-              player.currentTime = savedProgress;
-            }
-          } catch {}
-        }, 1500);
-        return () => clearTimeout(retryTimer);
-      }
-    }
-  }, [status, player, savedProgress, restoredVideoUrl, nativeVideoUrl]);
-
-  useEffect(() => {
-    if (playerMode === 'native' && isPlaying) {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = setInterval(() => {
-        try {
-          const curr = Math.floor(player.currentTime || 0);
-          setCurrentPosition(curr);
-          lastKnownPositionRef.current = curr;
-          if (curr > 0 && params.url) {
-            updateProgress(params.url, curr, Math.floor(player.duration || 0));
-          }
-        } catch (e) {
-          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        }
-      }, 1000);
-    } else {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-    }
-    
-    return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-    };
-  }, [playerMode, isPlaying, params.url, player]);
-
-  const saveCurrentProgress = useCallback(async () => {
-    if (currentEpisodeUrlRef.current && currentPosition > 0) {
-      await updateProgress(currentEpisodeUrlRef.current, currentPosition, totalDuration, activeHost);
-    }
-  }, [currentPosition, totalDuration, activeHost]);
-
-  useEffect(() => {
-    isMounted.current = true;
-    
-    // Jaga agar tetap fullscreen jika parameter autoFullscreen di-set '1' (seamless transition)
-    if (params.autoFullscreen === '1') {
-      setIsFullscreen(true);
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-      NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-    } else {
-      setIsFullscreen(false);
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-      NavigationBar.setVisibilityAsync('visible').catch(() => {});
-    }
-
-    if (params.url) {
-      setRestoredVideoUrl('');
-      setSavedProgress(0);
-      let realUrl = params.url as string;
-      if (realUrl.includes('___HASH_NEOSATSU___')) {
-        realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
-      }
-      getProgress(realUrl).then(saved => {
-         if (saved && saved.progress > 5) setSavedProgress(saved.progress);
-      });
-      loadEpisode(realUrl);
-    }
-    return () => {
-      isMounted.current = false;
-      stopAllMedia();
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      saveCurrentProgress();
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-    };
-  }, [params.url]);
-
-  const handleUIBackPress = useCallback(() => {
-    saveCurrentProgress();
-    stopAllMedia();
-    try {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.push('/');
-      }
-    } catch (e) {
-      router.push('/');
-    }
-  }, [saveCurrentProgress, router]);
-
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isFullscreen) {
-        exitFullscreen();
-        return true;
-      }
-      handleUIBackPress();
-      return true;
-    });
-    return () => backHandler.remove();
-  }, [isFullscreen, handleUIBackPress]);
-
-  const loadEpisode = async (url: string) => {
-    setLoading(true);
-    setError(null);
-    setPlayerMode('none');
-    setWebviewUrl('');
-    setNativeVideoUrl('');
-    setActiveHost('');
-    setActiveServerName('');
-    setFallbackWebviewUrl('');
-    setRetryCount(0);
-    currentEpisodeUrlRef.current = url;
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-    
-    if (params.autoPlayHost && !preferredHostRef.current) {
-      preferredHostRef.current = params.autoPlayHost as string;
-    }
-
-    try {
-      const json = await scrapeVideo(url, params.seriJudul as string, params.judul as string, signal);
-      if (!isMounted.current || signal.aborted) return;
-      if (json.status !== 'success') throw new Error(json.data?.judul || 'Gagal');
-
-      const data = json.data;
-      // Hanya update judul dari backend jika params.judul kosong/tidak tersedia
-      // Ini mencegah judul bersih dari episode list ditimpa oleh judul raw scraping
-      if (!params.judul && data.judul) {
-          setTitle(data.judul);
-      }
-      setNavPrev(data.nav_prev);
-      setNavNext(data.nav_next);
-
-      if (data.servers && data.servers.length > 0) {
-        // Menggunakan metode Blacklist: Masukkan nama server yang pasti rusak/tidak didukung ke sini
-        const blockedHosts = ['disabled_server_example'];
-        
-        let validServers = data.servers.filter(s => {
-          const sn = getHostName(s);
-          return !blockedHosts.some(h => sn.includes(h));
-        });
-        
-        if (validServers.length === 0) {
-          validServers = data.servers;
-        }
-
-        const prioritas = ['pucuk', 'kraken', 'wibufile'];
-        validServers.sort((a, b) => {
-          const snA = getHostName(a);
-          const snB = getHostName(b);
-          
-          if (preferredHostRef.current) {
-            if (snA === preferredHostRef.current && snB !== preferredHostRef.current) return -1;
-            if (snB === preferredHostRef.current && snA !== preferredHostRef.current) return 1;
-          }
-
-          let idxA = prioritas.findIndex(p => snA.includes(p));
-          let idxB = prioritas.findIndex(p => snB.includes(p));
-          if (idxA === -1) idxA = 999;
-          if (idxB === -1) idxB = 999;
-          if (idxA !== idxB) return idxA - idxB;
-
-          // Jika dari host yang sama, urutkan berdasarkan Format (MKV > MP4 > x265) lalu Resolusi
-          const getFormatRank = (nama: string) => {
-            const upper = nama.toUpperCase();
-            if (upper.includes('MKV')) return 1;
-            if (upper.includes('MP4')) return 2;
-            if (upper.includes('X265') || upper.includes('HEVC')) return 3;
-            return 4;
-          };
-          const getResValue = (nama: string) => {
-            const upper = nama.toUpperCase();
-            if (upper.includes('4K')) return 4000;
-            if (upper.includes('FULLHD')) return 1080;
-            if (upper.includes('MP4HD')) return 720;
-            const match = upper.match(/(\d+)P/);
-            return match ? parseInt(match[1], 10) : 0;
-          };
-
-          const formatA = getFormatRank(a.nama);
-          const formatB = getFormatRank(b.nama);
-          if (formatA !== formatB) return formatA - formatB;
-
-          return getResValue(b.nama) - getResValue(a.nama);
-        });
-
-        setServers(validServers);
-        await simpanKeRiwayat((params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, preferredHostRef.current || undefined, params.seriJudul as string);
-
-        if (preferredHostRef.current) {
-          const prefHost = preferredHostRef.current;
-          const preferredItems = validServers.filter(s => getHostName(s) === prefHost);
-          if (preferredItems.length > 0) {
-            setServerTab(preferredItems[0].source || 'Samehadaku');
-            const success = await attemptToPlayServers(preferredItems, url, signal);
-            if (!isMounted.current || signal.aborted) return;
-            if (!success) {
-              setPlayerMode('none');
-              setError(`Server ${prefHost} gagal dimuat di episode ini. Silakan pilih server secara manual.`);
-            }
-          } else {
-            setPlayerMode('none');
-            setError(`Server ${prefHost} tidak tersedia di episode ini. Silakan pilih server secara manual.`);
-          }
-        } else {
-          setPlayerMode('none');
-          setError('Silakan pilih server di bawah untuk memutar video.');
-        }
-      } else {
-        setError('Tidak ada server video yang ditemukan.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat video');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const attemptToPlayServers = async (serverList: ServerItem[], episodeUrl: string, signal: AbortSignal): Promise<boolean> => {
-    let firstIframeUrl = '';
-    let firstServerName = '';
-
-    for (const srv of serverList) {
-      if (!isMounted.current || signal.aborted) return false;
-      try {
-        let iframeUrl = srv.iframeUrl;
-        if (!iframeUrl) {
-          const res = await resolveServer(episodeUrl, srv.nume, signal);
-          if (!isMounted.current || signal.aborted) return false;
-          if (res.data?.iframeUrl) {
-            iframeUrl = res.data.iframeUrl;
-            srv.iframeUrl = iframeUrl;
-            srv.namaHost = srv.namaHost || res.data.namaHost;
-          }
-        }
-        if (iframeUrl) {
-          if (!firstIframeUrl) {
-            firstIframeUrl = iframeUrl;
-            firstServerName = srv.namaHost || srv.nama;
-          }
-          const success = await playServer(iframeUrl, srv.namaHost || srv.nama, true, signal);
-          if (!isMounted.current || signal.aborted) return false;
-          if (success) {
-            const hName = getHostName(srv);
-            setActiveHost(hName);
-            setActiveServerName(srv.nama);
-            return true;
-          }
-        }
-      } catch { continue; }
-    }
-    
-    if (!isMounted.current || signal.aborted) return false;
-    if (firstIframeUrl) {
-      await playServer(firstIframeUrl, firstServerName, false, signal);
-      const fsrv = serverList.find(s => s.iframeUrl === firstIframeUrl);
-      if (fsrv) {
-        const hName = getHostName(fsrv);
-        setActiveHost(hName);
-        setActiveServerName(fsrv.nama);
-      }
-      return true;
-    }
-    return false;
-  };
-
-  const playServer = async (iframeUrl: string, serverName: string, isAutoPlay = false, signal: AbortSignal) => {
-    setPlayerLoading(true);
-
-    const serverLower = serverName.toLowerCase();
-    const isPreferred = preferredHostRef.current ? serverLower.includes(preferredHostRef.current) : false;
-
-    const isDirectVideo = iframeUrl.toLowerCase().match(/\.(mp4|mkv|m3u8)(?:\?|$)/);
-    if (isDirectVideo) {
-      setPlayerMode('native');
-      setNativeVideoUrl(iframeUrl);
-      setNativeVideoHeaders({ 'Referer': 'https://v2.samehadaku.how/' });
-      setPlayerLoading(false);
-      return true;
-    }
-
-    const isBypassWebView = ['mega', 'bstation', 'bilibili', 'pucuk', 'filedon'].some(n => serverLower.includes(n));
-    if (isBypassWebView) {
-      setPlayerMode('webview');
-      setWebviewUrl(iframeUrl);
-      setPlayerLoading(false);
-      return true;
-    }
-
-    try {
-      const result = await extractVideoUrl(iframeUrl, signal);
-      if (!isMounted.current || signal.aborted) return false;
-      
-      if (result.success && result.url) {
-        setPlayerMode('native');
-        setNativeVideoUrl(result.url);
-        setFallbackWebviewUrl(iframeUrl);
-        
-        let customHeaders = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-          'Referer': iframeUrl,
-        };
-        
-        if (result.headers) {
-           customHeaders = { ...customHeaders, ...result.headers };
-        }
-        
-        setNativeVideoHeaders(customHeaders);
-        setPlayerLoading(false);
-        return true;
-      }
-
-      // Jika server WebView-only (wibufile, mega, gofile, dll) atau ekstraksi gagal:
-      // Langsung fallback ke WebView — jangan return false dan biarkan video tidak jalan.
-      // result.webviewOnly === true berarti backend sudah pasti tidak bisa ekstrak native URL.
-      if ((result as any).webviewOnly || (!isAutoPlay || isPreferred)) {
-        setPlayerMode('webview');
-        setWebviewUrl(iframeUrl);
-        setPlayerLoading(false);
-        return true;
-      }
-    } catch {}
-
-    if (isAutoPlay && !isPreferred) return false;
-
-    setPlayerMode('webview');
-    setWebviewUrl(iframeUrl);
-    setPlayerLoading(false);
-    return true;
-  };
-
-  const handleSelectHost = (hostName: string, items: ServerItem[]) => {
-    if (isSwitchingHost) return;
-    setIsSwitchingHost(true);
-    
-    // Capture position from ALL available sources and pick the best one
-    let pos = Math.max(lastKnownPositionRef.current, currentPosition);
-    if (playerMode === 'native' && player) {
-      try { 
-        const playerTime = Math.floor(player.currentTime || 0);
-        pos = Math.max(pos, playerTime);
-      } catch {}
-    }
-    console.log(`[HostSwitch] pos=${pos}, lastRef=${lastKnownPositionRef.current}, currentPosition=${currentPosition}, playerMode=${playerMode}, targetHost=${hostName}`);
-    
-    stopAllMedia();
-    saveCurrentProgress();
-    if (pos > 5) {
-      setSavedProgress(pos);
-      setRestoredVideoUrl(''); // reset guard so new URL gets restored
-    }
-    
-    setPlayerMode('none');
-    setNativeVideoUrl('');
-    setWebviewUrl('');
-    setPlayerLoading(true);
-    setError(null);
-    setFallbackWebviewUrl('');
-    setRetryCount(0);
-    
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
-    const timeout = setTimeout(() => setIsSwitchingHost(false), 5000);
-    
-    preferredHostRef.current = hostName;
-    
-    attemptToPlayServers(items, params.url, signal).then(success => {
-      if (!isMounted.current || signal.aborted) return;
-      if (!success) {
-        setPlayerMode('none');
-        setError(`Gagal memutar server ${hostName}.`);
-      }
-    }).finally(() => {
-      clearTimeout(timeout);
-      setIsSwitchingHost(false);
-    });
-  };
-
-  const handleSelectResolution = (srv: ServerItem) => {
-    setShowResModal(false);
-    
-    // Capture position from ALL available sources and pick the best one
-    let pos = Math.max(lastKnownPositionRef.current, currentPosition);
-    if (playerMode === 'native' && player) {
-      try { 
-        const playerTime = Math.floor(player.currentTime || 0);
-        pos = Math.max(pos, playerTime);
-      } catch {}
-    }
-    console.log(`[ResSwitch] pos=${pos}, lastRef=${lastKnownPositionRef.current}, currentPosition=${currentPosition}, playerMode=${playerMode}`);
-    
-    stopAllMedia();
-    saveCurrentProgress();
-    if (pos > 5) {
-      setSavedProgress(pos);
-      setRestoredVideoUrl(''); // reset guard so new URL gets restored
-    }
-
-    setPlayerMode('none');
-    setNativeVideoUrl('');
-    setWebviewUrl('');
-    setPlayerLoading(true);
-    setError(null);
-    setFallbackWebviewUrl('');
-    setRetryCount(0);
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
-    attemptToPlayServers([srv], params.url, signal).then(success => {
-      if (!isMounted.current || signal.aborted) return;
-      if (!success) {
-        setPlayerMode('none');
-        setError(`Gagal memutar server resolusi ini.`);
-      }
-    });
-  };
-
-  const navigateEpisode = (url: string) => {
-    stopAllMedia();
-    // Beri jeda sedikit agar Native Player benar-benar memutus koneksi streaming lama
-    // Mencegah terkena rate limit Google Drive (403) pada pemanggilan server Acefile berikutnya
-    setTimeout(() => {
-      setShowEpisodesModal(false);
-      saveCurrentProgress();
-      isMounted.current = false;
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-
-    let safeUrl = url;
-    if (safeUrl.includes('#neosatsu_ep_')) {
-      safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
-    }
-
-    // Cari judul episode target dari daftar episodes
-    const targetEp = episodes.find(e => 
-      e.url === url || 
-      (e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
-    );
-    const nextJudul = targetEp ? targetEp.judul : '';
-
-    router.replace({
-      pathname: '/player',
-      params: { 
-        url: safeUrl, 
-        gambar: params.gambar, 
-        seriUrl: params.seriUrl, 
-        judul: nextJudul,
-        seriJudul: params.seriJudul,
-        autoPlayHost: preferredHostRef.current || activeHost,
-        autoFullscreen: isFullscreen ? '1' : '0'
-      }
-    });
-    }, 500);
-  };
-
-  const enterFullscreen = async () => {
-    setIsFullscreen(true);
-    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
-    await NavigationBar.setVisibilityAsync('hidden').catch(() => {});
-  };
-
-  const exitFullscreen = async () => {
-    setIsFullscreen(false);
-    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    await NavigationBar.setVisibilityAsync('visible').catch(() => {});
-    if (playerMode === 'webview' && webviewRef.current) {
-      webviewRef.current.injectJavaScript(`if (document.fullscreenElement) { document.exitFullscreen().catch(()=>{}); } else if (document.webkitFullscreenElement) { document.webkitExitFullscreen().catch(()=>{}); }; true;`);
-    }
-  };
-
-  // ----------------------------------------------------
-  // AUTO-NEXT & SKIP LOGIC
-  // ----------------------------------------------------
-  useEffect(() => {
-    if (totalDuration > 0 && currentPosition > 0 && navNext) {
-      if (currentPosition >= totalDuration - 2) {
-        console.log('[Auto-Next] Triggered navigateEpisode');
-        navigateEpisode(navNext);
-      }
-    }
-  }, [currentPosition, totalDuration, navNext]);
-
-  const isSkipOPVisible = controlsVisible && totalDuration > 0 && currentPosition < 360; // First 6 minutes
-  const isSkipEDVisible = controlsVisible && totalDuration > 0 && currentPosition >= totalDuration - 90 && currentPosition < totalDuration - 2;
-
-  const handleSkipOP = (e: any) => {
-    e.stopPropagation();
-    if (playerMode === 'native' && player) {
-      player.currentTime = Math.min(totalDuration, (player.currentTime || 0) + 85);
-    } else if (playerMode === 'webview') {
-      skipWebview(85);
-    }
-  };
-
-  const handleSkipED = (e: any) => {
-    e.stopPropagation();
-    if (navNext) navigateEpisode(navNext);
-  };
-
-  const skipWebview = (amount: number) => {
-    if (webviewRef.current) {
-      webviewRef.current.injectJavaScript(`
-        try {
-          const v = document.querySelector('video');
-          if (v) {
-            v.currentTime = Math.max(0, v.currentTime + (${amount}));
-          }
-        } catch(e){}
-        true;
-      `);
-    }
-    if (webviewControlsTimeoutRef.current) clearTimeout(webviewControlsTimeoutRef.current);
-    webviewControlsTimeoutRef.current = setTimeout(() => setShowWebviewControls(false), 4000);
-  };
-
-  const toggleControls = () => {
-    setControlsVisible(!controlsVisible);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    if (!controlsVisible && isPlaying) {
-      controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 4000);
-    }
-  };
-  const handleVideoTap = (evt: any) => {
-    const now = Date.now();
-    const { pageX } = evt.nativeEvent;
-    
-    // Gunakan pageX (koordinat absolut layar) agar selalu akurat mendeteksi separuh layar
-    // Tidak terpengaruh jika tap mengenai elemen child di dalam overlay
-    const screenWidth = Dimensions.get('window').width;
-    const side = pageX > screenWidth / 2 ? 'right' : 'left';
-
-    // Cek apakah ini kelanjutan combo yang sedang berjalan (skipInfo aktif di sisi yang sama)
-    // ATAU double tap baru (tap dalam 250ms di sisi yang sama dengan lastTap)
-    const isComboTap = lastTapRef.current &&
-      (now - lastTapRef.current.time < 250) &&
-      lastTapRef.current.side === side;
-
-    if (isComboTap) {
-      if (singleTapTimeoutRef.current) clearTimeout(singleTapTimeoutRef.current);
-      const addAmount = side === 'right' ? 10 : -10;
-      
-      // Pause hanya sekali saat combo BARU dimulai (bukan setiap tap tambahan)
-      // Cek lewat skipInfo: jika belum ada skipInfo berarti ini double tap pertama
-      setSkipInfo(prev => {
-        const isFirstDoubleTap = !prev || prev.side !== side;
-        if (isFirstDoubleTap && player.playing) {
-          player.pause();
-        }
-        return {
-          side,
-          amount: prev && prev.side === side ? prev.amount + addAmount : addAmount,
-          wasPlaying: prev && prev.side === side ? prev.wasPlaying : player.playing
-        };
-      });
-
-      // Reset timeout eksekusi skip — diperpanjang setiap tap tambahan
-      if (skipTimeoutRef.current) clearTimeout(skipTimeoutRef.current);
-      skipTimeoutRef.current = setTimeout(() => {
-        setSkipInfo(prev => {
-          if (prev) {
-            player.currentTime = Math.max(0, player.currentTime + prev.amount);
-            if (prev.wasPlaying) {
-              player.play();
-            }
-          }
-          return null;
-        });
-      }, 500);
-
-      // JANGAN update lastTapRef saat accumulating combo —
-      // biarkan window 250ms dihitung dari tap terakhir yang valid
-      lastTapRef.current = { time: now, side };
-    } else {
-      // Single tap → Delay toggleControls
-      // Reset skipInfo jika ada (user tap sisi berbeda → batalkan combo)
-      if (lastTapRef.current && lastTapRef.current.side !== side) {
-        if (skipTimeoutRef.current) clearTimeout(skipTimeoutRef.current);
-        setSkipInfo(prev => {
-          if (prev) {
-            // Eksekusi skip yang sudah terkumpul sebelum batal
-            player.currentTime = Math.max(0, player.currentTime + prev.amount);
-            if (prev.wasPlaying) player.play();
-          }
-          return null;
-        });
-      }
-
-      if (singleTapTimeoutRef.current) clearTimeout(singleTapTimeoutRef.current);
-      singleTapTimeoutRef.current = setTimeout(() => {
-        toggleControls();
-      }, 250);
-
-      lastTapRef.current = { time: now, side };
-    }
-  };
-
-
-  useEffect(() => {
-    if (isPlaying) {
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-      controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 4000);
-    } else {
-      setControlsVisible(true);
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    }
-  }, [isPlaying]);
-
-  const { width: screenWidth } = useWindowDimensions();
-  // Saat fullscreen: lepas dari flow SafeAreaView dengan absoluteFillObject + zIndex tinggi
-  // agar tidak terkena efek safe area inset saat orientasi berubah
-  const playerWrapperStyle = isFullscreen
-    ? { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#000' }
-    : { height: (screenWidth * 9) / 16 };
+  const visibleServers = React.useMemo(() => {
+    return state.servers.filter(s => (s.source || 'Samehadaku') === state.serverTab);
+  }, [state.servers, state.serverTab]);
 
   const getResName = (nama: string) => {
     const p = nama.split('·');
@@ -984,7 +484,6 @@ export default function PlayerScreen() {
 
   return (
     <>
-      {/* StatusBar di luar SafeAreaView agar tidak ada race condition dengan SafeArea re-calculation */}
       <StatusBar
         hidden={isFullscreen}
         translucent
@@ -996,19 +495,19 @@ export default function PlayerScreen() {
           <TouchableOpacity style={styles.backBtn} onPress={handleUIBackPress}>
             <Text style={styles.backText}>← Kembali</Text>
           </TouchableOpacity>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+          <Text style={styles.title} numberOfLines={1}>{state.title}</Text>
         </View>
       )}
 
       <View style={[styles.playerWrapper, playerWrapperStyle]}>
-        {(loading || playerLoading) && (
+        {(state.loading || state.playerLoading) && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={Colors.accent} />
-            <Text style={styles.overlayText}>{loading ? 'Mencari server...' : 'Menyiapkan video...'}</Text>
+            <Text style={styles.overlayText}>{state.loading ? 'Mencari server...' : 'Menyiapkan video...'}</Text>
           </View>
         )}
 
-        {playerMode === 'native' && nativeVideoUrl ? (
+        {state.playerMode === 'native' && state.nativeVideoUrl ? (
           <View style={{ flex: 1 }}>
             <VideoView player={player} style={styles.video} nativeControls={false} />
             {playerError && (
@@ -1017,36 +516,36 @@ export default function PlayerScreen() {
                </View>
             )}
             <PlayerNativeControls
-              player={player} status={status} title={title} isFullscreen={isFullscreen} controlsVisible={controlsVisible}
-              isPlaying={isPlaying} currentPosition={currentPosition} totalDuration={totalDuration}
-              playbackSpeed={playbackSpeed} activeServerName={activeServerName} activeHostItems={activeHostItems}
+              player={player} status={status} title={state.title} isFullscreen={isFullscreen} controlsVisible={state.controlsVisible}
+              isPlaying={isPlaying} currentPosition={state.currentPosition} totalDuration={state.totalDuration}
+              playbackSpeed={state.playbackSpeed} activeServerName={state.activeServerName} activeHostItems={activeHostItems}
               episodes={episodes} navPrev={navPrev} navNext={navNext} skipInfo={skipInfo} rippleAnim={rippleAnim}
               isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
               handleVideoTap={handleVideoTap} setPlayerLayoutWidth={setPlayerLayoutWidth}
               exitFullscreen={exitFullscreen} enterFullscreen={enterFullscreen}
-              setShowSpeedModal={setShowSpeedModal} setShowResModal={setShowResModal}
-              setShowEpisodesModal={setShowEpisodesModal} getResName={getResName}
+              setShowSpeedModal={state.setShowSpeedModal} setShowResModal={state.setShowResModal}
+              setShowEpisodesModal={state.setShowEpisodesModal} getResName={getResName}
               navigateEpisode={navigateEpisode} formatDuration={formatDuration}
-              controlsTimeoutRef={controlsTimeoutRef} setControlsVisible={setControlsVisible}
+              controlsTimeoutRef={state.controlsTimeoutRef} setControlsVisible={state.setControlsVisible}
               handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
             />
           </View>
-        ) : playerMode === 'webview' && webviewUrl ? (
+        ) : state.playerMode === 'webview' && state.webviewUrl ? (
           <PlayerWebView
-            webviewRef={webviewRef} webviewUrl={webviewUrl} isBlogger={isBlogger} injectedJS={injectedJS}
-            isFullscreen={isFullscreen} showWebviewControls={showWebviewControls}
-            setShowWebviewControls={setShowWebviewControls} setPlayerMode={setPlayerMode}
-            setNativeVideoUrl={setNativeVideoUrl} setWebviewUrl={setWebviewUrl}
-            setCurrentPosition={setCurrentPosition} setTotalDuration={setTotalDuration}
-            lastKnownPositionRef={lastKnownPositionRef} enterFullscreen={enterFullscreen}
-            exitFullscreen={exitFullscreen} setPlayerLoading={setPlayerLoading}
+            webviewRef={webviewRef} webviewUrl={state.webviewUrl} isBlogger={isBlogger} injectedJS={injectedJS}
+            isFullscreen={isFullscreen} showWebviewControls={state.showWebviewControls}
+            setShowWebviewControls={state.setShowWebviewControls} setPlayerMode={state.setPlayerMode}
+            setNativeVideoUrl={state.setNativeVideoUrl} setWebviewUrl={state.setWebviewUrl}
+            setCurrentPosition={state.setCurrentPosition} setTotalDuration={state.setTotalDuration}
+            lastKnownPositionRef={state.lastKnownPositionRef} enterFullscreen={enterFullscreen}
+            exitFullscreen={exitFullscreen} setPlayerLoading={state.setPlayerLoading}
             handleUIBackPress={handleUIBackPress} navPrev={navPrev} navNext={navNext}
-            navigateEpisode={navigateEpisode} webviewControlsTimeoutRef={webviewControlsTimeoutRef}
+            navigateEpisode={navigateEpisode} webviewControlsTimeoutRef={state.webviewControlsTimeoutRef}
             isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
             handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
-            playbackSpeed={playbackSpeed} setShowSpeedModal={setShowSpeedModal}
+            playbackSpeed={state.playbackSpeed} setShowSpeedModal={state.setShowSpeedModal}
           />
-        ) : !loading && error ? (
+        ) : !state.loading && state.error ? (
           <View style={styles.playerError}>
             {isFullscreen && (
               <TouchableOpacity style={styles.wvPermExitBtn} onPress={exitFullscreen}>
@@ -1054,45 +553,52 @@ export default function PlayerScreen() {
                 <Text style={[styles.wvPermExitText, { marginLeft: 8 }]}>Tutup Fullscreen</Text>
               </TouchableOpacity>
             )}
-            <Text style={styles.playerErrorText}>{error}</Text>
+            <Text style={styles.playerErrorText}>{state.error}</Text>
           </View>
         ) : null}
       </View>
 
       {!isFullscreen && (
         <ScrollView style={styles.controlsContainer} contentContainerStyle={styles.controlsContent}>
-          {availableSources.length > 1 && (
-            <View style={{ flexDirection: 'row', marginBottom: 10, gap: 10, paddingHorizontal: 16 }}>
-              {availableSources.map(source => (
-                <TouchableOpacity 
-                  key={source}
-                  onPress={() => setServerTab(source)}
-                  style={{
-                    paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20,
-                    backgroundColor: serverTab === source ? Colors.accent : Colors.surface2,
-                  }}
-                >
-                  <Text style={{ 
-                    color: serverTab === source ? Colors.white : Colors.textDim,
-                    fontWeight: 'bold', fontSize: 12
-                  }}>{source}</Text>
-                </TouchableOpacity>
-              ))}
+          <View style={{
+            backgroundColor: Colors.surface,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: Colors.border2,
+            marginTop: 10,
+            gap: 12,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 4
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="sparkles" size={20} color={Colors.accent} />
+              <Text style={{ color: Colors.white, fontSize: 16, fontWeight: 'bold' }}>Smart Auto-Play Premium</Text>
             </View>
-          )}
-
-          {visibleServers.length > 0 ? (
-            <ServerSelector 
-              servers={visibleServers} 
-              activeHost={activeHost} 
-              activeServerName={activeServerName}
-              onSelectHost={handleSelectHost} 
-              onSelectResolution={handleSelectResolution}
-              disabled={isSwitchingHost} 
-            />
-          ) : servers.length > 0 && (
-             <Text style={{ textAlign: 'center', color: Colors.textDim, marginBottom: 10 }}>Tidak ada server di tab ini.</Text>
-          )}
+            <Text style={{ color: Colors.textMuted, fontSize: 13, lineHeight: 18 }}>
+              Sistem secara otomatis memilih resolusi terbaik dan mengalirkan video secara stabil langsung ke Cloud Storage.
+            </Text>
+            <View style={{ height: 1, backgroundColor: Colors.border2, marginVertical: 4 }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Status Koneksi</Text>
+                <Text style={{ color: Colors.white, fontSize: 14, fontWeight: '600', marginTop: 2 }}>Terhubung (Direct Stream)</Text>
+              </View>
+              <View style={{
+                backgroundColor: 'rgba(46,196,182,0.15)',
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: '#2EC4B6'
+              }}>
+                <Text style={{ color: '#2EC4B6', fontSize: 11, fontWeight: 'bold' }}>READY</Text>
+              </View>
+            </View>
+          </View>
 
           <View style={styles.navRow}>
             <TouchableOpacity style={[styles.navBtn, !navPrev && styles.navBtnDisabled]} onPress={() => navPrev && navigateEpisode(navPrev)} disabled={!navPrev}>
@@ -1106,13 +612,13 @@ export default function PlayerScreen() {
       )}
 
       <PlayerModals
-        showEpisodesModal={showEpisodesModal} setShowEpisodesModal={setShowEpisodesModal}
+        showEpisodesModal={state.showEpisodesModal} setShowEpisodesModal={state.setShowEpisodesModal}
         episodes={episodes} currentUrl={params.url as string} navigateEpisode={navigateEpisode}
-        showResModal={showResModal} setShowResModal={setShowResModal} activeHost={activeHost}
-        activeHostItems={activeHostItems} activeServerName={activeServerName}
-        handleSelectResolution={handleSelectResolution} getResName={getResName}
-        showSpeedModal={showSpeedModal} setShowSpeedModal={setShowSpeedModal}
-        playbackSpeed={playbackSpeed} changeSpeed={changeSpeed}
+        showResModal={state.showResModal} setShowResModal={state.setShowResModal} activeHost={state.activeHost}
+        activeHostItems={activeHostItems} activeServerName={state.activeServerName}
+        handleSelectResolution={(srv) => playback.handleSelectResolution(srv, params, stopAllMedia, saveCurrentProgress)} getResName={getResName}
+        showSpeedModal={state.showSpeedModal} setShowSpeedModal={state.setShowSpeedModal}
+        playbackSpeed={state.playbackSpeed} changeSpeed={changeSpeed}
       />
 
     </SafeAreaView>

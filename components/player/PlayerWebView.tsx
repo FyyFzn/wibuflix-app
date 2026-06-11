@@ -114,6 +114,27 @@ export default function PlayerWebView({
   }
 
   React.useEffect(() => {
+    return () => {
+      // GARBAGE COLLECTION: Stop all media and clear WebView to prevent memory leaks / ghost audio
+      if (webviewRef.current) {
+        webviewRef.current.injectJavaScript(`
+          try {
+            var mediaElements = document.querySelectorAll('video, audio');
+            for (var i = 0; i < mediaElements.length; i++) {
+              mediaElements[i].pause();
+              mediaElements[i].removeAttribute('src');
+              mediaElements[i].load();
+            }
+            document.body.innerHTML = '';
+            window.location.href = 'about:blank';
+          } catch(e) {}
+          true;
+        `);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
     if (webviewRef.current) {
       webviewRef.current.injectJavaScript(`
         try {

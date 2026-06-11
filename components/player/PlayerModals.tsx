@@ -55,17 +55,19 @@ export default function PlayerModals({
         <View style={styles.modalBg}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Daftar Episode</Text>
-            <FlatList
+              <FlatList
               data={episodes}
-              keyExtractor={(item) => item.url}
-              renderItem={({item}) => (
+              keyExtractor={(item) => item.url || item.judul}
+              renderItem={({item}) => {
+                const epUrl = item.url || (item.urls ? item.urls.samehadaku || item.urls.otakudesu : '');
+                return (
                 <TouchableOpacity 
-                  style={[styles.modalItem, currentUrl === item.url && styles.modalItemActive]}
-                  onPress={() => navigateEpisode(item.url)}
+                  style={[styles.modalItem, currentUrl === epUrl && styles.modalItemActive]}
+                  onPress={() => epUrl && navigateEpisode(epUrl)}
                 >
-                  <Text style={[styles.modalItemText, currentUrl === item.url && styles.modalItemTextActive]}>{item.judul}</Text>
+                  <Text style={[styles.modalItemText, currentUrl === epUrl && styles.modalItemTextActive]}>{item.judul}</Text>
                 </TouchableOpacity>
-              )}
+              )}}
             />
             <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowEpisodesModal(false)}>
               <Text style={styles.modalCloseText}>Tutup</Text>

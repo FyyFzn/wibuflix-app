@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cleanSeriesTitle } from '../utils/titleUtils';
 
 const HISTORY_KEY = 'wibuflix_riwayat';
 const MAX_HISTORY = 100;
@@ -32,15 +33,7 @@ export async function getRiwayat(): Promise<WatchHistoryItem[]> {
     const cleanedMap = new Map<string, WatchHistoryItem>();
     
     parsed.forEach(item => {
-      let jt = item.judulSeri || '';
-      jt = jt.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');
-      jt = jt.replace(/\s*\d+\s*-\s*\d+\s*(?:Tamat|End)?.*$/i, '');
-      jt = jt.replace(/(?:Episode|Eps)\s*\d+.*$/i, '');
-      jt = jt.replace(/\s*OVA\s*\d*.*$/i, '');
-      jt = jt.replace(/(?:\s*[\(\[]?BD[\)\]]?\s*)?(?:\s*[\(\[]?Batch[\)\]]?\s*)/gi, '');
-      jt = jt.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
-      jt = jt.replace(/[-\s]+$/, '').trim();
-      
+      let jt = cleanSeriesTitle(item.judulSeri || '');
       if (!jt) jt = item.judulSeri;
       
       const existing = cleanedMap.get(jt);
@@ -68,24 +61,10 @@ export async function simpanKeRiwayat(
   host?: string,
   seriJudul?: string
 ): Promise<void> {
-  let baseJudul = judul;
-  // Jika tidak ada seriJudul, kita ekstrak dari judul
-  if (!seriJudul) {
-    baseJudul = baseJudul.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');
-    baseJudul = baseJudul.replace(/(?:Episode|Eps)\s*\d+.*$/i, '');
-    baseJudul = baseJudul.replace(/\s*OVA\s*\d*.*$/i, '');
-    baseJudul = baseJudul.replace(/(?:\s*[\(\[]?BD[\)\]]?\s*)?(?:\s*[\(\[]?Batch[\)\]]?\s*)/gi, '');
-    baseJudul = baseJudul.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
-    baseJudul = baseJudul.replace(/[-\s]+$/, '').trim();
-  }
-  let finalJudulSeri = seriJudul || baseJudul;
-  finalJudulSeri = finalJudulSeri.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');
-  finalJudulSeri = finalJudulSeri.replace(/\s*\d+\s*-\s*\d+\s*(?:Tamat|End)?.*$/i, '');
-  finalJudulSeri = finalJudulSeri.replace(/(?:Episode|Eps)\s*\d+.*$/i, '');
-  finalJudulSeri = finalJudulSeri.replace(/\s*OVA\s*\d*.*$/i, '');
-  finalJudulSeri = finalJudulSeri.replace(/(?:\s*[\(\[]?BD[\)\]]?\s*)?(?:\s*[\(\[]?Batch[\)\]]?\s*)/gi, '');
-  finalJudulSeri = finalJudulSeri.replace(/\s*[\(\[]?(?:End|Tamat)[\)\]]?\s*/gi, '');
-  finalJudulSeri = finalJudulSeri.replace(/[-\s]+$/, '').trim();
+  let baseJudul = cleanSeriesTitle(judul);
+  if (!baseJudul) baseJudul = judul;
+  
+  let finalJudulSeri = cleanSeriesTitle(seriJudul || baseJudul);
   if (!finalJudulSeri) finalJudulSeri = seriJudul || baseJudul;
   
   const judulSeri = finalJudulSeri;
@@ -185,4 +164,3 @@ export function formatDuration(seconds: number): string {
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
-
