@@ -79,100 +79,114 @@ export function useServerPlayback(state: any, player: any) {
     const signal = state.abortControllerRef.current.signal;
 
     try {
-      const json = await scrapeVideo(url, params.seriJudul as string, params.judul as string, signal, params.urls as string);
-      if (!state.isMounted.current || signal.aborted) return;
-      if (json.status !== 'success') throw new Error(json.data?.judul || 'Gagal memuat metadata episode.');
-
-      const data = json.data;
-      if (!params.judul && data.judul) {
-        state.setTitle(data.judul);
-      }
-      state.setServers(data.servers || []);
-
-      await simpanKeRiwayat(
-        (params.judul as string) || data.judul,
+      // 1. Eksekusi Smart-Play secepat kilat TANPA menunggu Scrape UI selesai
+      const smartPlayPromise = fetchSmartPlay(
         url,
-        params.seriUrl || '',
-        params.gambar || '',
-        0,
-        0,
-        'Azure Cloud',
-        params.seriJudul as string
-      );
+        params.seriUrl as string,
+        undefined, // nextEpisodeUrl (belum tahu karena belum di-scrape)
+        signal,
+        params.seriJudul as string,
+        params.judul as string
+      ).catch(e => {
+        console.log('[Fast Smart-Play Error]', e.message);
+        return null;
+      });
 
-      state.setLoading(false);
-      state.setPlayerLoading(true);
+      // 2. Eksekusi Scrape UI (untuk memuat daftar server & tombol Next) di Background
+      const scrapePromise = scrapeVideo(url, params.seriJudul as string, params.judul as string, signal, params.urls as string).catch(e => {
+        console.log('[Background Scrape Error]', e.message);
+        return null;
+      });
 
       let isReady = false;
-      let pollCount = 0;
-      const maxPolls = 150; 
       let fallbackTriggered = false;
 
-      while (!isReady && pollCount < maxPolls) {
-        if (!state.isMounted.current || signal.aborted) return;
+      // Tunggu hasil Smart-Play pertama kali (biasanya instan 50-100ms jika sudah READY/UPLOADING)
+      const smartPlayRes = await smartPlayPromise;
+      if (!state.isMounted.current || signal.aborted) return;
 
-        console.log(`[Smart-Play Poll] Attempt ${pollCount + 1}/${maxPolls} for ${url}`);
-        
-        try {
-          const smartPlayRes = await fetchSmartPlay(
-            url,
-            params.seriUrl as string,
-            data.nav_next || undefined,
-            signal,
-            params.seriJudul as string,
-            (params.judul || data.judul) as string
-          );
-          
-          if (!state.isMounted.current || signal.aborted) return;
-
-          if (smartPlayRes.success) {
-            if (smartPlayRes.status === 'READY' && smartPlayRes.url) {
-              isReady = true;
-              state.setPlayerMode('native');
-              state.setNativeVideoUrl(smartPlayRes.url);
-              state.setNativeVideoHeaders({
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-              });
-              state.setActiveHost('Azure Cloud');
-              state.setActiveServerName('Premium Direct Link');
-              state.setPlayerLoading(false);
-              break;
-            } else if (smartPlayRes.status === 'FAILED') {
-              console.log('[Smart-Play] Failed, triggering fallback...');
-              fallbackTriggered = true;
-              break;
-            }
-          } else {
-            console.log('[Smart-Play] Error, triggering fallback...');
-            fallbackTriggered = true;
-            break;
-          }
-        } catch (pollErr: any) {
-          if (signal.aborted) return;
-          console.error('[Smart-Play Poll Error]', pollErr.message);
-          fallbackTriggered = true;
-          break;
-        }
-
-        pollCount++;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-
-      if (!isReady && pollCount >= maxPolls) {
-        console.log('[Smart-Play] Timeout, triggering fallback...');
+      if (smartPlayRes && smartPlayRes.success && (smartPlayRes.status === 'READY' || smartPlayRes.status === 'UPLOADING') && smartPlayRes.url) {
+        console.log('[Fast Smart-Play] Video ditemukan! Langsung memutar tanpa menunggu scrape selesai.');
+        isReady = true;
+        state.setPlayerMode('native');
+        state.setNativeVideoUrl(smartPlayRes.url);
+        state.setNativeVideoHeaders({
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
+        });
+        state.setActiveHost('Azure Cloud');
+        state.setActiveServerName(smartPlayRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
+        state.setPlayerLoading(false);
+      } else if (smartPlayRes && smartPlayRes.success && smartPlayRes.status === 'FAILED') {
         fallbackTriggered = true;
       }
 
-      // FALLBACK TO LEGACY SERVERS
-      if (fallbackTriggered) {
-        const played = await attemptToPlayServers(data.servers || [], url, signal);
-        if (!played && !signal.aborted && state.isMounted.current) {
-          state.setError('Gagal memproses video dari Azure dan Fallback Server tidak tersedia.');
-          state.setPlayerLoading(false);
-        }
+      // 3. Setelah Video Menyala (Atau Gagal), Barulah Tunggu Hasil Scrape UI
+      const json = await scrapePromise;
+      if (!state.isMounted.current || signal.aborted) return;
+
+      if (!json || json.status !== 'success') {
+         if (!isReady) throw new Error(json?.data?.judul || 'Gagal memuat metadata episode.');
+      } else {
+         const data = json.data;
+         if (!params.judul && data.judul) state.setTitle(data.judul);
+         state.setServers(data.servers || []);
+         
+         await simpanKeRiwayat(
+            (params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string
+         );
+         
+         // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling
+         if (!isReady && !fallbackTriggered) {
+            let pollCount = 0;
+            const maxPolls = 150;
+            while (!isReady && pollCount < maxPolls) {
+              if (!state.isMounted.current || signal.aborted) return;
+              console.log(`[Smart-Play Poll] Attempt ${pollCount + 1}/${maxPolls} for ${url}`);
+              try {
+                const pollRes = await fetchSmartPlay(url, params.seriUrl as string, data.nav_next || undefined, signal, params.seriJudul as string, (params.judul || data.judul) as string);
+                if (!state.isMounted.current || signal.aborted) return;
+                
+                if (pollRes.success) {
+                  if ((pollRes.status === 'READY' || pollRes.status === 'UPLOADING') && pollRes.url) {
+                    isReady = true;
+                    state.setPlayerMode('native');
+                    state.setNativeVideoUrl(pollRes.url);
+                    state.setNativeVideoHeaders({ 'User-Agent': 'Mozilla/5.0' });
+                    state.setActiveHost('Azure Cloud');
+                    state.setActiveServerName(pollRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
+                    state.setPlayerLoading(false);
+                    break;
+                  } else if (pollRes.status === 'FAILED') {
+                    fallbackTriggered = true;
+                    break;
+                  }
+                } else {
+                  fallbackTriggered = true;
+                  break;
+                }
+              } catch (e) {
+                if (signal.aborted) return;
+                fallbackTriggered = true;
+                break;
+              }
+              pollCount++;
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            if (!isReady && pollCount >= maxPolls) fallbackTriggered = true;
+         }
+         
+         // FALLBACK
+         if (fallbackTriggered && !isReady) {
+            const played = await attemptToPlayServers(data.servers || [], url, signal);
+            if (!played && !signal.aborted && state.isMounted.current) {
+              state.setError('Gagal memproses video dari Azure dan Fallback Server tidak tersedia.');
+              state.setPlayerLoading(false);
+            }
+         }
+         
+         return data;
       }
 
-      return data;
     } catch (err: any) {
       if (signal.aborted) return;
       state.setError(err.message || 'Gagal memuat video');
