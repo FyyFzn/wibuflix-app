@@ -40,21 +40,7 @@ export default function AnimeDetailScreen() {
     loadEpisodes();
   }, [params.url, params.sources]);
 
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      try {
-        if (router.canGoBack()) {
-          router.back();
-        } else {
-          router.push('/');
-        }
-      } catch (e) {
-        router.push('/');
-      }
-      return true;
-    });
-    return () => backHandler.remove();
-  }, [router]);
+  // BackHandler custom dihapus karena Expo Router / React Navigation sudah menanganinya secara otomatis.
 
 
 
