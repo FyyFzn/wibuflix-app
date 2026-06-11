@@ -115,7 +115,8 @@ export function useServerPlayback(state: any, player: any) {
         });
         state.setActiveHost('Azure Cloud');
         state.setActiveServerName(smartPlayRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
-        state.setPlayerLoading(false);
+        state.setLoading(false); // Sembunyikan tulisan "Mencari server..."
+        state.setPlayerLoading(false); // Sembunyikan tulisan "Menyiapkan video..."
       } else if (smartPlayRes && smartPlayRes.success && smartPlayRes.status === 'FAILED') {
         fallbackTriggered = true;
       }
@@ -135,6 +136,8 @@ export function useServerPlayback(state: any, player: any) {
             (params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string
          );
          
+         state.setLoading(false); // Pastikan layar loading 'Mencari server' mati
+
          // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling
          if (!isReady && !fallbackTriggered) {
             let pollCount = 0;
