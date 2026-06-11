@@ -36,7 +36,8 @@
         {
           "android": {
             "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ]
@@ -46,7 +47,12 @@
       "eas": {
         "projectId": "ecc13a2b-5835-43f3-9544-94e923b4a380"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ecc13a2b-5835-43f3-9544-94e923b4a380"
     }
   }
 }
-
