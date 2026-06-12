@@ -1,4 +1,4 @@
-import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl } from '../services/api';
+import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus } from '../services/api';
 import { simpanKeRiwayat } from '../services/storage';
 
 export function useServerPlayback(state: any, player: any) {
@@ -174,6 +174,14 @@ export function useServerPlayback(state: any, player: any) {
                   (params.judul || data.judul) as string,
                 );
                 if (!state.isMounted.current || signal.aborted) return;
+                
+                // Cek progress upload secara real-time
+                try {
+                  const progRes = await fetchUploadStatus(url, params.seriUrl as string, signal);
+                  if (progRes && progRes.success && progRes.progressMessage) {
+                    state.setUploadProgress(progRes.progressMessage);
+                  }
+                } catch (err) {}
                 
                 if (pollRes.success) {
                   if ((pollRes.status === 'READY' || pollRes.status === 'UPLOADING') && pollRes.url) {

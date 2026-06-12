@@ -4,6 +4,7 @@ import { ServerItem } from '../services/api';
 export function usePlayerState(initialTitle: string = '') {
   const [loading, setLoading] = useState(true);
   const [playerLoading, setPlayerLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [nativeVideoHeaders, setNativeVideoHeaders] = useState<Record<string, string>>({});
   const [title, setTitle] = useState(initialTitle);
@@ -72,6 +73,7 @@ export function usePlayerState(initialTitle: string = '') {
   return {
     loading, setLoading,
     playerLoading, setPlayerLoading,
+    uploadProgress, setUploadProgress,
     error, setError,
     nativeVideoHeaders, setNativeVideoHeaders,
     title, setTitle,

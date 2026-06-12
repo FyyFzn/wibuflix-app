@@ -230,4 +230,18 @@ export async function fetchSmartPlay(
   return res.json();
 }
 
+export async function fetchUploadStatus(episodeUrl: string, seriesUrl?: string, signal?: AbortSignal): Promise<{ success: boolean; progressMessage?: string }> {
+  let url = `${getApiBase()}/api/upload-status?episodeUrl=${encodeURIComponent(episodeUrl)}`;
+  if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
 
+export async function cancelUploads(): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/api/cancel-uploads`, { method: 'POST' });
+  } catch (e) {
+    console.error('[API] Failed to cancel uploads', e);
+  }
+}
