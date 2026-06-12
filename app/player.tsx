@@ -55,13 +55,20 @@ export default function PlayerScreen() {
 
 
   const isAzureBlob = state.nativeVideoUrl && state.nativeVideoUrl.includes('.blob.core.windows.net');
-  const videoSource = state.nativeVideoUrl ? {
-    uri: state.nativeVideoUrl,
-    // Jika URL adalah Azure Blob, JANGAN kirim header kustom karena akan memicu blokir CORS Preflight dari server Azure
-    headers: isAzureBlob ? undefined : (Object.keys(state.nativeVideoHeaders).length > 0 ? state.nativeVideoHeaders : {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-    })
-  } : null;
+  let videoSource = null;
+  if (state.nativeVideoUrl) {
+    if (isAzureBlob) {
+      // JANGAN sertakan properti headers sama sekali untuk Azure Blob
+      videoSource = { uri: state.nativeVideoUrl };
+    } else {
+      videoSource = {
+        uri: state.nativeVideoUrl,
+        headers: Object.keys(state.nativeVideoHeaders).length > 0 ? state.nativeVideoHeaders : {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
+        }
+      };
+    }
+  }
 
   const player = useVideoPlayer(videoSource, (player) => {
     player.preservesPitch = true;
