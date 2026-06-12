@@ -245,3 +245,15 @@ export async function cancelUploads(): Promise<void> {
     console.error('[API] Failed to cancel uploads', e);
   }
 }
+
+export async function fetchCancelStream(url: string): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/api/cancel-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+  } catch (e) {
+    console.error('[API] Failed to cancel stream', e);
+  }
+}

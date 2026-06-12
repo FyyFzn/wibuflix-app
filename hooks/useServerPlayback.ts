@@ -1,4 +1,4 @@
-import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus } from '../services/api';
+import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus, fetchCancelStream } from '../services/api';
 import { simpanKeRiwayat } from '../services/storage';
 
 export function useServerPlayback(state: any, player: any) {
@@ -70,10 +70,14 @@ export function useServerPlayback(state: any, player: any) {
     state.setActiveServerName('');
     state.setFallbackWebviewUrl('');
     state.setRetryCount(0);
+    const previousUrl = state.currentEpisodeUrlRef.current;
     state.currentEpisodeUrlRef.current = url;
 
     if (state.abortControllerRef.current) {
       state.abortControllerRef.current.abort();
+      if (previousUrl && previousUrl !== url) {
+        fetchCancelStream(previousUrl).catch(() => {});
+      }
     }
     state.abortControllerRef.current = new AbortController();
     const signal = state.abortControllerRef.current.signal;
