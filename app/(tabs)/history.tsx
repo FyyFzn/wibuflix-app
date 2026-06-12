@@ -72,7 +72,7 @@ export default function HistoryScreen() {
           text: 'Hapus',
           style: 'destructive',
           onPress: async () => {
-            await hapusRiwayat(item.judulSeri);
+            await hapusRiwayat(item.seriUrl || item.judulSeri);
             loadHistory();
           },
         },

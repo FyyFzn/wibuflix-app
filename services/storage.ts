@@ -36,10 +36,12 @@ export async function getRiwayat(): Promise<WatchHistoryItem[]> {
       let jt = cleanSeriesTitle(item.judulSeri || '');
       if (!jt) jt = item.judulSeri;
       
-      const existing = cleanedMap.get(jt);
+      const key = item.seriUrl || jt;
+      
+      const existing = cleanedMap.get(key);
       // Simpan yang paling baru (yang pertama kali masuk di array parsed karena urutan desc)
       if (!existing) {
-        cleanedMap.set(jt, { ...item, judulSeri: jt });
+        cleanedMap.set(key, { ...item, judulSeri: jt });
       }
     });
     
@@ -74,8 +76,11 @@ export async function simpanKeRiwayat(
 
   let riwayat = await getRiwayat();
 
-  // Remove existing entry for same series
-  riwayat = riwayat.filter(r => r.judulSeri !== judulSeri);
+  // Remove existing entry for same series (prioritizing seriUrl)
+  riwayat = riwayat.filter(r => {
+    if (r.seriUrl && seriUrl) return r.seriUrl !== seriUrl;
+    return r.judulSeri !== judulSeri;
+  });
 
   // Add new entry at the top
   riwayat.unshift({
@@ -130,9 +135,9 @@ export async function getProgress(url: string): Promise<{ progress: number; dura
 
 // ── Delete a single history item ────────────────────────────
 
-export async function hapusRiwayat(judulSeri: string): Promise<void> {
+export async function hapusRiwayat(identifier: string): Promise<void> {
   let riwayat = await getRiwayat();
-  riwayat = riwayat.filter(r => r.judulSeri !== judulSeri);
+  riwayat = riwayat.filter(r => r.seriUrl !== identifier && r.judulSeri !== identifier);
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
 }
 

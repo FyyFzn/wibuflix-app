@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated
+  View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated, InteractionManager
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -208,31 +208,37 @@ export default function PlayerScreen() {
   useEffect(() => {
     state.isMounted.current = true;
     
-    if (params.autoFullscreen === '1') {
-      enterFullscreen();
-    } else {
-      exitFullscreen();
-    }
-
-    if (params.url) {
-      state.setRestoredVideoUrl('');
-      state.setSavedProgress(0);
-      let realUrl = params.url as string;
-      if (realUrl.includes('___HASH_NEOSATSU___')) {
-        realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!state.isMounted.current) return;
+      
+      if (params.autoFullscreen === '1') {
+        enterFullscreen();
+      } else {
+        exitFullscreen();
       }
-      getProgress(realUrl).then(saved => {
-         if (saved && saved.progress > 5) state.setSavedProgress(saved.progress);
-      });
-      playback.loadEpisode(realUrl, params, navNextNextRef).then((data: any) => {
-        if (data) {
-          if (data.nav_prev) setNavPrev(data.nav_prev);
-          if (data.nav_next) setNavNext(data.nav_next);
+
+      if (params.url) {
+        state.setRestoredVideoUrl('');
+        state.setSavedProgress(0);
+        let realUrl = params.url as string;
+        if (realUrl.includes('___HASH_NEOSATSU___')) {
+          realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
         }
-      });
-    }
+        getProgress(realUrl).then(saved => {
+           if (saved && saved.progress > 5 && state.isMounted.current) state.setSavedProgress(saved.progress);
+        });
+        playback.loadEpisode(realUrl, params, navNextNextRef).then((data: any) => {
+          if (data && state.isMounted.current) {
+            if (data.nav_prev) setNavPrev(data.nav_prev);
+            if (data.nav_next) setNavNext(data.nav_next);
+          }
+        });
+      }
+    });
+
     return () => {
       state.isMounted.current = false;
+      task.cancel();
       stopAllMedia();
       if (state.abortControllerRef.current) {
         state.abortControllerRef.current.abort();
