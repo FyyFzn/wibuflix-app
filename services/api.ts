@@ -125,26 +125,28 @@ export interface ExtractVideoResponse {
 
 // ── API Functions ──────────────────────────────────────────
 
-async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 3600000, signal?: AbortSignal): Promise<T> {
-  // 1. Cek dari memori (AsyncStorage) terlebih dahulu
-  const cachedStr = await AsyncStorage.getItem(cacheKey);
-  if (cachedStr) {
-    try {
-      const parsed = JSON.parse(cachedStr);
-      // Langsung kembalikan data jika belum expired (TTL)
-      if (Date.now() - parsed.timestamp < ttl) {
-        // (Opsional) Refresh cache di latar belakang tanpa menunggu
-        fetch(url).then(res => res.json()).then(json => {
-          AsyncStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
-        }).catch(() => {});
-        return parsed.data as T;
+async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 3600000, signal?: AbortSignal, forceRefresh: boolean = false): Promise<T> {
+  // 1. Cek dari memori (AsyncStorage) terlebih dahulu jika tidak dipaksa refresh
+  if (!forceRefresh) {
+    const cachedStr = await AsyncStorage.getItem(cacheKey);
+    if (cachedStr) {
+      try {
+        const parsed = JSON.parse(cachedStr);
+        // Langsung kembalikan data jika belum expired (TTL)
+        if (Date.now() - parsed.timestamp < ttl) {
+          // (Opsional) Refresh cache di latar belakang tanpa menunggu
+          fetch(url).then(res => res.json()).then(json => {
+            AsyncStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
+          }).catch(() => {});
+          return parsed.data as T;
+        }
+      } catch (e) {
+        // Abaikan error parse dan lanjut nge-fetch
       }
-    } catch (e) {
-      // Abaikan error parse dan lanjut nge-fetch
     }
   }
 
-  // 2. Fetch data dari server jika tidak ada di cache / sudah expired
+  // 2. Fetch data dari server jika tidak ada di cache / sudah expired / dipaksa refresh
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
@@ -154,12 +156,12 @@ async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 36
   return json;
 }
 
-export async function fetchKatalog(page = 1, search = '', tab = 'anime', typeFilter = '', signal?: AbortSignal): Promise<KatalogResponse> {
+export async function fetchKatalog(page = 1, search = '', tab = 'anime', typeFilter = '', signal?: AbortSignal, forceRefresh = false): Promise<KatalogResponse> {
   let url = `${API.katalog}?page=${page}&tab=${tab}`;
   if (search) url += `&s=${encodeURIComponent(search)}`;
   if (typeFilter && typeFilter !== 'Semua') url += `&typeFilter=${encodeURIComponent(typeFilter)}`;
   const cacheKey = `katalog_${page}_${search}_${tab}_${typeFilter}`;
-  return fetchWithCache<KatalogResponse>(url, cacheKey, 3600000, signal); // Cache 1 jam
+  return fetchWithCache<KatalogResponse>(url, cacheKey, 3600000, signal, forceRefresh); // Cache 1 jam
 }
 
 export async function fetchHotAnime(signal?: AbortSignal): Promise<HotAnimeResponse> {

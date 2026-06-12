@@ -48,7 +48,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     setError(null);
 
     try {
-      const json = await fetchKatalog(page, search, category, filter);
+      const json = await fetchKatalog(page, search, category, filter, undefined, isRefresh);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       setAnimeList(json.data.list || []);
