@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated, InteractionManager
+  View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -30,15 +30,15 @@ const getHostName = (srv: ServerItem) => {
   const nama = srv.nama || '';
   const parts = nama.split('·');
   let candidate = (parts[parts.length - 1].trim().split(' ')[0] || 'unknown').toLowerCase();
-  
+
   if (candidate === 'server' || candidate === 'unknown') {
     candidate = 'alternatif';
   }
-  
+
   if (srv.source && srv.source === 'Otakudesu') {
     candidate = `[otaku] ${candidate}`;
   }
-  
+
   return candidate;
 };
 
@@ -56,9 +56,26 @@ export default function PlayerScreen() {
   // Ref agar loadEpisode selalu mendapat nilai navNextNext terbaru
   // (navNextNext di-load async, sementara loadEpisode dipanggil dari useEffect)
   const navNextNextRef = useRef<string | null>(null);
+
   useEffect(() => {
     navNextNextRef.current = navNextNext;
-  }, [navNextNext]);
+    
+    // Jika player sudah READY (fast-path) dan navNextNext baru saja selesai di-fetch,
+    // tembak API sekali lagi di latar belakang agar backend tahu ada N+2.
+    if (navNextNext && state.playerMode !== 'none' && params.url) {
+      import('../services/api').then(({ fetchSmartPlay }) => {
+        fetchSmartPlay(
+          params.url as string,
+          params.seriUrl as string,
+          navNext || undefined,
+          new AbortController().signal,
+          params.seriJudul as string,
+          params.judul as string,
+          navNextNext
+        ).catch(() => {});
+      });
+    }
+  }, [navNextNext, state.playerMode, params.url]);
 
   const videoSource = state.nativeVideoUrl ? {
     uri: state.nativeVideoUrl,
@@ -78,28 +95,7 @@ export default function PlayerScreen() {
   // 3. Initialize Playback Hook
   const playback = useServerPlayback(state, player);
 
-  // Tambahkan sinkronisasi ref untuk N+2 prefetch
-  useEffect(() => {
-    navNextNextRef.current = navNextNext || undefined;
-    
-    // Jika player sudah READY (fast-path) dan navNextNext baru saja selesai di-fetch,
-    // tembak API sekali lagi di latar belakang agar backend tahu ada N+2.
-    if (navNextNext && playback.isReady && params.url) {
-      import('../services/api').then(({ fetchSmartPlay }) => {
-        fetchSmartPlay(
-          params.url as string,
-          params.seriUrl as string,
-          navNext || undefined,
-          new AbortController().signal,
-          params.seriJudul as string,
-          params.judul as string,
-          navNextNext
-        ).catch(() => {});
-      });
-    }
-  }, [navNextNext, playback.isReady, params.url]);
-
-  // Sync orientation and status bar with fullscreen modeok
+  // 4. Initialize Fullscreen Hook
   const webviewRef = useRef<WebView>(null);
   const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen(params.autoFullscreen === '1', webviewRef, state.playerMode);
 
@@ -109,12 +105,12 @@ export default function PlayerScreen() {
   const stopAllMedia = useCallback(() => {
     try {
       if (player) player.pause();
-    } catch (e) {}
+    } catch (e) { }
     try {
       if (webviewRef.current) {
         webviewRef.current.injectJavaScript('var v=document.querySelectorAll("video");for(var i=0;i<v.length;i++){v[i].pause();}true;');
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [player]);
 
   const saveCurrentProgress = useCallback(async () => {
@@ -129,11 +125,11 @@ export default function PlayerScreen() {
       if (state.retryCount < 2) {
         console.log(`Native Player Error: ${playerError.message}. Retrying extraction (${state.retryCount + 1}/2)...`);
         state.setRetryCount((prev: number) => prev + 1);
-        
+
         if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
         state.abortControllerRef.current = new AbortController();
         const signal = state.abortControllerRef.current.signal;
-        
+
         playback.playServer(state.fallbackWebviewUrl, state.activeServerName, true, signal).then(success => {
           if (signal.aborted) return;
           if (!success) {
@@ -181,19 +177,19 @@ export default function PlayerScreen() {
       if (player.duration) {
         state.setTotalDuration(Math.floor(player.duration));
       }
-      
+
       if (state.restoredVideoUrl !== state.nativeVideoUrl && state.savedProgress > 5) {
         console.log(`[Resume] Seeking to ${state.savedProgress}s on ${state.nativeVideoUrl.substring(0, 60)}`);
         player.currentTime = state.savedProgress;
         state.setRestoredVideoUrl(state.nativeVideoUrl);
-        
+
         const retryTimer = setTimeout(() => {
           try {
             if (Math.floor(player.currentTime) < state.savedProgress - 3) {
               console.log(`[Resume] Retry seek to ${state.savedProgress}s (was at ${Math.floor(player.currentTime)}s)`);
               player.currentTime = state.savedProgress;
             }
-          } catch {}
+          } catch { }
         }, 1500);
         return () => clearTimeout(retryTimer);
       }
@@ -219,7 +215,7 @@ export default function PlayerScreen() {
     } else {
       if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
     }
-    
+
     return () => {
       if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
     };
@@ -228,38 +224,32 @@ export default function PlayerScreen() {
   // Load episode on mount or params.url change
   useEffect(() => {
     state.isMounted.current = true;
-    
-    const task = InteractionManager.runAfterInteractions(() => {
-      if (!state.isMounted.current) return;
-      
-      if (params.autoFullscreen === '1') {
-        enterFullscreen();
-      } else {
-        exitFullscreen();
-      }
 
-      if (params.url) {
-        state.setRestoredVideoUrl('');
-        state.setSavedProgress(0);
-        let realUrl = params.url as string;
-        if (realUrl.includes('___HASH_NEOSATSU___')) {
-          realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
+    if (params.autoFullscreen === '1') {
+      enterFullscreen();
+    } else {
+      exitFullscreen();
+    }
+
+    if (params.url) {
+      state.setRestoredVideoUrl('');
+      state.setSavedProgress(0);
+      let realUrl = params.url as string;
+      if (realUrl.includes('___HASH_NEOSATSU___')) {
+        realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
+      }
+      getProgress(realUrl).then(saved => {
+        if (saved && saved.progress > 5) state.setSavedProgress(saved.progress);
+      });
+      playback.loadEpisode(realUrl, params, navNextNextRef).then((data: any) => {
+        if (data) {
+          if (data.nav_prev) setNavPrev(data.nav_prev);
+          if (data.nav_next) setNavNext(data.nav_next);
         }
-        getProgress(realUrl).then(saved => {
-           if (saved && saved.progress > 5 && state.isMounted.current) state.setSavedProgress(saved.progress);
-        });
-        playback.loadEpisode(realUrl, params, navNextNextRef).then((data: any) => {
-          if (data && state.isMounted.current) {
-            if (data.nav_prev) setNavPrev(data.nav_prev);
-            if (data.nav_next) setNavNext(data.nav_next);
-          }
-        });
-      }
-    });
-
+      });
+    }
     return () => {
       state.isMounted.current = false;
-      task.cancel();
       stopAllMedia();
       if (state.abortControllerRef.current) {
         state.abortControllerRef.current.abort();
@@ -299,30 +289,36 @@ export default function PlayerScreen() {
 
   const navigateEpisode = (url: string) => {
     stopAllMedia();
-    state.setShowEpisodesModal(false);
-    saveCurrentProgress();
-    if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+    setTimeout(() => {
+      state.setShowEpisodesModal(false);
+      saveCurrentProgress();
+      state.isMounted.current = false;
+      if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
 
-    let safeUrl = url;
-    if (safeUrl.includes('#neosatsu_ep_')) {
-      safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
-    }
+      let safeUrl = url;
+      if (safeUrl.includes('#neosatsu_ep_')) {
+        safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
+      }
 
-    const targetEp = episodes.find(e => 
-      e.url === url || 
-      (e.url && e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
-    );
-    const nextJudul = targetEp ? targetEp.judul : '';
+      const targetEp = episodes.find(e =>
+        e.url === url ||
+        (e.url && e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
+      );
+      const nextJudul = targetEp ? targetEp.judul : '';
 
-    router.setParams({ 
-      url: safeUrl, 
-      gambar: params.gambar, 
-      seriUrl: params.seriUrl, 
-      judul: nextJudul,
-      seriJudul: params.seriJudul,
-      autoPlayHost: state.preferredHostRef.current || state.activeHost,
-      autoFullscreen: isFullscreen ? '1' : '0'
-    });
+      router.replace({
+        pathname: '/player',
+        params: {
+          url: safeUrl,
+          gambar: params.gambar,
+          seriUrl: params.seriUrl,
+          judul: nextJudul,
+          seriJudul: params.seriJudul,
+          autoPlayHost: state.preferredHostRef.current || state.activeHost,
+          autoFullscreen: isFullscreen ? '1' : '0'
+        }
+      });
+    }, 500);
   };
 
   // Auto-next logic
@@ -521,138 +517,138 @@ export default function PlayerScreen() {
         backgroundColor="transparent"
       />
       <SafeAreaView style={styles.container} edges={isFullscreen ? [] : ['top']}>
-      {!isFullscreen && (
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleUIBackPress}>
-            <Text style={styles.backText}>← Kembali</Text>
-          </TouchableOpacity>
-          <Text style={styles.title} numberOfLines={1}>{state.title}</Text>
-        </View>
-      )}
-
-      <View style={[styles.playerWrapper, playerWrapperStyle]}>
-        {(state.loading || state.playerLoading) && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.accent} />
-            <Text style={styles.overlayText}>{state.loading ? 'Mencari server...' : 'Menyiapkan video...'}</Text>
+        {!isFullscreen && (
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={handleUIBackPress}>
+              <Text style={styles.backText}>← Kembali</Text>
+            </TouchableOpacity>
+            <Text style={styles.title} numberOfLines={1}>{state.title}</Text>
           </View>
         )}
 
-        {state.playerMode === 'native' && state.nativeVideoUrl ? (
-          <View style={{ flex: 1 }}>
-            <VideoView player={player} style={styles.video} nativeControls={false} />
-            {playerError && (
-               <View style={{position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'rgba(255,0,0,0.8)', padding: 10, borderRadius: 8}}>
-                 <Text style={{color: 'white', fontSize: 12}}>{playerError.message || 'Unknown Player Error'}</Text>
-               </View>
-            )}
-            <PlayerNativeControls
-              player={player} status={status} title={state.title} isFullscreen={isFullscreen} controlsVisible={state.controlsVisible}
-              isPlaying={isPlaying} currentPosition={state.currentPosition} totalDuration={state.totalDuration}
-              playbackSpeed={state.playbackSpeed} activeServerName={state.activeServerName} activeHostItems={activeHostItems}
-              episodes={episodes} navPrev={navPrev} navNext={navNext} skipInfo={skipInfo} rippleAnim={rippleAnim}
+        <View style={[styles.playerWrapper, playerWrapperStyle]}>
+          {(state.loading || state.playerLoading) && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={Colors.accent} />
+              <Text style={styles.overlayText}>{state.loading ? 'Mencari server...' : 'Menyiapkan video...'}</Text>
+            </View>
+          )}
+
+          {state.playerMode === 'native' && state.nativeVideoUrl ? (
+            <View style={{ flex: 1 }}>
+              <VideoView player={player} style={styles.video} nativeControls={false} />
+              {playerError && (
+                <View style={{ position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'rgba(255,0,0,0.8)', padding: 10, borderRadius: 8 }}>
+                  <Text style={{ color: 'white', fontSize: 12 }}>{playerError.message || 'Unknown Player Error'}</Text>
+                </View>
+              )}
+              <PlayerNativeControls
+                player={player} status={status} title={state.title} isFullscreen={isFullscreen} controlsVisible={state.controlsVisible}
+                isPlaying={isPlaying} currentPosition={state.currentPosition} totalDuration={state.totalDuration}
+                playbackSpeed={state.playbackSpeed} activeServerName={state.activeServerName} activeHostItems={activeHostItems}
+                episodes={episodes} navPrev={navPrev} navNext={navNext} skipInfo={skipInfo} rippleAnim={rippleAnim}
+                isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
+                handleVideoTap={handleVideoTap} setPlayerLayoutWidth={setPlayerLayoutWidth}
+                exitFullscreen={exitFullscreen} enterFullscreen={enterFullscreen}
+                setShowSpeedModal={state.setShowSpeedModal} setShowResModal={state.setShowResModal}
+                setShowEpisodesModal={state.setShowEpisodesModal} getResName={getResName}
+                navigateEpisode={navigateEpisode} formatDuration={formatDuration}
+                controlsTimeoutRef={state.controlsTimeoutRef} setControlsVisible={state.setControlsVisible}
+                handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
+              />
+            </View>
+          ) : state.playerMode === 'webview' && state.webviewUrl ? (
+            <PlayerWebView
+              webviewRef={webviewRef} webviewUrl={state.webviewUrl} isBlogger={isBlogger} injectedJS={injectedJS}
+              isFullscreen={isFullscreen} showWebviewControls={state.showWebviewControls}
+              setShowWebviewControls={state.setShowWebviewControls} setPlayerMode={state.setPlayerMode}
+              setNativeVideoUrl={state.setNativeVideoUrl} setWebviewUrl={state.setWebviewUrl}
+              setCurrentPosition={state.setCurrentPosition} setTotalDuration={state.setTotalDuration}
+              lastKnownPositionRef={state.lastKnownPositionRef} enterFullscreen={enterFullscreen}
+              exitFullscreen={exitFullscreen} setPlayerLoading={state.setPlayerLoading}
+              handleUIBackPress={handleUIBackPress} navPrev={navPrev} navNext={navNext}
+              navigateEpisode={navigateEpisode} webviewControlsTimeoutRef={state.webviewControlsTimeoutRef}
               isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
-              handleVideoTap={handleVideoTap} setPlayerLayoutWidth={setPlayerLayoutWidth}
-              exitFullscreen={exitFullscreen} enterFullscreen={enterFullscreen}
-              setShowSpeedModal={state.setShowSpeedModal} setShowResModal={state.setShowResModal}
-              setShowEpisodesModal={state.setShowEpisodesModal} getResName={getResName}
-              navigateEpisode={navigateEpisode} formatDuration={formatDuration}
-              controlsTimeoutRef={state.controlsTimeoutRef} setControlsVisible={state.setControlsVisible}
               handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
+              playbackSpeed={state.playbackSpeed} setShowSpeedModal={state.setShowSpeedModal}
             />
-          </View>
-        ) : state.playerMode === 'webview' && state.webviewUrl ? (
-          <PlayerWebView
-            webviewRef={webviewRef} webviewUrl={state.webviewUrl} isBlogger={isBlogger} injectedJS={injectedJS}
-            isFullscreen={isFullscreen} showWebviewControls={state.showWebviewControls}
-            setShowWebviewControls={state.setShowWebviewControls} setPlayerMode={state.setPlayerMode}
-            setNativeVideoUrl={state.setNativeVideoUrl} setWebviewUrl={state.setWebviewUrl}
-            setCurrentPosition={state.setCurrentPosition} setTotalDuration={state.setTotalDuration}
-            lastKnownPositionRef={state.lastKnownPositionRef} enterFullscreen={enterFullscreen}
-            exitFullscreen={exitFullscreen} setPlayerLoading={state.setPlayerLoading}
-            handleUIBackPress={handleUIBackPress} navPrev={navPrev} navNext={navNext}
-            navigateEpisode={navigateEpisode} webviewControlsTimeoutRef={state.webviewControlsTimeoutRef}
-            isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
-            handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
-            playbackSpeed={state.playbackSpeed} setShowSpeedModal={state.setShowSpeedModal}
-          />
-        ) : !state.loading && state.error ? (
-          <View style={styles.playerError}>
-            {isFullscreen && (
-              <TouchableOpacity style={styles.wvPermExitBtn} onPress={exitFullscreen}>
-                <Ionicons name="contract" size={24} color={Colors.white} />
-                <Text style={[styles.wvPermExitText, { marginLeft: 8 }]}>Tutup Fullscreen</Text>
+          ) : !state.loading && state.error ? (
+            <View style={styles.playerError}>
+              {isFullscreen && (
+                <TouchableOpacity style={styles.wvPermExitBtn} onPress={exitFullscreen}>
+                  <Ionicons name="contract" size={24} color={Colors.white} />
+                  <Text style={[styles.wvPermExitText, { marginLeft: 8 }]}>Tutup Fullscreen</Text>
+                </TouchableOpacity>
+              )}
+              <Text style={styles.playerErrorText}>{state.error}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {!isFullscreen && (
+          <ScrollView style={styles.controlsContainer} contentContainerStyle={styles.controlsContent}>
+            <View style={{
+              backgroundColor: Colors.surface,
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: Colors.border2,
+              marginTop: 10,
+              gap: 12,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 6,
+              elevation: 4
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="sparkles" size={20} color={Colors.accent} />
+                <Text style={{ color: Colors.white, fontSize: 16, fontWeight: 'bold' }}>Smart Auto-Play Premium</Text>
+              </View>
+              <Text style={{ color: Colors.textMuted, fontSize: 13, lineHeight: 18 }}>
+                Sistem secara otomatis memilih resolusi terbaik dan mengalirkan video secara stabil langsung ke Cloud Storage.
+              </Text>
+              <View style={{ height: 1, backgroundColor: Colors.border2, marginVertical: 4 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Status Koneksi</Text>
+                  <Text style={{ color: Colors.white, fontSize: 14, fontWeight: '600', marginTop: 2 }}>Terhubung (Direct Stream)</Text>
+                </View>
+                <View style={{
+                  backgroundColor: 'rgba(46,196,182,0.15)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: '#2EC4B6'
+                }}>
+                  <Text style={{ color: '#2EC4B6', fontSize: 11, fontWeight: 'bold' }}>READY</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.navRow}>
+              <TouchableOpacity style={[styles.navBtn, !navPrev && styles.navBtnDisabled]} onPress={() => navPrev && navigateEpisode(navPrev)} disabled={!navPrev}>
+                <Text style={[styles.navBtnText, !navPrev && styles.navBtnTextDisabled]}>« Episode Sebelumnya</Text>
               </TouchableOpacity>
-            )}
-            <Text style={styles.playerErrorText}>{state.error}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {!isFullscreen && (
-        <ScrollView style={styles.controlsContainer} contentContainerStyle={styles.controlsContent}>
-          <View style={{
-            backgroundColor: Colors.surface,
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: Colors.border2,
-            marginTop: 10,
-            gap: 12,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 6,
-            elevation: 4
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="sparkles" size={20} color={Colors.accent} />
-              <Text style={{ color: Colors.white, fontSize: 16, fontWeight: 'bold' }}>Smart Auto-Play Premium</Text>
+              <TouchableOpacity style={[styles.navBtn, !navNext && styles.navBtnDisabled]} onPress={() => navNext && navigateEpisode(navNext)} disabled={!navNext}>
+                <Text style={[styles.navBtnText, !navNext && styles.navBtnTextDisabled]}>Episode Selanjutnya »</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={{ color: Colors.textMuted, fontSize: 13, lineHeight: 18 }}>
-              Sistem secara otomatis memilih resolusi terbaik dan mengalirkan video secara stabil langsung ke Cloud Storage.
-            </Text>
-            <View style={{ height: 1, backgroundColor: Colors.border2, marginVertical: 4 }} />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View>
-                <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Status Koneksi</Text>
-                <Text style={{ color: Colors.white, fontSize: 14, fontWeight: '600', marginTop: 2 }}>Terhubung (Direct Stream)</Text>
-              </View>
-              <View style={{
-                backgroundColor: 'rgba(46,196,182,0.15)',
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 20,
-                borderWidth: 1,
-                borderColor: '#2EC4B6'
-              }}>
-                <Text style={{ color: '#2EC4B6', fontSize: 11, fontWeight: 'bold' }}>READY</Text>
-              </View>
-            </View>
-          </View>
+          </ScrollView>
+        )}
 
-          <View style={styles.navRow}>
-            <TouchableOpacity style={[styles.navBtn, !navPrev && styles.navBtnDisabled]} onPress={() => navPrev && navigateEpisode(navPrev)} disabled={!navPrev}>
-              <Text style={[styles.navBtnText, !navPrev && styles.navBtnTextDisabled]}>« Episode Sebelumnya</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.navBtn, !navNext && styles.navBtnDisabled]} onPress={() => navNext && navigateEpisode(navNext)} disabled={!navNext}>
-              <Text style={[styles.navBtnText, !navNext && styles.navBtnTextDisabled]}>Episode Selanjutnya »</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      )}
+        <PlayerModals
+          showEpisodesModal={state.showEpisodesModal} setShowEpisodesModal={state.setShowEpisodesModal}
+          episodes={episodes} currentUrl={params.url as string} navigateEpisode={navigateEpisode}
+          showResModal={state.showResModal} setShowResModal={state.setShowResModal} activeHost={state.activeHost}
+          activeHostItems={activeHostItems} activeServerName={state.activeServerName}
+          handleSelectResolution={(srv) => playback.handleSelectResolution(srv, params, stopAllMedia, saveCurrentProgress)} getResName={getResName}
+          showSpeedModal={state.showSpeedModal} setShowSpeedModal={state.setShowSpeedModal}
+          playbackSpeed={state.playbackSpeed} changeSpeed={changeSpeed}
+        />
 
-      <PlayerModals
-        showEpisodesModal={state.showEpisodesModal} setShowEpisodesModal={state.setShowEpisodesModal}
-        episodes={episodes} currentUrl={params.url as string} navigateEpisode={navigateEpisode}
-        showResModal={state.showResModal} setShowResModal={state.setShowResModal} activeHost={state.activeHost}
-        activeHostItems={activeHostItems} activeServerName={state.activeServerName}
-        handleSelectResolution={(srv) => playback.handleSelectResolution(srv, params, stopAllMedia, saveCurrentProgress)} getResName={getResName}
-        showSpeedModal={state.showSpeedModal} setShowSpeedModal={state.setShowSpeedModal}
-        playbackSpeed={state.playbackSpeed} changeSpeed={changeSpeed}
-      />
-
-    </SafeAreaView>
+      </SafeAreaView>
     </>
   );
 }
