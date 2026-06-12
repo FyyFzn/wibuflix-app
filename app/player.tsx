@@ -272,36 +272,30 @@ export default function PlayerScreen() {
 
   const navigateEpisode = (url: string) => {
     stopAllMedia();
-    setTimeout(() => {
-      state.setShowEpisodesModal(false);
-      saveCurrentProgress();
-      state.isMounted.current = false;
-      if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+    state.setShowEpisodesModal(false);
+    saveCurrentProgress();
+    if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
 
-      let safeUrl = url;
-      if (safeUrl.includes('#neosatsu_ep_')) {
-        safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
-      }
+    let safeUrl = url;
+    if (safeUrl.includes('#neosatsu_ep_')) {
+      safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
+    }
 
-      const targetEp = episodes.find(e => 
-        e.url === url || 
-        (e.url && e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
-      );
-      const nextJudul = targetEp ? targetEp.judul : '';
+    const targetEp = episodes.find(e => 
+      e.url === url || 
+      (e.url && e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
+    );
+    const nextJudul = targetEp ? targetEp.judul : '';
 
-      router.replace({
-        pathname: '/player',
-        params: { 
-          url: safeUrl, 
-          gambar: params.gambar, 
-          seriUrl: params.seriUrl, 
-          judul: nextJudul,
-          seriJudul: params.seriJudul,
-          autoPlayHost: state.preferredHostRef.current || state.activeHost,
-          autoFullscreen: isFullscreen ? '1' : '0'
-        }
-      });
-    }, 500);
+    router.setParams({ 
+      url: safeUrl, 
+      gambar: params.gambar, 
+      seriUrl: params.seriUrl, 
+      judul: nextJudul,
+      seriJudul: params.seriJudul,
+      autoPlayHost: state.preferredHostRef.current || state.activeHost,
+      autoFullscreen: isFullscreen ? '1' : '0'
+    });
   };
 
   // Auto-next logic
