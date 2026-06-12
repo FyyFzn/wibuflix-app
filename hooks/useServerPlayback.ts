@@ -60,7 +60,7 @@ export function useServerPlayback(state: any, player: any) {
     return false;
   };
 
-  const loadEpisode = async (url: string, params: any) => {
+  const loadEpisode = async (url: string, params: any, navNextNextUrl?: string | null) => {
     state.setLoading(true);
     state.setError(null);
     state.setPlayerMode('none');
@@ -86,7 +86,8 @@ export function useServerPlayback(state: any, player: any) {
         undefined, // nextEpisodeUrl (belum tahu karena belum di-scrape)
         signal,
         params.seriJudul as string,
-        params.judul as string
+        params.judul as string,
+        undefined, // nextNextEpisodeUrl juga belum diketahui
       ).catch(e => {
         console.log('[Fast Smart-Play Error]', e.message);
         return null;
@@ -146,7 +147,15 @@ export function useServerPlayback(state: any, player: any) {
               if (!state.isMounted.current || signal.aborted) return;
               console.log(`[Smart-Play Poll] Attempt ${pollCount + 1}/${maxPolls} for ${url}`);
               try {
-                const pollRes = await fetchSmartPlay(url, params.seriUrl as string, data.nav_next || undefined, signal, params.seriJudul as string, (params.judul || data.judul) as string);
+                const pollRes = await fetchSmartPlay(
+                  url,
+                  params.seriUrl as string,
+                  data.nav_next || undefined,
+                  signal,
+                  params.seriJudul as string,
+                  (params.judul || data.judul) as string,
+                  navNextNextUrl || undefined, // N+2 — dari parameter hook
+                );
                 if (!state.isMounted.current || signal.aborted) return;
                 
                 if (pollRes.success) {

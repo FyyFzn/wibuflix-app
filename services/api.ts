@@ -216,11 +216,13 @@ export async function fetchSmartPlay(
   nextEpisodeUrl?: string,
   signal?: AbortSignal,
   seriesTitle?: string,
-  episodeTitle?: string
+  episodeTitle?: string,
+  nextNextEpisodeUrl?: string,
 ): Promise<SmartPlayResponse> {
   let url = `${getApiBase()}/api/smart-play?episodeUrl=${encodeURIComponent(episodeUrl)}`;
   if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
   if (nextEpisodeUrl) url += `&nextEpisodeUrl=${encodeURIComponent(nextEpisodeUrl)}`;
+  if (nextNextEpisodeUrl) url += `&nextNextEpisodeUrl=${encodeURIComponent(nextNextEpisodeUrl)}`;
   if (seriesTitle) url += `&seriesTitle=${encodeURIComponent(seriesTitle)}`;
   if (episodeTitle) url += `&episodeTitle=${encodeURIComponent(episodeTitle)}`;
 

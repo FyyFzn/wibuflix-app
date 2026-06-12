@@ -51,7 +51,7 @@ export default function PlayerScreen() {
   const state = usePlayerState(params.judul || '');
 
   // 2. Initialize Navigation Hook
-  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
+  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext, navNextNext, setNavNextNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
 
   const videoSource = state.nativeVideoUrl ? {
     uri: state.nativeVideoUrl,
@@ -217,10 +217,12 @@ export default function PlayerScreen() {
       getProgress(realUrl).then(saved => {
          if (saved && saved.progress > 5) state.setSavedProgress(saved.progress);
       });
-      playback.loadEpisode(realUrl, params).then((data: any) => {
+      playback.loadEpisode(realUrl, params, navNextNext).then((data: any) => {
         if (data) {
           if (data.nav_prev) setNavPrev(data.nav_prev);
           if (data.nav_next) setNavNext(data.nav_next);
+          // Kalkulasi N+2 dari daftar episode jika tersedia di data scrape
+          // (useEpisodeNavigation sudah menghitungnya dari episodes list)
         }
       });
     }
