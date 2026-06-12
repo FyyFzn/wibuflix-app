@@ -157,6 +157,7 @@ export function useServerPlayback(state: any, player: any) {
 
          // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling
          if (!isReady && !fallbackTriggered) {
+            state.setPlayerLoading(true); // Pastikan UI menampilkan overlay progress
             let pollCount = 0;
             const maxPolls = 150;
             while (!isReady && pollCount < maxPolls) {
