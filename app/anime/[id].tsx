@@ -15,7 +15,7 @@ import {
   TextInput,
   BackHandler,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo } from '../../services/api';
 import { getRiwayat } from '../../services/storage';
@@ -41,11 +41,13 @@ export default function AnimeDetailScreen() {
     loadEpisodes();
   }, [params.url, params.sources]);
 
+  const navigation = useNavigation();
+
   // Custom Back Handler untuk mencegah keluar aplikasi secara tidak sengaja
   useEffect(() => {
     const onBackPress = () => {
-      if (router.canGoBack()) {
-        router.back();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
       } else {
         router.replace('/');
       }
@@ -54,7 +56,7 @@ export default function AnimeDetailScreen() {
     
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backHandler.remove();
-  }, [router]);
+  }, [navigation, router]);
 
   const loadEpisodes = async () => {
     if (!params.url) return;
