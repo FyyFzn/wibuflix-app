@@ -78,7 +78,28 @@ export default function PlayerScreen() {
   // 3. Initialize Playback Hook
   const playback = useServerPlayback(state, player);
 
-  // 4. Initialize Fullscreen Hook
+  // Tambahkan sinkronisasi ref untuk N+2 prefetch
+  useEffect(() => {
+    navNextNextRef.current = navNextNext || undefined;
+    
+    // Jika player sudah READY (fast-path) dan navNextNext baru saja selesai di-fetch,
+    // tembak API sekali lagi di latar belakang agar backend tahu ada N+2.
+    if (navNextNext && playback.isReady && params.url) {
+      import('../services/api').then(({ fetchSmartPlay }) => {
+        fetchSmartPlay(
+          params.url as string,
+          params.seriUrl as string,
+          navNext || undefined,
+          new AbortController().signal,
+          params.seriJudul as string,
+          params.judul as string,
+          navNextNext
+        ).catch(() => {});
+      });
+    }
+  }, [navNextNext, playback.isReady, params.url]);
+
+  // Sync orientation and status bar with fullscreen modeok
   const webviewRef = useRef<WebView>(null);
   const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen(params.autoFullscreen === '1', webviewRef, state.playerMode);
 
