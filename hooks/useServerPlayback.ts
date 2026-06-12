@@ -60,7 +60,7 @@ export function useServerPlayback(state: any, player: any) {
     return false;
   };
 
-  const loadEpisode = async (url: string, params: any, navNextNextUrl?: string | null) => {
+  const loadEpisode = async (url: string, params: any, navNextNextRef?: React.MutableRefObject<string | null>) => {
     state.setLoading(true);
     state.setError(null);
     state.setPlayerMode('none');
@@ -139,6 +139,27 @@ export function useServerPlayback(state: any, player: any) {
          
          state.setLoading(false); // Pastikan layar loading 'Mencari server' mati
 
+         // ═══════════════════════════════════════════════════════════════
+         // PENTING: Jika episode sudah READY dari awal (fast-path),
+         // smart-play pertama dipanggil SEBELUM scrape selesai sehingga
+         // nextEpisodeUrl dan nextNextEpisodeUrl belum diketahui → prefetch
+         // tidak terpicu! Perbaikan: panggil smart-play sekali lagi di
+         // background setelah scrape selesai untuk memastikan prefetch jalan.
+         // ═══════════════════════════════════════════════════════════════
+         if (isReady && data.nav_next && !signal.aborted) {
+           const navNextNextCurrent = navNextNextRef?.current || undefined;
+           console.log(`[Smart-Play] Episode READY, trigger prefetch window: nav_next=${data.nav_next}, navNextNext=${navNextNextCurrent || 'null'}`);
+           fetchSmartPlay(
+             url,
+             params.seriUrl as string,
+             data.nav_next,
+             new AbortController().signal, // sinyal terpisah agar tidak dibatalkan
+             params.seriJudul as string,
+             (params.judul || data.judul) as string,
+             navNextNextCurrent,
+           ).catch(() => {}); // fire-and-forget
+         }
+
          // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling
          if (!isReady && !fallbackTriggered) {
             let pollCount = 0;
@@ -147,14 +168,14 @@ export function useServerPlayback(state: any, player: any) {
               if (!state.isMounted.current || signal.aborted) return;
               console.log(`[Smart-Play Poll] Attempt ${pollCount + 1}/${maxPolls} for ${url}`);
               try {
-                const pollRes = await fetchSmartPlay(
+                 const pollRes = await fetchSmartPlay(
                   url,
                   params.seriUrl as string,
                   data.nav_next || undefined,
                   signal,
                   params.seriJudul as string,
                   (params.judul || data.judul) as string,
-                  navNextNextUrl || undefined, // N+2 — dari parameter hook
+                  navNextNextRef?.current || undefined, // Selalu baca nilai terbaru dari ref
                 );
                 if (!state.isMounted.current || signal.aborted) return;
                 
