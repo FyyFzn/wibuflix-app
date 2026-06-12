@@ -21,15 +21,35 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
   // Fallback: If backend fails to extract nav_prev/nav_next, calculate them from the episodes list
   useEffect(() => {
     if (episodes.length > 0 && currentUrl) {
-      const currentIndex = episodes.findIndex(e => e.url === currentUrl);
+      const decodedCurrent = decodeURIComponent(currentUrl);
+      const currentIndex = episodes.findIndex(e => decodeURIComponent(e.url || '') === decodedCurrent);
+      
       if (currentIndex !== -1) {
-        // Episode list biasanya urut dari terbaru → terlama (index 0 = terbaru)
-        // navPrev = episode yang lebih lama (index lebih besar)
-        // navNext = episode yang lebih baru (index lebih kecil)
-        setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
-        setNavNext(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
-        // N+2: dua episode lebih baru dari yang sedang diputar
-        setNavNextNext(currentIndex > 1 ? (episodes[currentIndex - 2].url || null) : null);
+        // Cek arah urutan episode (Ascending vs Descending)
+        let isAscending = false;
+        if (episodes.length > 1) {
+          const extractEpNum = (title: string) => {
+            const match = title.match(/(?:episode|ep|eps)\s*(\d+(?:\.\d+)?)/i) || title.match(/(\d+(?:\.\d+)?)/);
+            return match ? parseFloat(match[1]) : null;
+          };
+          const numFirst = extractEpNum(episodes[0].judul);
+          const numLast = extractEpNum(episodes[episodes.length - 1].judul);
+          if (numFirst !== null && numLast !== null && numLast > numFirst) {
+            isAscending = true;
+          }
+        }
+
+        if (isAscending) {
+          // Ascending: Index 0 = Ep 1, Index 1 = Ep 2
+          setNavPrev(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
+          setNavNext(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
+          setNavNextNext(currentIndex < episodes.length - 2 ? (episodes[currentIndex + 2].url || null) : null);
+        } else {
+          // Descending: Index 0 = Ep 12, Index 11 = Ep 1
+          setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
+          setNavNext(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
+          setNavNextNext(currentIndex > 1 ? (episodes[currentIndex - 2].url || null) : null);
+        }
       }
     }
   }, [episodes, currentUrl]);
