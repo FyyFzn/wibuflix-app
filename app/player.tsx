@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
@@ -44,6 +44,7 @@ const getHostName = (srv: ServerItem) => {
 
 export default function PlayerScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams<{ url: string; urls?: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; }>();
 
   // 1. Initialize State Hook
@@ -238,15 +239,15 @@ export default function PlayerScreen() {
     saveCurrentProgress();
     stopAllMedia();
     try {
-      if (router.canGoBack()) {
-        router.back();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
       } else {
-        router.push('/');
+        router.replace('/');
       }
     } catch (e) {
-      router.push('/');
+      router.replace('/');
     }
-  }, [saveCurrentProgress, router]);
+  }, [saveCurrentProgress, navigation, router]);
 
   useFocusEffect(
     useCallback(() => {
