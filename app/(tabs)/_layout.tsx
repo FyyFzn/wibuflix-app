@@ -1,17 +1,25 @@
 import React from 'react';
-import { Tabs, usePathname } from 'expo-router';
+import { Tabs, usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import { Platform, BackHandler, ToastAndroid } from 'react-native';
 
 export default function TabLayout() {
   const pathname = usePathname();
+  const router = useRouter();
   const backPressCount = React.useRef(0);
 
   React.useEffect(() => {
     if (Platform.OS !== 'android') return;
 
     const backAction = () => {
+      // Jika router bisa mundur ke halaman sebelumnya (misal sedang di detail anime)
+      if (router.canGoBack()) {
+        router.back();
+        return true; // Berhasil mundur, jangan keluar aplikasi
+      }
+
+      // Jika kita berada di halaman-halaman utama (tabs)
       const isRoot = ['/', '/anime', '/tokusatsu', '/history'].includes(pathname);
       
       if (isRoot) {
@@ -29,12 +37,14 @@ export default function TabLayout() {
           return true;
         }
       }
+      
+      // Fallback jika tidak tertangkap
       return false;
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => backHandler.remove();
-  }, [pathname]);
+  }, [pathname, router]);
 
   return (
     <Tabs
