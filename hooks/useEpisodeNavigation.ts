@@ -5,7 +5,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [navPrev, setNavPrev] = useState<string | null>(initialNavPrev);
   const [navNext, setNavNext] = useState<string | null>(initialNavNext);
-  const [navNextNext, setNavNextNext] = useState<string | null>(null); // Episode N+2
+
 
   useEffect(() => {
     if (seriUrl) {
@@ -43,12 +43,10 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
           // Ascending: Index 0 = Ep 1, Index 1 = Ep 2
           setNavPrev(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
           setNavNext(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
-          setNavNextNext(currentIndex < episodes.length - 2 ? (episodes[currentIndex + 2].url || null) : null);
         } else {
           // Descending: Index 0 = Ep 12, Index 11 = Ep 1
           setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
           setNavNext(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
-          setNavNextNext(currentIndex > 1 ? (episodes[currentIndex - 2].url || null) : null);
         }
       }
     }
@@ -61,7 +59,5 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
     setNavPrev,
     navNext,
     setNavNext,
-    navNextNext,
-    setNavNextNext,
   };
 }

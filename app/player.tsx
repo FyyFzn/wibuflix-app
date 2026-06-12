@@ -51,31 +51,8 @@ export default function PlayerScreen() {
   const state = usePlayerState(params.judul || '');
 
   // 2. Initialize Navigation Hook
-  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext, navNextNext, setNavNextNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
+  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
 
-  // Ref agar loadEpisode selalu mendapat nilai navNextNext terbaru
-  // (navNextNext di-load async, sementara loadEpisode dipanggil dari useEffect)
-  const navNextNextRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    navNextNextRef.current = navNextNext;
-    
-    // Jika player sudah READY (fast-path) dan navNextNext baru saja selesai di-fetch,
-    // tembak API sekali lagi di latar belakang agar backend tahu ada N+2.
-    if (navNextNext && state.playerMode !== 'none' && params.url) {
-      import('../services/api').then(({ fetchSmartPlay }) => {
-        fetchSmartPlay(
-          params.url as string,
-          params.seriUrl as string,
-          navNext || undefined,
-          new AbortController().signal,
-          params.seriJudul as string,
-          params.judul as string,
-          navNextNext
-        ).catch(() => {});
-      });
-    }
-  }, [navNextNext, state.playerMode, params.url]);
 
   const videoSource = state.nativeVideoUrl ? {
     uri: state.nativeVideoUrl,
@@ -241,7 +218,7 @@ export default function PlayerScreen() {
       getProgress(realUrl).then(saved => {
         if (saved && saved.progress > 5) state.setSavedProgress(saved.progress);
       });
-      playback.loadEpisode(realUrl, params, navNextNextRef).then((data: any) => {
+      playback.loadEpisode(realUrl, params).then((data: any) => {
         if (data) {
           if (data.nav_prev) setNavPrev(data.nav_prev);
           if (data.nav_next) setNavNext(data.nav_next);

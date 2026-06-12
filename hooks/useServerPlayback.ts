@@ -60,7 +60,7 @@ export function useServerPlayback(state: any, player: any) {
     return false;
   };
 
-  const loadEpisode = async (url: string, params: any, navNextNextRef?: React.MutableRefObject<string | null>) => {
+  const loadEpisode = async (url: string, params: any) => {
     state.setLoading(true);
     state.setError(null);
     state.setPlayerMode('none');
@@ -87,7 +87,6 @@ export function useServerPlayback(state: any, player: any) {
         signal,
         params.seriJudul as string,
         params.judul as string,
-        undefined, // nextNextEpisodeUrl juga belum diketahui
       ).catch(e => {
         console.log('[Fast Smart-Play Error]', e.message);
         return null;
@@ -142,13 +141,12 @@ export function useServerPlayback(state: any, player: any) {
          // ═══════════════════════════════════════════════════════════════
          // PENTING: Jika episode sudah READY dari awal (fast-path),
          // smart-play pertama dipanggil SEBELUM scrape selesai sehingga
-         // nextEpisodeUrl dan nextNextEpisodeUrl belum diketahui → prefetch
+         // nextEpisodeUrl belum diketahui → prefetch
          // tidak terpicu! Perbaikan: panggil smart-play sekali lagi di
          // background setelah scrape selesai untuk memastikan prefetch jalan.
          // ═══════════════════════════════════════════════════════════════
          if (isReady && data.nav_next && !signal.aborted) {
-           const navNextNextCurrent = navNextNextRef?.current || undefined;
-           console.log(`[Smart-Play] Episode READY, trigger prefetch window: nav_next=${data.nav_next}, navNextNext=${navNextNextCurrent || 'null'}`);
+           console.log(`[Smart-Play] Episode READY, trigger prefetch window: nav_next=${data.nav_next}`);
            fetchSmartPlay(
              url,
              params.seriUrl as string,
@@ -156,7 +154,6 @@ export function useServerPlayback(state: any, player: any) {
              new AbortController().signal, // sinyal terpisah agar tidak dibatalkan
              params.seriJudul as string,
              (params.judul || data.judul) as string,
-             navNextNextCurrent,
            ).catch(() => {}); // fire-and-forget
          }
 
@@ -175,7 +172,6 @@ export function useServerPlayback(state: any, player: any) {
                   signal,
                   params.seriJudul as string,
                   (params.judul || data.judul) as string,
-                  navNextNextRef?.current || undefined, // Selalu baca nilai terbaru dari ref
                 );
                 if (!state.isMounted.current || signal.aborted) return;
                 
