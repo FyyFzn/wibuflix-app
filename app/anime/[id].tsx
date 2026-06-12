@@ -35,14 +35,26 @@ export default function AnimeDetailScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
-
+  const [epsSearch, setEpsSearch] = useState('');
+  
   useEffect(() => {
     loadEpisodes();
   }, [params.url, params.sources]);
 
-  // BackHandler custom dihapus karena Expo Router / React Navigation sudah menanganinya secara otomatis.
-
-
+  // Custom Back Handler untuk mencegah keluar aplikasi secara tidak sengaja
+  useEffect(() => {
+    const onBackPress = () => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
+      return true; // Mencegah Android mematikan aplikasi
+    };
+    
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backHandler.remove();
+  }, [router]);
 
   const loadEpisodes = async () => {
     if (!params.url) return;

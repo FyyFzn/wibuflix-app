@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
@@ -248,17 +248,19 @@ export default function PlayerScreen() {
     }
   }, [saveCurrentProgress, router]);
 
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isFullscreen) {
-        exitFullscreen();
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (isFullscreen) {
+          exitFullscreen();
+          return true; // Hanya kembalikan ke portrait, jangan keluar player
+        }
+        handleUIBackPress();
         return true;
-      }
-      handleUIBackPress();
-      return true;
-    });
-    return () => backHandler.remove();
-  }, [isFullscreen, handleUIBackPress]);
+      });
+      return () => backHandler.remove();
+    }, [isFullscreen, handleUIBackPress, exitFullscreen])
+  );
 
   const navigateEpisode = (url: string) => {
     stopAllMedia();
