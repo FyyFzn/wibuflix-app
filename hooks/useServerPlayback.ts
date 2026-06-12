@@ -105,14 +105,14 @@ export function useServerPlayback(state: any, player: any) {
       const smartPlayRes = await smartPlayPromise;
       if (!state.isMounted.current || signal.aborted) return;
 
-      if (smartPlayRes && smartPlayRes.success && (smartPlayRes.status === 'READY' || smartPlayRes.status === 'UPLOADING') && smartPlayRes.url) {
+      if (smartPlayRes && smartPlayRes.success && smartPlayRes.status === 'READY' && smartPlayRes.url) {
         console.log('[Fast Smart-Play] Video ditemukan! Langsung memutar tanpa menunggu scrape selesai.');
         isReady = true;
         state.setPlayerMode('native');
         state.setNativeVideoUrl(smartPlayRes.url);
         state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob (Mencegah CORS Preflight)
         state.setActiveHost('Azure Cloud');
-        state.setActiveServerName(smartPlayRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
+        state.setActiveServerName('Premium Direct Link');
         state.setLoading(false); // Sembunyikan tulisan "Mencari server..."
         state.setPlayerLoading(false); // Sembunyikan tulisan "Menyiapkan video..."
       } else if (smartPlayRes && smartPlayRes.success && smartPlayRes.status === 'FAILED') {
@@ -182,13 +182,13 @@ export function useServerPlayback(state: any, player: any) {
                 } catch (err) {}
                 
                 if (pollRes.success) {
-                  if ((pollRes.status === 'READY' || pollRes.status === 'UPLOADING') && pollRes.url) {
+                  if (pollRes.status === 'READY' && pollRes.url) {
                     isReady = true;
                     state.setPlayerMode('native');
                     state.setNativeVideoUrl(pollRes.url);
                     state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob
                     state.setActiveHost('Azure Cloud');
-                    state.setActiveServerName(pollRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
+                    state.setActiveServerName('Premium Direct Link');
                     state.setPlayerLoading(false);
                     break;
                   } else if (pollRes.status === 'FAILED') {
