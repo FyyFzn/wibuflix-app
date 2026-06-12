@@ -54,11 +54,13 @@ export default function PlayerScreen() {
   const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
 
 
+  const isAzureBlob = state.nativeVideoUrl && state.nativeVideoUrl.includes('.blob.core.windows.net');
   const videoSource = state.nativeVideoUrl ? {
     uri: state.nativeVideoUrl,
-    headers: Object.keys(state.nativeVideoHeaders).length > 0 ? state.nativeVideoHeaders : {
+    // Jika URL adalah Azure Blob, JANGAN kirim header kustom karena akan memicu blokir CORS Preflight dari server Azure
+    headers: isAzureBlob ? undefined : (Object.keys(state.nativeVideoHeaders).length > 0 ? state.nativeVideoHeaders : {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-    }
+    })
   } : null;
 
   const player = useVideoPlayer(videoSource, (player) => {
@@ -536,8 +538,11 @@ export default function PlayerScreen() {
             <View style={{ flex: 1 }}>
               <VideoView player={player} style={styles.video} nativeControls={false} />
               {playerError && (
-                <View style={{ position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'rgba(255,0,0,0.8)', padding: 10, borderRadius: 8 }}>
-                  <Text style={{ color: 'white', fontSize: 12 }}>{playerError.message || 'Unknown Player Error'}</Text>
+                <View style={{ position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'rgba(255,50,50,0.9)', padding: 12, borderRadius: 10, zIndex: 100 }}>
+                  <Text style={{ color: 'white', fontSize: 13, fontWeight: 'bold', marginBottom: 4 }}>Gagal Memutar Video</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 11 }}>
+                    {isAzureBlob ? 'Koneksi ke server Cloud diblokir. Pastikan koneksi stabil atau coba server Alternatif.' : (playerError.message || 'Unknown Player Error')}
+                  </Text>
                 </View>
               )}
               <PlayerNativeControls

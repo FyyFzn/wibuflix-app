@@ -110,9 +110,7 @@ export function useServerPlayback(state: any, player: any) {
         isReady = true;
         state.setPlayerMode('native');
         state.setNativeVideoUrl(smartPlayRes.url);
-        state.setNativeVideoHeaders({
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-        });
+        state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob (Mencegah CORS Preflight)
         state.setActiveHost('Azure Cloud');
         state.setActiveServerName(smartPlayRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
         state.setLoading(false); // Sembunyikan tulisan "Mencari server..."
@@ -188,7 +186,7 @@ export function useServerPlayback(state: any, player: any) {
                     isReady = true;
                     state.setPlayerMode('native');
                     state.setNativeVideoUrl(pollRes.url);
-                    state.setNativeVideoHeaders({ 'User-Agent': 'Mozilla/5.0' });
+                    state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob
                     state.setActiveHost('Azure Cloud');
                     state.setActiveServerName(pollRes.status === 'READY' ? 'Premium Direct Link' : 'Instant Proxy Stream');
                     state.setPlayerLoading(false);
