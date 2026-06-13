@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchQueueStatus, queueCancel, queuePrioritize, QueueItem } from '../../services/api';
 
@@ -117,14 +118,14 @@ export default function QueueScreen() {
 
   if (loading && queue.length === 0) {
     return (
-      <View style={styles.centerContainer}>
+      <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#E50914" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {queue.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cloud-offline-outline" size={64} color="#666" />
@@ -140,7 +141,7 @@ export default function QueueScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#E50914" />}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
