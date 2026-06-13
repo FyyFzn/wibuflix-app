@@ -52,6 +52,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="time" size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="queue"
+        options={{
+          title: 'Antrean',
+          tabBarIcon: ({ color }) => <Ionicons name="cloud-download" size={24} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

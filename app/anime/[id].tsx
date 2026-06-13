@@ -14,10 +14,11 @@ import {
   ScrollView,
   TextInput,
   BackHandler,
+  ToastAndroid,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
-import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo } from '../../services/api';
+import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo, queueAdd } from '../../services/api';
 import { getRiwayat } from '../../services/storage';
 import EpisodeItemComponent from '../../components/EpisodeItem';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -93,26 +94,6 @@ export default function AnimeDetailScreen() {
         setCoverImage(data.cover_scraper);
         finalCover = data.cover_scraper;
       }
-
-      if (data.daftar_episode && data.daftar_episode.length === 1) {
-        const ep = data.daftar_episode[0];
-        const riwayat = await getRiwayat();
-        const historyItem = riwayat.find(r => r.seriUrl === params.url);
-        
-        router.replace({
-          pathname: '/player',
-          params: {
-            url: ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu : ''),
-            urls: ep.urls ? JSON.stringify(ep.urls) : '',
-            gambar: finalCover,
-            seriUrl: params.url,
-            judul: ep.judul,
-            seriJudul: data.judul_seri,
-            autoPlayHost: historyItem?.host || ''
-          },
-        });
-        return;
-      }
     } catch (err: any) {
       setError(err.message || 'Gagal memuat daftar episode');
     } finally {
@@ -150,6 +131,24 @@ export default function AnimeDetailScreen() {
     });
   };
 
+  const handleQueuePress = async (ep: EpisodeItemType) => {
+    try {
+      const realEpUrl = ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu : '');
+      if (!realEpUrl) {
+        ToastAndroid.show('Link episode tidak tersedia', ToastAndroid.SHORT);
+        return;
+      }
+      ToastAndroid.show('Menambahkan ke antrean...', ToastAndroid.SHORT);
+      const res = await queueAdd(realEpUrl, params.url as string, judulSeri, ep.judul);
+      if (res.success) {
+        ToastAndroid.show('Berhasil dimasukkan ke antrean cloud!', ToastAndroid.LONG);
+      }
+    } catch (e) {
+      console.error(e);
+      ToastAndroid.show('Gagal memasukkan ke antrean', ToastAndroid.SHORT);
+    }
+  };
+
   if (loading) {
     return <LoadingOverlay message="Mengambil daftar episode & info MAL..." />;
   }
@@ -177,6 +176,7 @@ export default function AnimeDetailScreen() {
           tanggal={item.tanggal}
           malJudul={item.malJudul}
           onPress={() => handleEpisodePress(item)}
+          onQueuePress={() => handleQueuePress(item)}
         />
       )}
       ListHeaderComponent={

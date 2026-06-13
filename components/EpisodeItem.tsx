@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../styles/theme';
 
 interface EpisodeItemProps {
@@ -11,9 +12,10 @@ interface EpisodeItemProps {
   tanggal: string;
   malJudul?: string;
   onPress: () => void;
+  onQueuePress?: () => void;
 }
 
-export default function EpisodeItem({ judul, tanggal, malJudul, onPress }: EpisodeItemProps) {
+export default function EpisodeItem({ judul, tanggal, malJudul, onPress, onQueuePress }: EpisodeItemProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.6}>
       <View style={styles.main}>
@@ -22,7 +24,14 @@ export default function EpisodeItem({ judul, tanggal, malJudul, onPress }: Episo
           <Text style={styles.malTitle} numberOfLines={1}>{malJudul}</Text>
         )}
       </View>
-      <Text style={styles.date}>{tanggal}</Text>
+      <View style={styles.rightContent}>
+        <Text style={styles.date}>{tanggal}</Text>
+        {onQueuePress && (
+          <TouchableOpacity style={styles.queueBtn} onPress={onQueuePress}>
+            <Ionicons name="cloud-download-outline" size={22} color={Colors.accent} />
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -54,9 +63,19 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontStyle: 'italic',
   },
+  rightContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
   date: {
     fontSize: FontSize.sm,
     color: Colors.textMuted,
-    flexShrink: 0,
+    marginRight: Spacing.sm,
+  },
+  queueBtn: {
+    padding: 6,
+    backgroundColor: '#2a1a1a',
+    borderRadius: 8,
   },
 });
