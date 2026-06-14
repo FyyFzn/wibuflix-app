@@ -22,6 +22,7 @@ import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo, queueAdd } from
 import { getRiwayat } from '../../services/storage';
 import EpisodeItemComponent from '../../components/EpisodeItem';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import { useAnimeStore } from '../../store/animeStore';
 
 export default function AnimeDetailScreen() {
   const router = useRouter();
@@ -65,17 +66,17 @@ export default function AnimeDetailScreen() {
     setError(null);
 
     try {
+      const selectedAnime = useAnimeStore.getState().selectedAnime;
       let urlsObj = undefined;
-      if (params.sources) {
-        try {
-          const parsed = JSON.parse(params.sources);
-          if (parsed.samehadaku && parsed.otakudesu) {
-            urlsObj = {
-              samehadaku: parsed.samehadaku.url,
-              otakudesu: `/anime/${parsed.otakudesu.id}`
-            };
-          }
-        } catch (e) {}
+
+      // Jika ada data sources di Zustand store
+      if (selectedAnime && selectedAnime.sources) {
+        if (selectedAnime.sources.samehadaku && selectedAnime.sources.otakudesu) {
+          urlsObj = {
+            samehadaku: selectedAnime.sources.samehadaku.url,
+            otakudesu: `/anime/${selectedAnime.sources.otakudesu.id}`
+          };
+        }
       }
 
       const json = await fetchEpisodes(params.url, urlsObj);

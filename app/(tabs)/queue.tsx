@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchQueueStatus, queueCancel, queuePrioritize, QueueItem } from '../../services/api';
+import EventSource from 'react-native-sse';
+import { fetchQueueStatus, queueCancel, queuePrioritize, QueueItem, getApiBase } from '../../services/api';
 
 export default function QueueScreen() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -24,12 +25,30 @@ export default function QueueScreen() {
   }, []);
 
   useEffect(() => {
+    // Initial load
     loadQueue();
 
-    // Polling interval 2 detik
-    const interval = setInterval(() => {
-      loadQueue();
-    }, 2000);
+    // Koneksi SSE (Server-Sent Events) untuk menggantikan setInterval polling
+    const sseUrl = `${getApiBase()}/api/queue/stream`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener('message', (event) => {
+      if (event.data) {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.success && parsed.queue) {
+            setQueue(parsed.queue);
+          }
+        } catch (e) {
+          console.error('[SSE] Failed to parse message', e);
+        }
+      }
+    });
+
+    eventSource.addEventListener('error', (err) => {
+      console.error('[SSE] Connection error:', err);
+      // EventSource akan otomatis melakukan reconnect
+    });
 
     // Refresh when app comes to foreground
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -39,7 +58,7 @@ export default function QueueScreen() {
     });
 
     return () => {
-      clearInterval(interval);
+      eventSource.close();
       subscription.remove();
     };
   }, [loadQueue]);

@@ -16,6 +16,7 @@ import { fetchKatalog, AnimeItem } from '../services/api';
 import AnimeCard from './AnimeCard';
 import SearchBar from './SearchBar';
 import LoadingOverlay from './LoadingOverlay';
+import { useAnimeStore } from '../store/animeStore';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const NUM_COLUMNS = SCREEN_WIDTH > 600 ? 4 : 3;
@@ -38,6 +39,9 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('Semua');
+  
+  const setCatalog = useAnimeStore((state) => state.setCatalog);
+  const setSelectedAnime = useAnimeStore((state) => state.setSelectedAnime);
 
   const filterOptions = category === 'toku' 
     ? ['Semua', 'Kamen Rider', 'Super Sentai', 'Power Rangers', 'Ultraman', 'Lainnya']
@@ -51,7 +55,14 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
       const json = await fetchKatalog(page, search, category, filter, undefined, isRefresh);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
-      setAnimeList(json.data.list || []);
+      const newList = json.data.list || [];
+      if (page === 1) {
+        setAnimeList(newList);
+        // Simpan halaman pertama ke dalam Zustand cache
+        setCatalog(category, newList);
+      } else {
+        setAnimeList(prev => [...prev, ...newList]);
+      }
       setHasNext(json.data.hasNext);
     } catch (err: any) {
       setError(err.message || 'Gagal memuat katalog');
@@ -121,6 +132,10 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   };
 
   const handleAnimePress = (item: AnimeItem) => {
+    // Simpan anime lengkap di Global Store (Zustand) agar layar berikutnya tidak perlu mencari ulang
+    setSelectedAnime(item);
+    
+    // Kirim ID/URL secara simpel ke router
     router.push({
       pathname: '/anime/[id]',
       params: {
@@ -128,7 +143,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         url: item.url,
         gambar: item.gambar,
         judul: item.judul,
-        sources: item.sources ? JSON.stringify(item.sources) : undefined,
+        // Dihapus: sources: item.sources ? JSON.stringify(item.sources) : undefined,
       },
     });
   };
