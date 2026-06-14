@@ -16,7 +16,7 @@ import {
   BackHandler,
   ToastAndroid,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation, useFocusEffect } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo, queueAdd, fetchQueueStatus } from '../../services/api';
 import { getRiwayat } from '../../services/storage';
@@ -47,19 +47,21 @@ export default function AnimeDetailScreen() {
   const navigation = useNavigation();
 
   // Custom Back Handler untuk mencegah keluar aplikasi secara tidak sengaja
-  useEffect(() => {
-    const onBackPress = () => {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        router.replace('/');
-      }
-      return true; // Mencegah Android mematikan aplikasi
-    };
-    
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => backHandler.remove();
-  }, [navigation, router]);
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/');
+        }
+        return true; // Mencegah Android mematikan aplikasi
+      };
+      
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [router])
+  );
 
   const loadEpisodes = async () => {
     if (!params.url) return;

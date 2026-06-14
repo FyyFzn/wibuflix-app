@@ -250,20 +250,25 @@ export default function PlayerScreen() {
     stopAllMedia();
     cancelUploads(); // Membatalkan semua upload/prefetch yang masih berjalan di latar belakang
     try {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
+      if (router.canGoBack()) {
+        router.back();
       } else {
         router.replace('/');
       }
     } catch (e) {
       router.replace('/');
     }
-  }, [saveCurrentProgress, navigation, router]);
+  }, [saveCurrentProgress, router]);
+
+  const isFullscreenRef = useRef(isFullscreen);
+  useEffect(() => {
+    isFullscreenRef.current = isFullscreen;
+  }, [isFullscreen]);
 
   useFocusEffect(
     useCallback(() => {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (isFullscreen) {
+        if (isFullscreenRef.current) {
           exitFullscreen();
           return true; // Hanya kembalikan ke portrait, jangan keluar player
         }
@@ -271,7 +276,7 @@ export default function PlayerScreen() {
         return true;
       });
       return () => backHandler.remove();
-    }, [isFullscreen, handleUIBackPress, exitFullscreen])
+    }, [handleUIBackPress, exitFullscreen])
   );
 
   const navigateEpisode = (url: string) => {
