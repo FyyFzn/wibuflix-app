@@ -103,7 +103,7 @@ export default function BerandaScreen() {
 
   const handleAnimePress = (item: AnimeItem) => {
     router.push({
-      pathname: '/anime/[id]',
+      pathname: '/detail/[id]',
       params: {
         id: encodeURIComponent(item.url),
         url: item.url,

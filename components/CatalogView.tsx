@@ -137,7 +137,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     
     // Kirim ID/URL secara simpel ke router
     router.push({
-      pathname: '/anime/[id]',
+      pathname: '/detail/[id]',
       params: {
         id: encodeURIComponent(item.url),
         url: item.url,
