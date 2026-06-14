@@ -120,26 +120,47 @@ export default function QueueScreen() {
             <Text style={styles.seriesTitle} numberOfLines={1}>{item.seriesTitle}</Text>
             <Text style={styles.episodeTitle} numberOfLines={1}>{item.episodeTitle}</Text>
           </View>
-          <View style={[
-            styles.statusBadgeContainer,
-            isFailed && { backgroundColor: 'rgba(229, 9, 20, 0.1)' },
-            isCompleted && { backgroundColor: 'rgba(0, 255, 0, 0.1)' }
-          ]}>
-            {(isUploading || isFailed || isCompleted) && (
-              <View style={[
-                styles.dot, 
-                isFailed && { backgroundColor: '#ff4444' },
-                isCompleted && { backgroundColor: '#00ff00' }
-              ]} />
-            )}
-            <Text style={[
-              styles.statusText, 
-              isUploading && styles.statusTextActive,
-              isFailed && { color: '#ff4444' },
-              isCompleted && { color: '#00ff00' }
+          
+          <View style={styles.rightHeaderContainer}>
+            <View style={[
+              styles.statusBadgeContainer,
+              isFailed && { backgroundColor: 'rgba(229, 9, 20, 0.1)' },
+              isCompleted && { backgroundColor: 'rgba(0, 255, 0, 0.1)' }
             ]}>
-              {isUploading ? 'MENGUNGGAH' : item.status}
-            </Text>
+              {(isUploading || isFailed || isCompleted) && (
+                <View style={[
+                  styles.dot, 
+                  isFailed && { backgroundColor: '#ff4444' },
+                  isCompleted && { backgroundColor: '#00ff00' }
+                ]} />
+              )}
+              <Text style={[
+                styles.statusText, 
+                isUploading && styles.statusTextActive,
+                isFailed && { color: '#ff4444' },
+                isCompleted && { color: '#00ff00' }
+              ]}>
+                {isUploading ? 'MENGUNGGAH' : item.status}
+              </Text>
+            </View>
+
+            <View style={styles.actionRowCompact}>
+              {isPending && index !== 0 && (
+                <TouchableOpacity style={styles.actionBtnCompact} onPress={() => handlePrioritize(item)}>
+                  <Ionicons name="arrow-up-circle-outline" size={22} color="#00ff00" />
+                </TouchableOpacity>
+              )}
+
+              {isFailed && (
+                <TouchableOpacity style={styles.actionBtnCompact} onPress={() => handleRetry(item)}>
+                  <Ionicons name="refresh-circle-outline" size={22} color="#ff4444" />
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity style={styles.actionBtnCompact} onPress={() => handleCancel(item)}>
+                <Ionicons name={isCompleted || isFailed ? "trash-outline" : "close-circle-outline"} size={22} color={isCompleted ? "#888" : "#E50914"} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -155,27 +176,6 @@ export default function QueueScreen() {
             {isUploading && <ActivityIndicator size="small" color="#E50914" style={{ marginLeft: 8 }} />}
           </View>
         )}
-
-        <View style={styles.actionRow}>
-          {isPending && index !== 0 && (
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handlePrioritize(item)}>
-              <Ionicons name="arrow-up-circle-outline" size={20} color="#00ff00" />
-              <Text style={styles.actionTextPrioritize}>Prioritaskan</Text>
-            </TouchableOpacity>
-          )}
-
-          {isFailed && (
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleRetry(item)}>
-              <Ionicons name="refresh-circle-outline" size={20} color="#ff4444" />
-              <Text style={[styles.actionTextCancel, { color: '#ff4444' }]}>Coba Lagi</Text>
-            </TouchableOpacity>
-          )}
-          
-          <TouchableOpacity style={styles.actionBtn} onPress={() => handleCancel(item)}>
-            <Ionicons name={isCompleted || isFailed ? "trash-outline" : "close-circle-outline"} size={20} color={isCompleted ? "#888" : "#E50914"} />
-            <Text style={[styles.actionTextCancel, isCompleted && { color: '#888' }]}>{isCompleted || isFailed ? "Hapus" : "Batal"}</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     );
   };
@@ -336,5 +336,15 @@ const styles = StyleSheet.create({
     color: '#E50914',
     marginLeft: 4,
     fontSize: 14,
+  },
+  rightHeaderContainer: {
+    alignItems: 'flex-end',
+  },
+  actionRowCompact: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  actionBtnCompact: {
+    marginLeft: 12,
   },
 });
