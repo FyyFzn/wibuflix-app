@@ -70,8 +70,8 @@ export default function AnimeDetailScreen() {
       const selectedAnime = useAnimeStore.getState().selectedAnime;
       let urlsObj = undefined;
 
-      // Jika ada data sources di Zustand store
-      if (selectedAnime && selectedAnime.sources) {
+      // Jika ada data sources di Zustand store (dan pastikan url-nya cocok untuk menghindari bug state nyangkut)
+      if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
         if (selectedAnime.sources.samehadaku && selectedAnime.sources.otakudesu) {
           urlsObj = {
             samehadaku: selectedAnime.sources.samehadaku.url,

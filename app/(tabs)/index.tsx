@@ -16,10 +16,12 @@ import AnimeCard from '../../components/AnimeCard';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import SearchBar from '../../components/SearchBar';
 import CatalogView from '../../components/CatalogView';
+import { useAnimeStore } from '../../store/animeStore';
 
 export default function BerandaScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const setSelectedAnime = useAnimeStore((state) => state.setSelectedAnime);
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,6 +104,7 @@ export default function BerandaScreen() {
   };
 
   const handleAnimePress = (item: AnimeItem) => {
+    setSelectedAnime(item);
     router.push({
       pathname: '/detail/[id]',
       params: {
