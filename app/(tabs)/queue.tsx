@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import EventSource from 'react-native-sse';
-import { fetchQueueStatus, queueCancel, queuePrioritize, QueueItem, getApiBase } from '../../services/api';
+import { fetchQueueStatus, queueCancel, queuePrioritize, queueAdd, QueueItem, getApiBase } from '../../services/api';
 
 export default function QueueScreen() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -90,29 +90,69 @@ export default function QueueScreen() {
     }
   };
 
+  const handleRetry = async (item: QueueItem) => {
+    try {
+      // Optimistic update status ke PENDING di memori
+      setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'PENDING', progress: 'Mencoba ulang...' } : q));
+      await queueAdd(item.episodeUrl, '', item.seriesTitle, item.episodeTitle);
+      loadQueue();
+    } catch (e) {
+      console.error(e);
+      loadQueue();
+    }
+  };
+
   const renderItem = ({ item, index }: { item: QueueItem, index: number }) => {
     const isUploading = item.status === 'UPLOADING';
     const isPending = item.status === 'PENDING';
+    const isFailed = item.status === 'FAILED';
+    const isCompleted = item.status === 'COMPLETED';
     
     return (
-      <View style={[styles.card, isUploading && styles.cardActive]}>
+      <View style={[
+        styles.card, 
+        isUploading && styles.cardActive,
+        isFailed && styles.cardFailed,
+        isCompleted && styles.cardCompleted
+      ]}>
         <View style={styles.cardHeader}>
           <View style={styles.titleContainer}>
             <Text style={styles.seriesTitle} numberOfLines={1}>{item.seriesTitle}</Text>
             <Text style={styles.episodeTitle} numberOfLines={1}>{item.episodeTitle}</Text>
           </View>
-          <View style={styles.statusBadgeContainer}>
-            {isUploading && <View style={styles.dot} />}
-            <Text style={[styles.statusText, isUploading && styles.statusTextActive]}>
+          <View style={[
+            styles.statusBadgeContainer,
+            isFailed && { backgroundColor: 'rgba(229, 9, 20, 0.1)' },
+            isCompleted && { backgroundColor: 'rgba(0, 255, 0, 0.1)' }
+          ]}>
+            {(isUploading || isFailed || isCompleted) && (
+              <View style={[
+                styles.dot, 
+                isFailed && { backgroundColor: '#ff4444' },
+                isCompleted && { backgroundColor: '#00ff00' }
+              ]} />
+            )}
+            <Text style={[
+              styles.statusText, 
+              isUploading && styles.statusTextActive,
+              isFailed && { color: '#ff4444' },
+              isCompleted && { color: '#00ff00' }
+            ]}>
               {isUploading ? 'MENGUNGGAH' : item.status}
             </Text>
           </View>
         </View>
 
-        {isUploading && (
+        {(isUploading || isFailed || isCompleted) && (
           <View style={styles.progressContainer}>
-            <Text style={styles.progressText}>{item.progress || 'Menyiapkan video...'}</Text>
-            <ActivityIndicator size="small" color="#E50914" style={{ marginLeft: 8 }} />
+            <Text style={[
+              styles.progressText,
+              isFailed && { color: '#ff8888' },
+              isCompleted && { color: '#88ff88' }
+            ]}>
+              {item.progress || (isUploading ? 'Menyiapkan video...' : '')}
+            </Text>
+            {isUploading && <ActivityIndicator size="small" color="#E50914" style={{ marginLeft: 8 }} />}
           </View>
         )}
 
@@ -123,13 +163,18 @@ export default function QueueScreen() {
               <Text style={styles.actionTextPrioritize}>Prioritaskan</Text>
             </TouchableOpacity>
           )}
-          
-          {(isPending || isUploading) && (
-            <TouchableOpacity style={styles.actionBtn} onPress={() => handleCancel(item)}>
-              <Ionicons name="close-circle-outline" size={20} color="#E50914" />
-              <Text style={styles.actionTextCancel}>Batal</Text>
+
+          {isFailed && (
+            <TouchableOpacity style={styles.actionBtn} onPress={() => handleRetry(item)}>
+              <Ionicons name="refresh-circle-outline" size={20} color="#ff4444" />
+              <Text style={[styles.actionTextCancel, { color: '#ff4444' }]}>Coba Lagi</Text>
             </TouchableOpacity>
           )}
+          
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleCancel(item)}>
+            <Ionicons name={isCompleted || isFailed ? "trash-outline" : "close-circle-outline"} size={20} color={isCompleted ? "#888" : "#E50914"} />
+            <Text style={[styles.actionTextCancel, isCompleted && { color: '#888' }]}>{isCompleted || isFailed ? "Hapus" : "Batal"}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -207,6 +252,14 @@ const styles = StyleSheet.create({
   cardActive: {
     borderColor: '#E50914',
     backgroundColor: '#1f1313',
+  },
+  cardFailed: {
+    borderColor: '#ff4444',
+    backgroundColor: '#2a1111',
+  },
+  cardCompleted: {
+    borderColor: '#00ff00',
+    backgroundColor: '#112a11',
   },
   cardHeader: {
     flexDirection: 'row',
