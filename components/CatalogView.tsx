@@ -56,12 +56,11 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       const newList = json.data.list || [];
+      setAnimeList(newList);
+      
       if (page === 1) {
-        setAnimeList(newList);
         // Simpan halaman pertama ke dalam Zustand cache
         setCatalog(category, newList);
-      } else {
-        setAnimeList(prev => [...prev, ...newList]);
       }
       setHasNext(json.data.hasNext);
     } catch (err: any) {
