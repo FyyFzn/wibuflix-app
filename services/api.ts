@@ -293,11 +293,11 @@ export async function queuePrioritize(id: string): Promise<{ success: boolean }>
   return res.json();
 }
 
-export async function queueCancel(id: string, seriesSlug?: string, episodeSlug?: string): Promise<{ success: boolean }> {
+export async function queueCancel(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`${getApiBase()}/api/queue/cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, seriesSlug, episodeSlug })
+    body: JSON.stringify({ id })
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

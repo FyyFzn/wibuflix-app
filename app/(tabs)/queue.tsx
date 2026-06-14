@@ -72,7 +72,7 @@ export default function QueueScreen() {
     try {
       // Optimistic update
       setQueue(prev => prev.filter(q => q.id !== item.id));
-      await queueCancel(item.id, item.seriesSlug, item.seriesSlug); // Note: Should pass episodeSlug but we don't have it explicitly stored unless we extract it. The backend extracts it. Wait, the backend uses item.episodeUrl to extract.
+      await queueCancel(item.id); 
       loadQueue();
     } catch (e) {
       console.error(e);
