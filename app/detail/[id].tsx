@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
-import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo, queueAdd } from '../../services/api';
+import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo, queueAdd, fetchQueueStatus } from '../../services/api';
 import { getRiwayat } from '../../services/storage';
 import EpisodeItemComponent from '../../components/EpisodeItem';
 import LoadingOverlay from '../../components/LoadingOverlay';
@@ -38,6 +38,7 @@ export default function AnimeDetailScreen() {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [epsSearch, setEpsSearch] = useState('');
+  const [queuedUrls, setQueuedUrls] = useState<Set<string>>(new Set());
   
   useEffect(() => {
     loadEpisodes();
@@ -79,13 +80,24 @@ export default function AnimeDetailScreen() {
         }
       }
 
-      const json = await fetchEpisodes(params.url, urlsObj);
+      // Mulai fetchEpisodes dan fetchQueueStatus secara bersamaan untuk mempercepat loading
+      const [json, queueRes] = await Promise.all([
+        fetchEpisodes(params.url, urlsObj),
+        fetchQueueStatus().catch(() => ({ success: false, queue: [] }))
+      ]);
+
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       const data = json.data;
       setJudulSeri(data.judul_seri);
       setEpisodes(data.daftar_episode || []);
       setMalInfo(data.mal || null);
+
+      if (queueRes.success && queueRes.queue) {
+        const qUrls = new Set<string>();
+        queueRes.queue.forEach((q: any) => qUrls.add(q.episodeUrl));
+        setQueuedUrls(qUrls);
+      }
 
       let finalCover = params.gambar || '';
       if (data.mal?.cover) {
@@ -134,7 +146,7 @@ export default function AnimeDetailScreen() {
 
   const handleQueuePress = async (ep: EpisodeItemType) => {
     try {
-      const realEpUrl = ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu : '');
+      const realEpUrl = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || '';
       if (!realEpUrl) {
         ToastAndroid.show('Link episode tidak tersedia', ToastAndroid.SHORT);
         return;
@@ -142,6 +154,11 @@ export default function AnimeDetailScreen() {
       ToastAndroid.show('Menambahkan ke antrean...', ToastAndroid.SHORT);
       const res = await queueAdd(realEpUrl, params.url as string, judulSeri, ep.judul);
       if (res.success) {
+        setQueuedUrls(prev => {
+          const next = new Set(prev);
+          next.add(realEpUrl);
+          return next;
+        });
         ToastAndroid.show('Berhasil dimasukkan ke antrean cloud!', ToastAndroid.LONG);
       }
     } catch (e) {
@@ -171,15 +188,21 @@ export default function AnimeDetailScreen() {
       style={styles.container}
       data={filteredEpisodes}
       keyExtractor={(item, index) => (item.url ? item.url.toString() : '') + index.toString()}
-      renderItem={({ item }) => (
-        <EpisodeItemComponent
-          judul={item.judul}
-          tanggal={item.tanggal}
-          malJudul={item.malJudul}
-          onPress={() => handleEpisodePress(item)}
-          onQueuePress={() => handleQueuePress(item)}
-        />
-      )}
+      renderItem={({ item }) => {
+        const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || '';
+        const isQueued = queuedUrls.has(realEpUrl);
+        
+        return (
+          <EpisodeItemComponent
+            judul={item.judul}
+            tanggal={item.tanggal}
+            malJudul={item.malJudul}
+            isQueued={isQueued}
+            onPress={() => handleEpisodePress(item)}
+            onQueuePress={() => handleQueuePress(item)}
+          />
+        );
+      }}
       ListHeaderComponent={
         <View>
           {/* MAL Panel */}

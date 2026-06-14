@@ -11,11 +11,12 @@ interface EpisodeItemProps {
   judul: string;
   tanggal: string;
   malJudul?: string;
+  isQueued?: boolean;
   onPress: () => void;
   onQueuePress?: () => void;
 }
 
-export default function EpisodeItem({ judul, tanggal, malJudul, onPress, onQueuePress }: EpisodeItemProps) {
+export default function EpisodeItem({ judul, tanggal, malJudul, isQueued, onPress, onQueuePress }: EpisodeItemProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.6}>
       <View style={styles.main}>
@@ -27,8 +28,16 @@ export default function EpisodeItem({ judul, tanggal, malJudul, onPress, onQueue
       <View style={styles.rightContent}>
         <Text style={styles.date}>{tanggal}</Text>
         {onQueuePress && (
-          <TouchableOpacity style={styles.queueBtn} onPress={onQueuePress}>
-            <Ionicons name="cloud-download-outline" size={22} color={Colors.accent} />
+          <TouchableOpacity 
+            style={[styles.queueBtn, isQueued && { backgroundColor: 'rgba(0,255,0,0.1)' }]} 
+            onPress={isQueued ? undefined : onQueuePress}
+            activeOpacity={isQueued ? 1 : 0.6}
+          >
+            <Ionicons 
+              name={isQueued ? "checkmark-circle" : "cloud-download-outline"} 
+              size={22} 
+              color={isQueued ? "#00ff00" : Colors.accent} 
+            />
           </TouchableOpacity>
         )}
       </View>
