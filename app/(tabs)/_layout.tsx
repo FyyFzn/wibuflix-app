@@ -8,33 +8,7 @@ export default function TabLayout() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const lastBackPressRef = React.useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        // Jika sedang di tab selain beranda (index), kembali ke beranda
-        if (pathname !== '/') {
-          router.replace('/');
-          return true; // Mencegah keluar
-        }
-
-        // Jika di beranda, cek waktu klik sebelumnya (double tap to exit)
-        const now = Date.now();
-        if (now - lastBackPressRef.current < 2000) {
-          BackHandler.exitApp();
-          return true;
-        }
-
-        lastBackPressRef.current = now;
-        ToastAndroid.show('Tekan sekali lagi untuk keluar', ToastAndroid.SHORT);
-        return true; // Mencegah keluar pada klik pertama
-      };
-
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove();
-    }, [pathname, router])
-  );
 
   return (
     <Tabs

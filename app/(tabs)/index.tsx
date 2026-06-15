@@ -7,8 +7,10 @@ import {
   ScrollView,
   RefreshControl,
   StyleSheet,
+  BackHandler,
+  ToastAndroid,
 } from 'react-native';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight } from '../../styles/theme';
 import { fetchKatalog, fetchHotAnime, AnimeItem } from '../../services/api';
@@ -22,6 +24,27 @@ export default function BerandaScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const setSelectedAnime = useAnimeStore((state) => state.setSelectedAnime);
+  
+  const lastBackPressRef = React.useRef(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        const now = Date.now();
+        if (now - lastBackPressRef.current < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+
+        lastBackPressRef.current = now;
+        ToastAndroid.show('Tekan sekali lagi untuk keluar', ToastAndroid.SHORT);
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [])
+  );
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
