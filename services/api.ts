@@ -54,7 +54,7 @@ export interface HotAnimeResponse {
 export interface EpisodeItem {
   judul: string;
   url?: string; // Untuk backward compatibility
-  urls?: { samehadaku?: string; otakudesu?: string };
+  urls?: { samehadaku?: string; otakudesu?: string; neosatsu?: string };
   tanggal: string;
   malJudul?: string;
 }
