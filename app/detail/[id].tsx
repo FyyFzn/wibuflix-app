@@ -46,22 +46,7 @@ export default function AnimeDetailScreen() {
 
   const navigation = useNavigation();
 
-  // Custom Back Handler untuk mencegah keluar aplikasi secara tidak sengaja
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        if (router.canGoBack()) {
-          router.back();
-        } else {
-          router.replace('/');
-        }
-        return true; // Mencegah Android mematikan aplikasi
-      };
-      
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove();
-    }, [router])
-  );
+
 
   const loadEpisodes = async () => {
     if (!params.url) return;
