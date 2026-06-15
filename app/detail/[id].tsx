@@ -135,7 +135,7 @@ export default function AnimeDetailScreen() {
     router.push({
       pathname: '/player',
       params: {
-        url: ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu : ''),
+        url: ep.url || (ep.urls ? ep.urls.samehadaku || ep.urls.otakudesu || ep.urls.neosatsu : ''),
         urls: ep.urls ? JSON.stringify(ep.urls) : '',
         gambar: coverImage,
         seriUrl: params.url,
@@ -148,7 +148,7 @@ export default function AnimeDetailScreen() {
 
   const handleQueuePress = async (ep: EpisodeItemType) => {
     try {
-      const realEpUrl = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || '';
+      const realEpUrl = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.neosatsu || '';
       if (!realEpUrl) {
         ToastAndroid.show('Link episode tidak tersedia', ToastAndroid.SHORT);
         return;
@@ -189,9 +189,9 @@ export default function AnimeDetailScreen() {
     <FlatList
       style={styles.container}
       data={filteredEpisodes}
-      keyExtractor={(item, index) => (item.url ? item.url.toString() : '') + index.toString()}
+      keyExtractor={(item, index) => (item.url ? item.url.toString() : (item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '')) + index.toString()}
       renderItem={({ item }) => {
-        const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || '';
+        const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '';
         const isQueued = queuedUrls.has(realEpUrl);
         
         return (
