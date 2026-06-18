@@ -292,11 +292,21 @@ export default function PlayerScreen() {
         safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
       }
 
-      const targetEp = episodes.find(e =>
-        e.url === url ||
-        (e.url && e.url.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_') && e.url.split('#')[1] === url.split('#')[1])
-      );
+      // Cari episode target — support mode merge (e.urls) maupun legacy (e.url)
+      const targetEp = episodes.find(e => {
+        const epUrl = e.url || e.urls?.samehadaku || e.urls?.otakudesu || e.urls?.neosatsu || '';
+        if (epUrl === url) return true;
+        // Handle neosatsu #fragment URL
+        if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
+          return epUrl.split('#')[1] === url.split('#')[1];
+        }
+        return false;
+      });
       const nextJudul = targetEp ? targetEp.judul : '';
+
+      // Jika episode punya multi-source URLs (mode merge), kirim sebagai param 'urls'
+      // Agar scrape/smart-play bisa menggunakan kedua sumber Samehadaku + Otakudesu
+      const nextUrls = targetEp?.urls ? JSON.stringify(targetEp.urls) : undefined;
 
       router.replace({
         pathname: '/player',
@@ -306,6 +316,7 @@ export default function PlayerScreen() {
           seriUrl: params.seriUrl,
           judul: nextJudul,
           seriJudul: params.seriJudul,
+          urls: nextUrls,
           autoPlayHost: state.preferredHostRef.current || state.activeHost,
           autoFullscreen: isFullscreen ? '1' : '0'
         }

@@ -22,7 +22,22 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
   useEffect(() => {
     if (episodes.length > 0 && currentUrl) {
       const decodedCurrent = decodeURIComponent(currentUrl);
-      const currentIndex = episodes.findIndex(e => decodeURIComponent(e.url || '') === decodedCurrent);
+
+      // Helper: dapatkan URL representatif dari episode (support mode merge & legacy)
+      const getEpUrl = (ep: EpisodeItem): string => {
+        const raw = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.neosatsu || '';
+        return decodeURIComponent(raw);
+      };
+
+      const currentIndex = episodes.findIndex(e => {
+        const epUrl = getEpUrl(e);
+        if (epUrl === decodedCurrent) return true;
+        // Handle neosatsu #fragment URL
+        if (epUrl.includes('#neosatsu_ep_') && decodedCurrent.includes('#neosatsu_ep_')) {
+          return epUrl.split('#')[1] === decodedCurrent.split('#')[1];
+        }
+        return false;
+      });
       
       if (currentIndex !== -1) {
         // Cek arah urutan episode (Ascending vs Descending)
@@ -41,16 +56,17 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
 
         if (isAscending) {
           // Ascending: Index 0 = Ep 1, Index 1 = Ep 2
-          setNavPrev(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
-          setNavNext(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
+          setNavPrev(prev => prev || (currentIndex > 0 ? (getEpUrl(episodes[currentIndex - 1]) || null) : null));
+          setNavNext(prev => prev || (currentIndex < episodes.length - 1 ? (getEpUrl(episodes[currentIndex + 1]) || null) : null));
         } else {
           // Descending: Index 0 = Ep 12, Index 11 = Ep 1
-          setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? (episodes[currentIndex + 1].url || null) : null));
-          setNavNext(prev => prev || (currentIndex > 0 ? (episodes[currentIndex - 1].url || null) : null));
+          setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? (getEpUrl(episodes[currentIndex + 1]) || null) : null));
+          setNavNext(prev => prev || (currentIndex > 0 ? (getEpUrl(episodes[currentIndex - 1]) || null) : null));
         }
       }
     }
   }, [episodes, currentUrl]);
+
 
   return {
     episodes,
