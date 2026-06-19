@@ -294,7 +294,7 @@ export default function PlayerScreen() {
 
       // Cari episode target — support mode merge (e.urls) maupun legacy (e.url)
       const targetEp = episodes.find(e => {
-        const epUrl = e.url || e.urls?.samehadaku || e.urls?.otakudesu || e.urls?.neosatsu || '';
+        const epUrl = e.url || e.urls?.samehadaku || e.urls?.otakudesu || e.urls?.neosatsu || e.urls?.kuronime || '';
         if (epUrl === url) return true;
         // Handle neosatsu #fragment URL
         if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
