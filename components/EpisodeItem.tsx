@@ -12,50 +12,63 @@ interface EpisodeItemProps {
   tanggal: string;
   malJudul?: string;
   isQueued?: boolean;
+  progressPercent?: number;
   onPress: () => void;
   onQueuePress?: () => void;
 }
 
-export default function EpisodeItem({ judul, tanggal, malJudul, isQueued, onPress, onQueuePress }: EpisodeItemProps) {
+export default function EpisodeItem({ judul, tanggal, malJudul, isQueued, progressPercent = 0, onPress, onQueuePress }: EpisodeItemProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.6}>
-      <View style={styles.main}>
-        <Text style={styles.title} numberOfLines={1}>{judul}</Text>
-        {malJudul && (
-          <Text style={styles.malTitle} numberOfLines={1}>{malJudul}</Text>
-        )}
+      <View style={styles.contentWrapper}>
+        <View style={styles.main}>
+          <Text style={styles.title} numberOfLines={1}>{judul}</Text>
+          {malJudul && (
+            <Text style={styles.malTitle} numberOfLines={1}>{malJudul}</Text>
+          )}
+        </View>
+        <View style={styles.rightContent}>
+          <Text style={styles.date}>{tanggal}</Text>
+          {onQueuePress && (
+            <TouchableOpacity 
+              style={[styles.queueBtn, isQueued && { backgroundColor: 'rgba(0,255,0,0.1)' }]} 
+              onPress={isQueued ? undefined : onQueuePress}
+              activeOpacity={isQueued ? 1 : 0.6}
+            >
+              <Ionicons 
+                name={isQueued ? "checkmark-circle" : "cloud-download-outline"} 
+                size={22} 
+                color={isQueued ? "#00ff00" : Colors.accent} 
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-      <View style={styles.rightContent}>
-        <Text style={styles.date}>{tanggal}</Text>
-        {onQueuePress && (
-          <TouchableOpacity 
-            style={[styles.queueBtn, isQueued && { backgroundColor: 'rgba(0,255,0,0.1)' }]} 
-            onPress={isQueued ? undefined : onQueuePress}
-            activeOpacity={isQueued ? 1 : 0.6}
-          >
-            <Ionicons 
-              name={isQueued ? "checkmark-circle" : "cloud-download-outline"} 
-              size={22} 
-              color={isQueued ? "#00ff00" : Colors.accent} 
-            />
-          </TouchableOpacity>
-        )}
-      </View>
+      
+      {/* Progress Bar Overlay */}
+      {progressPercent > 0 && (
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: BorderRadius.md,
-    padding: Spacing.md,
     marginBottom: Spacing.xs + 2,
+    overflow: 'hidden', // Ensure progress bar stays inside
+  },
+  contentWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
   },
   main: {
     flex: 1,
@@ -86,5 +99,17 @@ const styles = StyleSheet.create({
     padding: 6,
     backgroundColor: '#2a1a1a',
     borderRadius: 8,
+  },
+  progressBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.accent,
   },
 });

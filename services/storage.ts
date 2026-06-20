@@ -103,7 +103,15 @@ export async function simpanKeRiwayat(
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
 }
 
-// ── Update progress for existing history item ───────────────
+const PROGRESS_KEY = 'wibuflix_progress';
+
+export interface EpisodeProgress {
+  progress: number;
+  duration: number;
+  waktu: number;
+}
+
+// ── Update progress for specific episode ───────────────
 
 export async function updateProgress(
   url: string,
@@ -111,6 +119,7 @@ export async function updateProgress(
   duration: number,
   host?: string
 ): Promise<void> {
+  // Update in History (for latest episode card)
   const riwayat = await getRiwayat();
   const item = riwayat.find(r => r.url === url);
   if (item) {
@@ -120,17 +129,60 @@ export async function updateProgress(
     if (host) item.host = host;
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
   }
+
+  // Update in standalone Progress DB (for episode lists)
+  try {
+    const data = await AsyncStorage.getItem(PROGRESS_KEY);
+    let allProgress: Record<string, EpisodeProgress> = data ? JSON.parse(data) : {};
+    
+    allProgress[url] = { progress, duration, waktu: Date.now() };
+    
+    // Cleanup if too large (keep last 500)
+    const keys = Object.keys(allProgress);
+    if (keys.length > 500) {
+      const sortedKeys = keys.sort((a, b) => allProgress[b].waktu - allProgress[a].waktu);
+      const newProgress: Record<string, EpisodeProgress> = {};
+      sortedKeys.slice(0, 500).forEach(k => {
+        newProgress[k] = allProgress[k];
+      });
+      allProgress = newProgress;
+    }
+
+    await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(allProgress));
+  } catch (e) {
+    console.warn('Failed to save progress', e);
+  }
 }
 
 // ── Get progress for a specific episode URL ─────────────────
 
 export async function getProgress(url: string): Promise<{ progress: number; duration: number; host?: string } | null> {
+  // 1. Cek standalone Progress DB
+  try {
+    const data = await AsyncStorage.getItem(PROGRESS_KEY);
+    if (data) {
+      const allProgress: Record<string, EpisodeProgress> = JSON.parse(data);
+      if (allProgress[url] && allProgress[url].progress > 0) {
+        return { progress: allProgress[url].progress, duration: allProgress[url].duration };
+      }
+    }
+  } catch (e) {}
+
+  // 2. Fallback cek History DB lama
   const riwayat = await getRiwayat();
   const item = riwayat.find(r => r.url === url);
   if (item && item.progress > 0) {
     return { progress: item.progress, duration: item.duration, host: item.host };
   }
   return null;
+}
+
+export async function getAllProgressMap(): Promise<Record<string, EpisodeProgress>> {
+  try {
+    const data = await AsyncStorage.getItem(PROGRESS_KEY);
+    if (data) return JSON.parse(data);
+  } catch (e) {}
+  return {};
 }
 
 // ── Delete a single history item ────────────────────────────

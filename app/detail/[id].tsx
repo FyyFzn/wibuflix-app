@@ -16,10 +16,10 @@ import {
   BackHandler,
   ToastAndroid,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useNavigation, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation, useFocusEffect, Stack } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import { fetchEpisodes, EpisodeItem as EpisodeItemType, MalInfo, queueAdd, fetchQueueStatus } from '../../services/api';
-import { getRiwayat } from '../../services/storage';
+import { getRiwayat, getAllProgressMap, EpisodeProgress, WatchHistoryItem } from '../../services/storage';
 import EpisodeItemComponent from '../../components/EpisodeItem';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAnimeStore } from '../../store/animeStore';
@@ -40,9 +40,28 @@ export default function AnimeDetailScreen() {
   const [epsSearch, setEpsSearch] = useState('');
   const [queuedUrls, setQueuedUrls] = useState<Set<string>>(new Set());
   
+  const [progressMap, setProgressMap] = useState<Record<string, EpisodeProgress>>({});
+  const [lastWatched, setLastWatched] = useState<WatchHistoryItem | null>(null);
+
   useEffect(() => {
     loadEpisodes();
   }, [params.url, params.sources]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadProgress = async () => {
+        const pm = await getAllProgressMap();
+        setProgressMap(pm);
+        
+        const riwayat = await getRiwayat();
+        const historyItem = riwayat.find(r => r.seriUrl === params.url);
+        if (historyItem) {
+          setLastWatched(historyItem);
+        }
+      };
+      loadProgress();
+    }, [params.url])
+  );
 
   const navigation = useNavigation();
 
@@ -171,9 +190,11 @@ export default function AnimeDetailScreen() {
 
 
   return (
-    <FlatList
-      style={styles.container}
-      data={filteredEpisodes}
+    <>
+      <Stack.Screen options={{ title: 'Detail Anime' }} />
+      <FlatList
+        style={styles.container}
+        data={filteredEpisodes}
       keyExtractor={(item, index) => (item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '') + index.toString()}
       renderItem={({ item }) => {
         const realEpUrl = item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '';
@@ -185,6 +206,7 @@ export default function AnimeDetailScreen() {
             tanggal={item.tanggal}
             malJudul={item.malJudul}
             isQueued={isQueued}
+            progressPercent={progressMap[realEpUrl]?.duration > 0 ? Math.min((progressMap[realEpUrl].progress / progressMap[realEpUrl].duration) * 100, 100) : 0}
             onPress={() => handleEpisodePress(item)}
             onQueuePress={() => handleQueuePress(item)}
           />
@@ -264,6 +286,38 @@ export default function AnimeDetailScreen() {
             </View>
           )}
 
+          {/* Resume Button */}
+          {lastWatched && (
+            <View style={styles.resumeContainer}>
+              <TouchableOpacity 
+                style={styles.resumeBtn}
+                onPress={() => {
+                  router.push({
+                    pathname: '/player',
+                    params: {
+                      url: lastWatched.url,
+                      gambar: lastWatched.gambar,
+                      seriUrl: lastWatched.seriUrl,
+                      seriJudul: lastWatched.judulSeri,
+                      judul: lastWatched.nomorEp ? `${lastWatched.judulSeri} Episode ${lastWatched.nomorEp}` : lastWatched.judulSeri,
+                      autoPlayHost: lastWatched.host || '',
+                    },
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.resumeBtnText}>
+                  ▶ Lanjutkan Menonton {lastWatched.nomorEp ? `Episode ${lastWatched.nomorEp}` : ''}
+                </Text>
+                {lastWatched.duration > 0 && (
+                  <View style={styles.resumeProgressBg}>
+                    <View style={[styles.resumeProgressFill, { width: `${Math.min((lastWatched.progress / lastWatched.duration) * 100, 100)}%` }]} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.listHeader}>
             <Text style={styles.sectionTitle}>Daftar Episode</Text>
           </View>
@@ -297,6 +351,7 @@ export default function AnimeDetailScreen() {
       contentContainerStyle={styles.listContent}
       showsVerticalScrollIndicator={false}
     />
+    </>
   );
 }
 
@@ -464,6 +519,42 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     color: Colors.text,
     flex: 1,
+  },
+
+  // ── Resume Watch ──
+  resumeContainer: {
+    marginBottom: Spacing.xl,
+  },
+  resumeBtn: {
+    backgroundColor: Colors.accent,
+    borderRadius: BorderRadius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  resumeBtnText: {
+    color: Colors.white,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+  },
+  resumeProgressBg: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  resumeProgressFill: {
+    height: '100%',
+    backgroundColor: '#fff',
+    opacity: 0.8,
   },
 
   // ── Episode controls ──
