@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import EventSource from 'react-native-sse';
+import { useRouter } from 'expo-router';
 import { fetchQueueStatus, queueCancel, queuePrioritize, queueAdd, QueueItem, getApiBase } from '../../services/api';
 
 export default function QueueScreen() {
+  const router = useRouter();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -117,13 +119,32 @@ export default function QueueScreen() {
     
     const progressPercent = getProgressPercent(item.progress);
     
+    const handleCardPress = () => {
+      if (isCompleted) {
+        router.push({
+          pathname: '/player',
+          params: {
+            url: item.episodeUrl,
+            judul: item.episodeTitle,
+            seriJudul: item.seriesTitle,
+            gambar: '',
+            seriUrl: '',
+          }
+        });
+      }
+    };
+
     return (
-      <View style={[
-        styles.card, 
-        isUploading && styles.cardActive,
-        isFailed && styles.cardFailed,
-        isCompleted && styles.cardCompleted
-      ]}>
+      <TouchableOpacity 
+        activeOpacity={isCompleted ? 0.7 : 1}
+        onPress={handleCardPress}
+        style={[
+          styles.card, 
+          isUploading && styles.cardActive,
+          isFailed && styles.cardFailed,
+          isCompleted && styles.cardCompleted
+        ]}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.titleContainer}>
             <Text style={styles.seriesTitle} numberOfLines={1}>{item.seriesTitle}</Text>
@@ -193,7 +214,7 @@ export default function QueueScreen() {
             )}
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
