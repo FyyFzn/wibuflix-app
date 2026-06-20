@@ -56,6 +56,7 @@ export default function HistoryScreen() {
         url: item.url,
         gambar: item.gambar,
         seriUrl: item.seriUrl,
+        seriJudul: item.judulSeri,
         judul: item.nomorEp ? `${item.judulSeri} Episode ${item.nomorEp}` : item.judulSeri,
         autoPlayHost: item.host || '',
       },
