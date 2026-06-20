@@ -34,17 +34,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="anime"
+        name="katalog"
         options={{
-          title: 'Anime',
-          tabBarIcon: ({ color }) => <Ionicons name="tv" size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tokusatsu"
-        options={{
-          title: 'Tokusatsu',
-          tabBarIcon: ({ color }) => <Ionicons name="flash" size={24} color={color} />,
+          title: 'Katalog',
+          tabBarIcon: ({ color }) => <Ionicons name="library" size={24} color={color} />,
         }}
       />
       <Tabs.Screen

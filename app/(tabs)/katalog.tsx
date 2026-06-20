@@ -4,10 +4,10 @@ import CatalogView from '../../components/CatalogView';
 
 import { Colors } from '../../styles/theme';
 
-export default function AnimeScreen() {
+export default function KatalogScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }} edges={['top']}>
-      <CatalogView category="anime" />
+      <CatalogView category="all" />
     </SafeAreaView>
   );
 }

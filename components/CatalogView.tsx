@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { styles } from '../styles/indexStyles';
@@ -38,21 +39,36 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState('Semua');
+  const [activeType, setActiveType] = useState(category === 'toku' ? 'Tokusatsu' : category === 'anime' ? 'Anime' : 'Semua');
+  const [activeSubclass, setActiveSubclass] = useState('Semua');
+  const [activeGenre, setActiveGenre] = useState('Semua');
+  const [genreModalVisible, setGenreModalVisible] = useState(false);
   
   const setCatalog = useAnimeStore((state) => state.setCatalog);
   const setSelectedAnime = useAnimeStore((state) => state.setSelectedAnime);
 
-  const filterOptions = category === 'toku' 
-    ? ['Semua', 'Kamen Rider', 'Super Sentai', 'Power Rangers', 'Ultraman', 'Lainnya']
-    : ['Semua', 'TV', 'Movie', 'OVA', 'ONA', 'Special'];
+  const typeOptions = ['Semua', 'Anime', 'Tokusatsu'];
+  const getSubclassOptions = () => {
+    if (activeType === 'Tokusatsu') return ['Semua', 'Kamen Rider', 'Super Sentai', 'Power Rangers', 'Ultraman', 'Lainnya'];
+    if (activeType === 'Anime') return ['Semua', 'TV', 'Movie', 'OVA', 'ONA', 'Special'];
+    return ['Semua', 'TV', 'Movie', 'OVA', 'Kamen Rider', 'Super Sentai', 'Ultraman'];
+  };
 
-  const loadKatalog = useCallback(async (page: number, search: string, filter: string, isRefresh = false) => {
+  const genreOptions = [
+    'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mecha', 
+    'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller', 'Isekai'
+  ];
+
+  const loadKatalog = useCallback(async (page: number, search: string, tType: string, tSubclass: string, tGenre: string, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     setError(null);
 
+    let tabParam = 'all';
+    if (tType === 'Anime') tabParam = 'anime';
+    else if (tType === 'Tokusatsu') tabParam = 'toku';
+
     try {
-      const json = await fetchKatalog(page, search, category, filter, undefined, isRefresh);
+      const json = await fetchKatalog(page, search, tabParam, tSubclass, tGenre, undefined, isRefresh);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       const newList = json.data.list || [];
@@ -73,8 +89,8 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
   }, [category]);
 
   useEffect(() => {
-    loadKatalog(currentPage, searchQuery, activeFilter);
-  }, [currentPage, searchQuery, activeFilter, loadKatalog]);
+    loadKatalog(currentPage, searchQuery, activeType, activeSubclass, activeGenre);
+  }, [currentPage, searchQuery, activeType, activeSubclass, activeGenre, loadKatalog]);
 
   useEffect(() => {
     if (externalSearchQuery !== undefined) {
@@ -99,11 +115,13 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         setSearchQuery('');
         if (onClearSearch) onClearSearch();
         setCurrentPage(1);
-        handleFilterChange('Semua'); // Optionally reset filter too
+        setActiveType('Semua');
+        setActiveSubclass('Semua');
+        setActiveGenre('Semua');
         
         // Force refresh
         setRefreshing(true);
-        loadKatalog(1, '', 'Semua', true);
+        loadKatalog(1, '', 'Semua', 'Semua', 'Semua', true);
       } else {
         if (searchQuery) {
           setSearchQuery('');
@@ -119,15 +137,29 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     setCurrentPage(1);
   };
 
-  const handleFilterChange = (filter: string) => {
-    setActiveFilter(filter);
+  const handleTypeChange = (type: string) => {
+    setActiveType(type);
+    setActiveSubclass('Semua');
     setCurrentPage(1);
     setAnimeList([]);
   };
 
+  const handleSubclassChange = (subclass: string) => {
+    setActiveSubclass(subclass);
+    setCurrentPage(1);
+    setAnimeList([]);
+  };
+
+  const handleGenreChange = (genre: string) => {
+    setActiveGenre(genre);
+    setCurrentPage(1);
+    setAnimeList([]);
+    setGenreModalVisible(false);
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
-    loadKatalog(currentPage, searchQuery, activeFilter, true);
+    loadKatalog(currentPage, searchQuery, activeType, activeSubclass, activeGenre, true);
   };
 
   const handleAnimePress = (item: AnimeItem) => {
@@ -182,29 +214,83 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         </View>
       ) : null}
 
-      {/* Filter Chips */}
+      {/* Filter Section */}
       <View style={{ marginBottom: Spacing.sm }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, gap: Spacing.sm }}>
-          {filterOptions.map(opt => {
-            const isActive = activeFilter === opt;
+        {/* Class 1: Type & Class 3: Genre Button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.sm }}>
+            {typeOptions.map(opt => {
+              const isActive = activeType === opt;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => handleTypeChange(opt)}
+                  style={[localStyles.filterChip, isActive && localStyles.filterChipActive]}
+                >
+                  <Text style={[localStyles.filterText, isActive && localStyles.filterTextActive]}>{opt}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </ScrollView>
+
+          {/* Genre Button */}
+          <TouchableOpacity 
+            onPress={() => setGenreModalVisible(true)}
+            style={[localStyles.filterChip, activeGenre !== 'Semua' && localStyles.filterChipActive, { marginLeft: Spacing.md, backgroundColor: '#2d3748', borderColor: '#4a5568' }]}
+          >
+            <Text style={[localStyles.filterText, activeGenre !== 'Semua' && localStyles.filterTextActive]}>
+              {activeGenre === 'Semua' ? 'Genre ▾' : `${activeGenre} ▾`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Class 2: Subclass */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, gap: Spacing.sm, marginTop: Spacing.xs }}>
+          {getSubclassOptions().map(opt => {
+            const isActive = activeSubclass === opt;
             return (
               <TouchableOpacity
                 key={opt}
-                onPress={() => handleFilterChange(opt)}
-                style={[
-                  localStyles.filterChip,
-                  isActive && localStyles.filterChipActive
-                ]}
+                onPress={() => handleSubclassChange(opt)}
+                style={[localStyles.subclassChip, isActive && localStyles.filterChipActive]}
               >
-                <Text style={[
-                  localStyles.filterText,
-                  isActive && localStyles.filterTextActive
-                ]}>{opt}</Text>
+                <Text style={[localStyles.filterText, isActive && localStyles.filterTextActive, { fontSize: 12 }]}>{opt}</Text>
               </TouchableOpacity>
             )
           })}
         </ScrollView>
       </View>
+
+      {/* Genre Modal */}
+      <Modal visible={genreModalVisible} transparent={true} animationType="fade" onRequestClose={() => setGenreModalVisible(false)}>
+        <View style={localStyles.modalOverlay}>
+          <View style={localStyles.modalContent}>
+            <View style={localStyles.modalHeader}>
+              <Text style={localStyles.modalTitle}>Pilih Genre</Text>
+              <TouchableOpacity onPress={() => setGenreModalVisible(false)}>
+                <Text style={localStyles.modalCloseText}>Tutup (X)</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={localStyles.genreGrid}>
+              <TouchableOpacity
+                style={[localStyles.genreItem, activeGenre === 'Semua' && localStyles.genreItemActive]}
+                onPress={() => handleGenreChange('Semua')}
+              >
+                <Text style={[localStyles.genreItemText, activeGenre === 'Semua' && localStyles.filterTextActive]}>Semua Genre</Text>
+              </TouchableOpacity>
+              {genreOptions.map(genre => (
+                <TouchableOpacity
+                  key={genre}
+                  style={[localStyles.genreItem, activeGenre === genre && localStyles.genreItemActive]}
+                  onPress={() => handleGenreChange(genre)}
+                >
+                  <Text style={[localStyles.genreItemText, activeGenre === genre && localStyles.filterTextActive]}>{genre}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {loading && !refreshing ? (
         <LoadingOverlay message="Memuat daftar..." />
@@ -213,7 +299,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={() => loadKatalog(currentPage, searchQuery, activeFilter)}
+            onPress={() => loadKatalog(currentPage, searchQuery, activeType, activeSubclass, activeGenre)}
           >
             <Text style={styles.retryText}>Coba Lagi</Text>
           </TouchableOpacity>
@@ -302,5 +388,65 @@ const localStyles = StyleSheet.create({
   },
   filterTextActive: {
     color: Colors.white,
+  },
+  subclassChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    maxHeight: '70%',
+    padding: Spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalCloseText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+  },
+  genreGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    paddingBottom: Spacing.md,
+  },
+  genreItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#161b22',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  genreItemActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  genreItemText: {
+    color: Colors.textMuted,
+    fontSize: 13,
   }
 });
