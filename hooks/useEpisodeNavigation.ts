@@ -30,13 +30,22 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
       };
 
       const currentIndex = episodes.findIndex(e => {
-        const epUrl = getEpUrl(e);
-        if (epUrl === decodedCurrent) return true;
-        // Handle neosatsu #fragment URL
-        if (epUrl.includes('#neosatsu_ep_') && decodedCurrent.includes('#neosatsu_ep_')) {
-          return epUrl.split('#')[1] === decodedCurrent.split('#')[1];
-        }
-        return false;
+        const urlsToCheck = [
+          e.urls?.kuronime,
+          e.url,
+          e.urls?.samehadaku,
+          e.urls?.otakudesu,
+          e.urls?.neosatsu
+        ].filter(Boolean).map(u => decodeURIComponent(u as string));
+
+        return urlsToCheck.some(url => {
+          if (url === decodedCurrent) return true;
+          // Handle neosatsu #fragment URL
+          if (url.includes('#neosatsu_ep_') && decodedCurrent.includes('#neosatsu_ep_')) {
+            return url.split('#')[1] === decodedCurrent.split('#')[1];
+          }
+          return false;
+        });
       });
       
       if (currentIndex !== -1) {

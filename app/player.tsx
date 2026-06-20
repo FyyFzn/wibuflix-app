@@ -294,13 +294,22 @@ export default function PlayerScreen() {
 
       // Cari episode target — support mode merge (e.urls) maupun legacy (e.url)
       const targetEp = episodes.find(e => {
-        const epUrl = e.urls?.kuronime || e.url || e.urls?.samehadaku || e.urls?.otakudesu || e.urls?.neosatsu || '';
-        if (epUrl === url) return true;
-        // Handle neosatsu #fragment URL
-        if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
-          return epUrl.split('#')[1] === url.split('#')[1];
-        }
-        return false;
+        const urlsToCheck = [
+          e.urls?.kuronime,
+          e.url,
+          e.urls?.samehadaku,
+          e.urls?.otakudesu,
+          e.urls?.neosatsu
+        ].filter(Boolean).map(u => decodeURIComponent(u as string));
+
+        return urlsToCheck.some(epUrl => {
+          if (epUrl === url) return true;
+          // Handle neosatsu #fragment URL
+          if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
+            return epUrl.split('#')[1] === url.split('#')[1];
+          }
+          return false;
+        });
       });
       const nextJudul = targetEp ? targetEp.judul : '';
 
