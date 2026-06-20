@@ -333,6 +333,23 @@ export default function PlayerScreen() {
     }, 500);
   };
 
+  // Cross-Source Prefetch logic: Trigger SmartPlay background prefetch when Unified navNext is available
+  useEffect(() => {
+    if (status === 'readyToPlay' && state.playerMode === 'native' && navNext) {
+      console.log(`[Unified Prefetch] Memastikan episode selanjutnya diprefetch lintas server: ${navNext}`);
+      import('../services/api').then(({ fetchSmartPlay }) => {
+        fetchSmartPlay(
+          params.url as string,
+          params.seriUrl as string,
+          navNext,
+          new AbortController().signal,
+          params.seriJudul as string,
+          ''
+        ).catch(() => {});
+      });
+    }
+  }, [status, state.playerMode, navNext]);
+
   // Auto-next logic
   useEffect(() => {
     if (state.totalDuration > 0 && state.currentPosition > 0 && navNext) {
