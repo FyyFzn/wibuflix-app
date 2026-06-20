@@ -102,11 +102,20 @@ export default function QueueScreen() {
     }
   };
 
+  const getProgressPercent = (progressStr: string | undefined) => {
+    if (!progressStr) return 0;
+    const match = progressStr.match(/(\d+(\.\d+)?)%/);
+    if (match) return Math.min(100, Math.max(0, parseFloat(match[1])));
+    return 0;
+  };
+
   const renderItem = ({ item, index }: { item: QueueItem, index: number }) => {
     const isUploading = item.status === 'UPLOADING';
     const isPending = item.status === 'PENDING';
     const isFailed = item.status === 'FAILED';
     const isCompleted = item.status === 'COMPLETED';
+    
+    const progressPercent = getProgressPercent(item.progress);
     
     return (
       <View style={[
@@ -166,14 +175,22 @@ export default function QueueScreen() {
 
         {(isUploading || isFailed || isCompleted) && (
           <View style={styles.progressContainer}>
-            <Text style={[
-              styles.progressText,
-              isFailed && { color: '#ff8888' },
-              isCompleted && { color: '#88ff88' }
-            ]}>
-              {item.progress || (isUploading ? 'Menyiapkan video...' : '')}
-            </Text>
-            {isUploading && <ActivityIndicator size="small" color="#E50914" style={{ marginLeft: 8 }} />}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[
+                styles.progressText,
+                isFailed && { color: '#ff8888' },
+                isCompleted && { color: '#88ff88' }
+              ]}>
+                {item.progress || (isUploading ? 'Menyiapkan video...' : '')}
+              </Text>
+              {isUploading && <ActivityIndicator size="small" color="#E50914" style={{ marginLeft: 8 }} />}
+            </View>
+            
+            {isUploading && (
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -304,8 +321,6 @@ const styles = StyleSheet.create({
     color: '#E50914',
   },
   progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: 12,
     backgroundColor: '#000',
     padding: 12,
@@ -315,6 +330,18 @@ const styles = StyleSheet.create({
     color: '#ddd',
     fontSize: 12,
     flex: 1,
+  },
+  progressBarBg: {
+    height: 4,
+    backgroundColor: '#333',
+    borderRadius: 2,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#E50914',
+    borderRadius: 2,
   },
   actionRow: {
     flexDirection: 'row',
