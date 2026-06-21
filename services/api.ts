@@ -234,22 +234,25 @@ export async function fetchSmartPlay(
   signal?: AbortSignal,
   seriesTitle?: string,
   episodeTitle?: string,
-
+  uniqueId?: string,
 ): Promise<SmartPlayResponse> {
   let url = `${getApiBase()}/api/smart-play?episodeUrl=${encodeURIComponent(episodeUrl)}`;
   if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
   if (nextEpisodeUrl) url += `&nextEpisodeUrl=${encodeURIComponent(nextEpisodeUrl)}`;
   if (seriesTitle) url += `&seriesTitle=${encodeURIComponent(seriesTitle)}`;
   if (episodeTitle) url += `&episodeTitle=${encodeURIComponent(episodeTitle)}`;
+  if (uniqueId) url += `&uniqueId=${encodeURIComponent(uniqueId)}`;
 
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-export async function fetchUploadStatus(episodeUrl: string, seriesUrl?: string, signal?: AbortSignal): Promise<{ success: boolean; progressMessage?: string }> {
+export async function fetchUploadStatus(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, uniqueId?: string, signal?: AbortSignal): Promise<{ success: boolean; progressMessage?: string }> {
   let url = `${getApiBase()}/api/upload-status?episodeUrl=${encodeURIComponent(episodeUrl)}`;
   if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
+  if (seriesTitle) url += `&seriesTitle=${encodeURIComponent(seriesTitle)}`;
+  if (uniqueId) url += `&uniqueId=${encodeURIComponent(uniqueId)}`;
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -290,11 +293,11 @@ export interface QueueItem {
   createdAt: number;
 }
 
-export async function queueAdd(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, episodeTitle?: string): Promise<{ success: boolean, item?: QueueItem }> {
+export async function queueAdd(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, episodeTitle?: string, uniqueId?: string): Promise<{ success: boolean, item?: QueueItem }> {
   const res = await fetch(`${getApiBase()}/api/queue/add`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ episodeUrl, seriesUrl, seriesTitle, episodeTitle })
+    body: JSON.stringify({ episodeUrl, seriesUrl, seriesTitle, episodeTitle, uniqueId })
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

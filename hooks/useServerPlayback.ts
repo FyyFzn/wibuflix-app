@@ -91,6 +91,7 @@ export function useServerPlayback(state: any, player: any) {
         signal,
         params.seriJudul as string,
         params.judul as string,
+        params.uniqueId as string,
       ).catch(e => {
         console.log('[Fast Smart-Play Error]', e.message);
         return null;
@@ -156,6 +157,7 @@ export function useServerPlayback(state: any, player: any) {
              new AbortController().signal, // sinyal terpisah agar tidak dibatalkan
              params.seriJudul as string,
              (params.judul || data.judul) as string,
+             params.uniqueId as string,
            ).catch(() => {}); // fire-and-forget
          }
 
@@ -175,12 +177,13 @@ export function useServerPlayback(state: any, player: any) {
                   signal,
                   params.seriJudul as string,
                   (params.judul || data.judul) as string,
+                  params.uniqueId as string,
                 );
                 if (!state.isMounted.current || signal.aborted) return;
                 
                 // Cek progress upload secara real-time
                 try {
-                  const progRes = await fetchUploadStatus(url, params.seriUrl as string, signal);
+                  const progRes = await fetchUploadStatus(url, params.seriUrl as string, params.seriJudul as string, params.uniqueId as string, signal);
                   if (progRes && progRes.success && progRes.progressMessage) {
                     state.setUploadProgress(progRes.progressMessage);
                   }

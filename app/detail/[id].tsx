@@ -145,7 +145,8 @@ export default function AnimeDetailScreen() {
         seriUrl: params.url,
         judul: ep.judul,
         seriJudul: judulSeri,
-        autoPlayHost: host
+        autoPlayHost: host,
+        uniqueId: malInfo?.malId ? `mal-${malInfo.malId}` : undefined
       },
     });
   };
@@ -158,7 +159,8 @@ export default function AnimeDetailScreen() {
         return;
       }
       ToastAndroid.show('Menambahkan ke antrean...', ToastAndroid.SHORT);
-      const res = await queueAdd(realEpUrl, params.url as string, judulSeri, ep.judul);
+      const uniqueId = malInfo?.malId ? `mal-${malInfo.malId}` : undefined;
+      const res = await queueAdd(realEpUrl, params.url as string, judulSeri, ep.judul, uniqueId);
       if (res.success) {
         setQueuedUrls(prev => {
           const next = new Set(prev);
@@ -301,6 +303,7 @@ export default function AnimeDetailScreen() {
                       seriJudul: lastWatched.judulSeri,
                       judul: lastWatched.nomorEp ? `${lastWatched.judulSeri} Episode ${lastWatched.nomorEp}` : lastWatched.judulSeri,
                       autoPlayHost: lastWatched.host || '',
+                      uniqueId: malInfo?.malId ? `mal-${malInfo.malId}` : undefined,
                     },
                   });
                 }}

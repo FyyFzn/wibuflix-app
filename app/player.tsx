@@ -45,7 +45,7 @@ const getHostName = (srv: ServerItem) => {
 export default function PlayerScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ url: string; urls?: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; }>();
+  const params = useLocalSearchParams<{ url: string; urls?: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; uniqueId?: string; }>();
 
   // 1. Initialize State Hook
   const state = usePlayerState(params.judul || '');
@@ -327,7 +327,8 @@ export default function PlayerScreen() {
           seriJudul: params.seriJudul,
           urls: nextUrls,
           autoPlayHost: state.preferredHostRef.current || state.activeHost,
-          autoFullscreen: isFullscreen ? '1' : '0'
+          autoFullscreen: isFullscreen ? '1' : '0',
+          uniqueId: params.uniqueId
         }
       });
     }, 500);
