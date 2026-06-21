@@ -21,13 +21,23 @@ export interface WatchHistoryItem {
   host?: string;        // last active server
 }
 
-// ── Get all history ─────────────────────────────────────────
+// ── Get RAW history (internal use) ──────────────────────────
 
-export async function getRiwayat(): Promise<WatchHistoryItem[]> {
+export async function getRawRiwayat(): Promise<WatchHistoryItem[]> {
   try {
     const data = await AsyncStorage.getItem(HISTORY_KEY);
     if (!data) return [];
-    const parsed = JSON.parse(data) as WatchHistoryItem[];
+    return JSON.parse(data) as WatchHistoryItem[];
+  } catch {
+    return [];
+  }
+}
+
+// ── Get DEDUPLICATED history (for UI) ──────────────────────
+
+export async function getRiwayat(): Promise<WatchHistoryItem[]> {
+  try {
+    const parsed = await getRawRiwayat();
     
     // Pembersihan On-The-Fly untuk riwayat lama agar ter-deduplikasi
     const cleanedMap = new Map<string, WatchHistoryItem>();
@@ -74,13 +84,10 @@ export async function simpanKeRiwayat(
   const epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
   const nomorEp = epMatch ? epMatch[1] : '';
 
-  let riwayat = await getRiwayat();
+  let riwayat = await getRawRiwayat();
 
-  // Remove existing entry for same series (prioritizing seriUrl)
-  riwayat = riwayat.filter(r => {
-    if (r.seriUrl && seriUrl) return r.seriUrl !== seriUrl;
-    return r.judulSeri !== judulSeri;
-  });
+  // Remove exact same episode from history so it jumps to top
+  riwayat = riwayat.filter(r => r.url !== url);
 
   // Add new entry at the top
   riwayat.unshift({
@@ -120,13 +127,13 @@ export async function updateProgress(
   host?: string
 ): Promise<void> {
   // Update in History (for latest episode card)
-  const riwayat = await getRiwayat();
-  const item = riwayat.find(r => r.url === url);
-  if (item) {
-    item.progress = progress;
-    item.duration = duration;
-    item.waktu = Date.now();
-    if (host) item.host = host;
+  const riwayat = await getRawRiwayat();
+  const itemIndex = riwayat.findIndex(r => r.url === url);
+  if (itemIndex !== -1) {
+    riwayat[itemIndex].progress = progress;
+    riwayat[itemIndex].duration = duration;
+    riwayat[itemIndex].waktu = Date.now();
+    if (host) riwayat[itemIndex].host = host;
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
   }
 
@@ -169,7 +176,7 @@ export async function getProgress(url: string): Promise<{ progress: number; dura
   } catch (e) {}
 
   // 2. Fallback cek History DB lama
-  const riwayat = await getRiwayat();
+  const riwayat = await getRawRiwayat();
   const item = riwayat.find(r => r.url === url);
   if (item && item.progress > 0) {
     return { progress: item.progress, duration: item.duration, host: item.host };
@@ -188,7 +195,7 @@ export async function getAllProgressMap(): Promise<Record<string, EpisodeProgres
 // ── Delete a single history item ────────────────────────────
 
 export async function hapusRiwayat(identifier: string): Promise<void> {
-  let riwayat = await getRiwayat();
+  let riwayat = await getRawRiwayat();
   riwayat = riwayat.filter(r => r.seriUrl !== identifier && r.judulSeri !== identifier);
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
 }

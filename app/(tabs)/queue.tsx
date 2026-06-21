@@ -30,37 +30,53 @@ export default function QueueScreen() {
     // Initial load
     loadQueue();
 
-    // Koneksi SSE (Server-Sent Events) untuk menggantikan setInterval polling
-    const sseUrl = `${getApiBase()}/api/queue/stream`;
-    const eventSource = new EventSource(sseUrl);
+    let eventSource: EventSource | null = null;
 
-    eventSource.addEventListener('message', (event) => {
-      if (event.data) {
-        try {
-          const parsed = JSON.parse(event.data);
-          if (parsed.success && parsed.queue) {
-            setQueue(parsed.queue);
+    const connectSSE = () => {
+      if (eventSource) return;
+      const sseUrl = `${getApiBase()}/api/queue/stream`;
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.addEventListener('message', (event) => {
+        if (event.data) {
+          try {
+            const parsed = JSON.parse(event.data);
+            if (parsed.success && parsed.queue) {
+              setQueue(parsed.queue);
+            }
+          } catch (e) {
+            console.error('[SSE] Failed to parse message', e);
           }
-        } catch (e) {
-          console.error('[SSE] Failed to parse message', e);
         }
+      });
+
+      eventSource.addEventListener('error', (err) => {
+        console.error('[SSE] Connection error:', err);
+      });
+    };
+
+    const disconnectSSE = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
       }
-    });
+    };
 
-    eventSource.addEventListener('error', (err) => {
-      console.error('[SSE] Connection error:', err);
-      // EventSource akan otomatis melakukan reconnect
-    });
+    // Connect initially
+    connectSSE();
 
-    // Refresh when app comes to foreground
+    // Handle AppState to save battery and network in background
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
         loadQueue();
+        connectSSE();
+      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+        disconnectSSE();
       }
     });
 
     return () => {
-      eventSource.close();
+      disconnectSSE();
       subscription.remove();
     };
   }, [loadQueue]);

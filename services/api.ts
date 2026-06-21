@@ -125,18 +125,32 @@ export interface ExtractVideoResponse {
 
 // ── API Functions ──────────────────────────────────────────
 
+// Memori cache untuk performa (mengurangi block I/O pada AsyncStorage)
+const memoryCache = new Map<string, { timestamp: number; data: any }>();
+
 async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 3600000, signal?: AbortSignal, forceRefresh: boolean = false): Promise<T> {
-  // 1. Cek dari memori (AsyncStorage) terlebih dahulu jika tidak dipaksa refresh
+  // 1. Cek dari memori (RAM) terlebih dahulu jika tidak dipaksa refresh
   if (!forceRefresh) {
+    const memData = memoryCache.get(cacheKey);
+    if (memData && Date.now() - memData.timestamp < ttl) {
+      return memData.data as T;
+    }
+
+    // 2. Fallback cek dari disk (AsyncStorage)
     const cachedStr = await AsyncStorage.getItem(cacheKey);
     if (cachedStr) {
       try {
         const parsed = JSON.parse(cachedStr);
         // Langsung kembalikan data jika belum expired (TTL)
         if (Date.now() - parsed.timestamp < ttl) {
+          // Simpan ke memori cache
+          memoryCache.set(cacheKey, { timestamp: parsed.timestamp, data: parsed.data });
+          
           // (Opsional) Refresh cache di latar belakang tanpa menunggu
           fetch(url).then(res => res.json()).then(json => {
-            AsyncStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
+            const freshData = { timestamp: Date.now(), data: json };
+            memoryCache.set(cacheKey, freshData);
+            AsyncStorage.setItem(cacheKey, JSON.stringify(freshData));
           }).catch(() => {});
           return parsed.data as T;
         }
@@ -151,8 +165,10 @@ async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 36
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   
-  // 3. Simpan hasil baru ke cache
-  await AsyncStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
+  // 3. Simpan hasil baru ke cache memori dan disk
+  const newData = { timestamp: Date.now(), data: json };
+  memoryCache.set(cacheKey, newData);
+  await AsyncStorage.setItem(cacheKey, JSON.stringify(newData));
   return json;
 }
 
