@@ -8,18 +8,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../styles/theme';
 
 interface EpisodeItemProps {
+  realUrl: string;
+  urlsJson: string;
   judul: string;
   tanggal: string;
   malJudul?: string;
   isQueued?: boolean;
   progressPercent?: number;
-  onPress: () => void;
-  onQueuePress?: () => void;
+  onPress: (realUrl: string, urlsJson: string, judul: string) => void;
+  onQueuePress?: (realUrl: string, judul: string) => void;
 }
 
-export default function EpisodeItem({ judul, tanggal, malJudul, isQueued, progressPercent = 0, onPress, onQueuePress }: EpisodeItemProps) {
+export default React.memo(function EpisodeItem({ realUrl, urlsJson, judul, tanggal, malJudul, isQueued, progressPercent = 0, onPress, onQueuePress }: EpisodeItemProps) {
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.6}>
+    <TouchableOpacity style={styles.container} onPress={() => onPress(realUrl, urlsJson, judul)} activeOpacity={0.6}>
       <View style={styles.contentWrapper}>
         <View style={styles.main}>
           <Text style={styles.title} numberOfLines={1}>{judul}</Text>
@@ -32,7 +34,7 @@ export default function EpisodeItem({ judul, tanggal, malJudul, isQueued, progre
           {onQueuePress && (
             <TouchableOpacity 
               style={[styles.queueBtn, isQueued && { backgroundColor: 'rgba(0,255,0,0.1)' }]} 
-              onPress={isQueued ? undefined : onQueuePress}
+              onPress={isQueued ? undefined : () => onQueuePress && onQueuePress(realUrl, judul)}
               activeOpacity={isQueued ? 1 : 0.6}
             >
               <Ionicons 
@@ -53,7 +55,7 @@ export default function EpisodeItem({ judul, tanggal, malJudul, isQueued, progre
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

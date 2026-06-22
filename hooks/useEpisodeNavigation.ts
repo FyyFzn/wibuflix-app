@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
 import { fetchEpisodes, EpisodeItem } from '../services/api';
 
-export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: string | undefined, initialNavPrev: string | null, initialNavNext: string | null) {
+export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: string | undefined, initialNavPrev: string | null, initialNavNext: string | null, urlsString?: string) {
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [navPrev, setNavPrev] = useState<string | null>(initialNavPrev);
   const [navNext, setNavNext] = useState<string | null>(initialNavNext);
 
-
   useEffect(() => {
     if (seriUrl) {
-      fetchEpisodes(seriUrl)
+      let urlsObj = undefined;
+      try {
+        if (urlsString) urlsObj = JSON.parse(urlsString);
+      } catch (e) {}
+
+      fetchEpisodes(seriUrl, urlsObj)
         .then(res => {
           const epList = res.data.daftar_episode || [];
           setEpisodes(epList);
         })
         .catch(() => {});
     }
-  }, [seriUrl]);
+  }, [seriUrl, urlsString]);
 
   // Fallback: If backend fails to extract nav_prev/nav_next, calculate them from the episodes list
   useEffect(() => {

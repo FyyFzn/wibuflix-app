@@ -15,6 +15,7 @@ import {
   TextInput,
   BackHandler,
   ToastAndroid,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation, useFocusEffect, Stack } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
@@ -23,6 +24,7 @@ import { getRiwayat, getAllProgressMap, EpisodeProgress, WatchHistoryItem } from
 import EpisodeItemComponent from '../../components/EpisodeItem';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import { useAnimeStore } from '../../store/animeStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AnimeDetailScreen() {
   const router = useRouter();
@@ -86,6 +88,36 @@ export default function AnimeDetailScreen() {
         }
       }
 
+      // --- Client-Side Stale-While-Revalidate ---
+      try {
+        let cacheKey = `episodes_${params.url}`;
+        if (urlsObj && urlsObj.samehadaku && urlsObj.otakudesu) {
+          cacheKey = `episodes_merged_${urlsObj.samehadaku}_${urlsObj.otakudesu}`;
+        }
+        const cachedStr = await AsyncStorage.getItem(cacheKey);
+        if (cachedStr) {
+          const parsed = JSON.parse(cachedStr);
+          // parsed.data here comes from fetchWithCache structure { timestamp, data }
+          if (parsed && parsed.data && parsed.data.status === 'success') {
+            const cachedData = parsed.data.data;
+            setJudulSeri(cachedData.judul_seri || params.judul || '');
+            setEpisodes(cachedData.daftar_episode || []);
+            setMalInfo(cachedData.mal || null);
+            
+            if (cachedData.mal?.cover) {
+              setCoverImage(cachedData.mal.cover);
+            } else if (cachedData.cover_scraper) {
+              setCoverImage(cachedData.cover_scraper);
+            }
+            
+            // Turn off loading instantly!
+            setLoading(false);
+          }
+        }
+      } catch (e) {
+        // Ignore cache read errors
+      }
+
       // Mulai fetchEpisodes dan fetchQueueStatus secara bersamaan untuk mempercepat loading
       const [json, queueRes] = await Promise.all([
         fetchEpisodes(params.url, urlsObj),
@@ -131,7 +163,7 @@ export default function AnimeDetailScreen() {
     return list;
   }, [episodes, searchQuery, sortOrder]);
 
-  const handleEpisodePress = async (ep: EpisodeItemType) => {
+  const handleEpisodePress = useCallback(async (realUrl: string, urlsJson: string, judul: string) => {
     const riwayat = await getRiwayat();
     const historyItem = riwayat.find(r => r.seriUrl === params.url);
     const host = historyItem?.host || '';
@@ -139,32 +171,31 @@ export default function AnimeDetailScreen() {
     router.push({
       pathname: '/player',
       params: {
-        url: (ep.urls ? ep.urls.kuronime || ep.urls.samehadaku || ep.urls.otakudesu || ep.urls.neosatsu : ep.url) || '',
-        urls: ep.urls ? JSON.stringify(ep.urls) : '',
+        url: realUrl,
+        urls: urlsJson,
         gambar: coverImage,
         seriUrl: params.url,
-        judul: ep.judul,
+        judul: judul,
         seriJudul: judulSeri,
         autoPlayHost: host,
         uniqueId: malInfo?.malId ? `mal-${malInfo.malId}` : undefined
       },
     });
-  };
+  }, [params.url, coverImage, judulSeri, malInfo]);
 
-  const handleQueuePress = async (ep: EpisodeItemType) => {
+  const handleQueuePress = useCallback(async (realUrl: string, judul: string) => {
     try {
-      const realEpUrl = ep.urls?.kuronime || ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.neosatsu || '';
-      if (!realEpUrl) {
+      if (!realUrl) {
         ToastAndroid.show('Link episode tidak tersedia', ToastAndroid.SHORT);
         return;
       }
       ToastAndroid.show('Menambahkan ke antrean...', ToastAndroid.SHORT);
       const uniqueId = malInfo?.malId ? `mal-${malInfo.malId}` : undefined;
-      const res = await queueAdd(realEpUrl, params.url as string, judulSeri, ep.judul, uniqueId);
+      const res = await queueAdd(realUrl, params.url as string, judulSeri, judul, uniqueId);
       if (res.success) {
         setQueuedUrls(prev => {
           const next = new Set(prev);
-          next.add(realEpUrl);
+          next.add(realUrl);
           return next;
         });
         ToastAndroid.show('Berhasil dimasukkan ke antrean cloud!', ToastAndroid.LONG);
@@ -173,11 +204,9 @@ export default function AnimeDetailScreen() {
       console.error(e);
       ToastAndroid.show('Gagal memasukkan ke antrean', ToastAndroid.SHORT);
     }
-  };
+  }, [params.url, judulSeri, malInfo]);
 
-  if (loading) {
-    return <LoadingOverlay message="Mengambil daftar episode & info MAL..." />;
-  }
+  // Remove full-screen loading overlay to make screen responsive instantly
 
   if (error) {
     return (
@@ -200,17 +229,20 @@ export default function AnimeDetailScreen() {
       keyExtractor={(item, index) => (item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '') + index.toString()}
       renderItem={({ item }) => {
         const realEpUrl = item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '';
+        const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
         const isQueued = queuedUrls.has(realEpUrl);
         
         return (
           <EpisodeItemComponent
+            realUrl={realEpUrl}
+            urlsJson={urlsJson}
             judul={item.judul}
             tanggal={item.tanggal}
             malJudul={item.malJudul}
             isQueued={isQueued}
             progressPercent={progressMap[realEpUrl]?.duration > 0 ? Math.min((progressMap[realEpUrl].progress / progressMap[realEpUrl].duration) * 100, 100) : 0}
-            onPress={() => handleEpisodePress(item)}
-            onQueuePress={() => handleQueuePress(item)}
+            onPress={handleEpisodePress}
+            onQueuePress={handleQueuePress}
           />
         );
       }}
@@ -282,9 +314,25 @@ export default function AnimeDetailScreen() {
               </View>
             </View>
           ) : (
-            <View style={styles.fallbackTitle}>
-              <View style={styles.titleBorder} />
-              <Text style={styles.fallbackTitleText}>{judulSeri}</Text>
+            <View style={styles.malPanel}>
+              <View style={styles.malPanelBorder} />
+              {coverImage ? (
+                <Image source={{ uri: coverImage }} style={styles.malCover} />
+              ) : (
+                <View style={styles.malCover} />
+              )}
+              <View style={styles.malInfo}>
+                <Text style={styles.malTitle}>{judulSeri}</Text>
+                {loading ? (
+                  <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
+                    Memuat informasi detail & episode...
+                  </Text>
+                ) : (
+                  <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
+                    Informasi detail tidak tersedia.
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -348,7 +396,14 @@ export default function AnimeDetailScreen() {
       }
       ListEmptyComponent={
         <View style={styles.center}>
-          <Text style={styles.emptyText}>Tidak ada episode yang ditemukan.</Text>
+          {loading ? (
+            <>
+              <ActivityIndicator size="large" color={Colors.accent} />
+              <Text style={[styles.emptyText, { marginTop: Spacing.md }]}>Mengambil daftar episode...</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Tidak ada episode yang ditemukan.</Text>
+          )}
         </View>
       }
       contentContainerStyle={styles.listContent}

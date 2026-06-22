@@ -51,7 +51,7 @@ export default function PlayerScreen() {
   const state = usePlayerState(params.judul || '');
 
   // 2. Initialize Navigation Hook
-  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null);
+  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null, params.urls);
 
 
   const isAzureBlob = state.nativeVideoUrl && state.nativeVideoUrl.includes('.blob.core.windows.net');
