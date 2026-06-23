@@ -42,13 +42,16 @@ export function useDoubleTapSkip(player: any) {
       // Pause hanya sekali saat combo BARU dimulai
       setSkipInfo(prev => {
         const isFirstDoubleTap = !prev || prev.side !== side;
-        if (isFirstDoubleTap && player && player.playing) {
+        const currentPlayingState = player ? player.playing : false;
+        
+        if (isFirstDoubleTap && currentPlayingState) {
           player.pause();
         }
+        
         return {
           side,
           amount: prev && prev.side === side ? prev.amount + addAmount : addAmount,
-          wasPlaying: prev && prev.side === side ? prev.wasPlaying : (player ? player.playing : false)
+          wasPlaying: prev && prev.side === side ? prev.wasPlaying : currentPlayingState
         };
       });
 
