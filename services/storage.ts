@@ -19,6 +19,7 @@ export interface WatchHistoryItem {
   progress: number;     // seconds watched (position)
   duration: number;     // total duration in seconds
   host?: string;        // last active server
+  uniqueId?: string;    // MAL ID or series unique ID
 }
 
 // ── Get RAW history (internal use) ──────────────────────────
@@ -71,7 +72,8 @@ export async function simpanKeRiwayat(
   progress: number = 0,
   duration: number = 0,
   host?: string,
-  seriJudul?: string
+  seriJudul?: string,
+  uniqueId?: string
 ): Promise<void> {
   let baseJudul = cleanSeriesTitle(judul);
   if (!baseJudul) baseJudul = judul;
@@ -100,6 +102,7 @@ export async function simpanKeRiwayat(
     progress,
     duration,
     host,
+    uniqueId,
   });
 
   // Limit size

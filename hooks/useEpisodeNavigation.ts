@@ -29,7 +29,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
 
       // Helper: dapatkan URL representatif dari episode (support mode merge & legacy)
       const getEpUrl = (ep: EpisodeItem): string => {
-        const raw = ep.urls?.kuronime || ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.neosatsu || '';
+        const raw = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.kuronime || ep.urls?.neosatsu || '';
         return decodeURIComponent(raw);
       };
 
@@ -69,12 +69,12 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
 
         if (isAscending) {
           // Ascending: Index 0 = Ep 1, Index 1 = Ep 2
-          setNavPrev(prev => prev || (currentIndex > 0 ? (getEpUrl(episodes[currentIndex - 1]) || null) : null));
-          setNavNext(prev => prev || (currentIndex < episodes.length - 1 ? (getEpUrl(episodes[currentIndex + 1]) || null) : null));
+          setNavPrev(prev => (currentIndex > 0 ? (getEpUrl(episodes[currentIndex - 1]) || null) : prev));
+          setNavNext(prev => (currentIndex < episodes.length - 1 ? (getEpUrl(episodes[currentIndex + 1]) || null) : prev));
         } else {
           // Descending: Index 0 = Ep 12, Index 11 = Ep 1
-          setNavPrev(prev => prev || (currentIndex < episodes.length - 1 ? (getEpUrl(episodes[currentIndex + 1]) || null) : null));
-          setNavNext(prev => prev || (currentIndex > 0 ? (getEpUrl(episodes[currentIndex - 1]) || null) : null));
+          setNavPrev(prev => (currentIndex < episodes.length - 1 ? (getEpUrl(episodes[currentIndex + 1]) || null) : prev));
+          setNavNext(prev => (currentIndex > 0 ? (getEpUrl(episodes[currentIndex - 1]) || null) : prev));
         }
       }
     }

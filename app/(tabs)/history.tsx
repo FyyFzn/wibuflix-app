@@ -59,6 +59,7 @@ export default function HistoryScreen() {
         seriJudul: item.judulSeri,
         judul: item.nomorEp ? `${item.judulSeri} Episode ${item.nomorEp}` : item.judulSeri,
         autoPlayHost: item.host || '',
+        uniqueId: item.uniqueId,
       },
     });
   };

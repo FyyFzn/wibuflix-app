@@ -312,15 +312,17 @@ export default function PlayerScreen() {
         });
       });
       const nextJudul = targetEp ? targetEp.judul : '';
-
-      // Jika episode punya multi-source URLs (mode merge), kirim sebagai param 'urls'
-      // Agar scrape/smart-play bisa menggunakan kedua sumber Samehadaku + Otakudesu
       const nextUrls = targetEp?.urls ? JSON.stringify(targetEp.urls) : undefined;
+      
+      let finalUrl = safeUrl;
+      if (targetEp) {
+          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || safeUrl;
+      }
 
       router.replace({
         pathname: '/player',
         params: {
-          url: safeUrl,
+          url: finalUrl,
           gambar: params.gambar,
           seriUrl: params.seriUrl,
           judul: nextJudul,

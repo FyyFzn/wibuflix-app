@@ -139,7 +139,7 @@ export function useServerPlayback(state: any, player: any) {
          state.setServers(data.servers || []);
          
          await simpanKeRiwayat(
-            (params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string
+            (params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
          );
          
          state.setLoading(false); // Pastikan layar loading 'Mencari server' mati

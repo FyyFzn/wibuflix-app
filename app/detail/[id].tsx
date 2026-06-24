@@ -226,9 +226,9 @@ export default function AnimeDetailScreen() {
       <FlatList
         style={styles.container}
         data={filteredEpisodes}
-        keyExtractor={(item, index) => (item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '') + index.toString()}
+        keyExtractor={(item, index) => (item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || '') + index.toString()}
         renderItem={({ item }) => {
-          const realEpUrl = item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '';
+          const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || '';
           const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
           const isQueued = queuedUrls.has(realEpUrl);
 
