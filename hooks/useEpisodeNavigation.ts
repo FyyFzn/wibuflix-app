@@ -11,14 +11,14 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
       let urlsObj = undefined;
       try {
         if (urlsString) urlsObj = JSON.parse(urlsString);
-      } catch (e) {}
+      } catch (e) { }
 
       fetchEpisodes(seriUrl, urlsObj)
         .then(res => {
           const epList = res.data.daftar_episode || [];
           setEpisodes(epList);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [seriUrl, urlsString]);
 
@@ -51,7 +51,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
           return false;
         });
       });
-      
+
       if (currentIndex !== -1) {
         // Cek arah urutan episode (Ascending vs Descending)
         let isAscending = false;

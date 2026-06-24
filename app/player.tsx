@@ -346,7 +346,7 @@ export default function PlayerScreen() {
           new AbortController().signal,
           params.seriJudul as string,
           ''
-        ).catch(() => {});
+        ).catch(() => { });
       });
     }
   }, [status, state.playerMode, navNext]);

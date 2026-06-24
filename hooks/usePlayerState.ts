@@ -40,6 +40,7 @@ export function usePlayerState(initialTitle: string = '') {
   // Refs
   const preferredHostRef = useRef<string | null>(null);
   const currentEpisodeUrlRef = useRef<string | null>(null);
+  const currentEpisodeParamsRef = useRef<any>(null);
   const lastKnownPositionRef = useRef<number>(0);
   const webviewControlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -99,6 +100,7 @@ export function usePlayerState(initialTitle: string = '') {
     totalDuration, setTotalDuration,
     preferredHostRef,
     currentEpisodeUrlRef,
+    currentEpisodeParamsRef,
     lastKnownPositionRef,
     webviewControlsTimeoutRef,
     progressIntervalRef,

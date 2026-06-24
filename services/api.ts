@@ -266,12 +266,12 @@ export async function cancelUploads(): Promise<void> {
   }
 }
 
-export async function fetchCancelStream(url: string): Promise<void> {
+export async function fetchCancelStream(url: string, seriesUrl?: string, seriesTitle?: string, uniqueId?: string): Promise<void> {
   try {
     await fetch(`${getApiBase()}/api/cancel-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url, seriesUrl, seriesTitle, uniqueId })
     });
   } catch (e) {
     console.error('[API] Failed to cancel stream', e);
@@ -285,12 +285,14 @@ export async function fetchCancelStream(url: string): Promise<void> {
 export interface QueueItem {
   id: string;
   episodeUrl: string;
+  seriesUrl?: string;
   seriesSlug: string;
   seriesTitle: string;
   episodeTitle: string;
   status: 'PENDING' | 'UPLOADING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   progress?: string;
   createdAt: number;
+  uniqueId?: string;
 }
 
 export async function queueAdd(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, episodeTitle?: string, uniqueId?: string): Promise<{ success: boolean, item?: QueueItem }> {

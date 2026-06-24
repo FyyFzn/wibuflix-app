@@ -90,7 +90,7 @@ export default function QueueScreen() {
     try {
       // Optimistic update
       setQueue(prev => prev.filter(q => q.id !== item.id));
-      await queueCancel(item.id); 
+      await queueCancel(item.id);
       loadQueue();
     } catch (e) {
       console.error(e);
@@ -112,7 +112,7 @@ export default function QueueScreen() {
     try {
       // Optimistic update status ke PENDING di memori
       setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'PENDING', progress: 'Mencoba ulang...' } : q));
-      await queueAdd(item.episodeUrl, '', item.seriesTitle, item.episodeTitle);
+      await queueAdd(item.episodeUrl, item.seriesUrl, item.seriesTitle, item.episodeTitle, item.uniqueId);
       loadQueue();
     } catch (e) {
       console.error(e);
@@ -132,9 +132,9 @@ export default function QueueScreen() {
     const isPending = item.status === 'PENDING';
     const isFailed = item.status === 'FAILED';
     const isCompleted = item.status === 'COMPLETED';
-    
+
     const progressPercent = getProgressPercent(item.progress);
-    
+
     const handleCardPress = () => {
       if (isCompleted) {
         router.push({
@@ -144,18 +144,19 @@ export default function QueueScreen() {
             judul: item.episodeTitle,
             seriJudul: item.seriesTitle,
             gambar: '',
-            seriUrl: '',
+            seriUrl: item.seriesUrl || '',
+            uniqueId: item.uniqueId
           }
         });
       }
     };
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         activeOpacity={isCompleted ? 0.7 : 1}
         onPress={handleCardPress}
         style={[
-          styles.card, 
+          styles.card,
           isUploading && styles.cardActive,
           isFailed && styles.cardFailed,
           isCompleted && styles.cardCompleted
@@ -166,7 +167,7 @@ export default function QueueScreen() {
             <Text style={styles.seriesTitle} numberOfLines={1}>{item.seriesTitle}</Text>
             <Text style={styles.episodeTitle} numberOfLines={1}>{item.episodeTitle}</Text>
           </View>
-          
+
           <View style={styles.rightHeaderContainer}>
             <View style={[
               styles.statusBadgeContainer,
@@ -175,13 +176,13 @@ export default function QueueScreen() {
             ]}>
               {(isUploading || isFailed || isCompleted) && (
                 <View style={[
-                  styles.dot, 
+                  styles.dot,
                   isFailed && { backgroundColor: '#ff4444' },
                   isCompleted && { backgroundColor: '#00ff00' }
                 ]} />
               )}
               <Text style={[
-                styles.statusText, 
+                styles.statusText,
                 isUploading && styles.statusTextActive,
                 isFailed && { color: '#ff4444' },
                 isCompleted && { color: '#00ff00' }
@@ -202,7 +203,7 @@ export default function QueueScreen() {
                   <Ionicons name="refresh-circle-outline" size={22} color="#ff4444" />
                 </TouchableOpacity>
               )}
-              
+
               <TouchableOpacity style={styles.actionBtnCompact} onPress={() => handleCancel(item)}>
                 <Ionicons name={isCompleted || isFailed ? "trash-outline" : "close-circle-outline"} size={22} color={isCompleted ? "#888" : "#E50914"} />
               </TouchableOpacity>
@@ -222,7 +223,7 @@ export default function QueueScreen() {
               </Text>
               {isUploading && <ActivityIndicator size="small" color="#E50914" style={{ marginLeft: 8 }} />}
             </View>
-            
+
             {isUploading && (
               <View style={styles.progressBarBg}>
                 <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />

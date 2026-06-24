@@ -41,7 +41,7 @@ export default function AnimeDetailScreen() {
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [epsSearch, setEpsSearch] = useState('');
   const [queuedUrls, setQueuedUrls] = useState<Set<string>>(new Set());
-  
+
   const [progressMap, setProgressMap] = useState<Record<string, EpisodeProgress>>({});
   const [lastWatched, setLastWatched] = useState<WatchHistoryItem | null>(null);
 
@@ -54,7 +54,7 @@ export default function AnimeDetailScreen() {
       const loadProgress = async () => {
         const pm = await getAllProgressMap();
         setProgressMap(pm);
-        
+
         const riwayat = await getRiwayat();
         const historyItem = riwayat.find(r => r.seriUrl === params.url);
         if (historyItem) {
@@ -103,13 +103,13 @@ export default function AnimeDetailScreen() {
             setJudulSeri(cachedData.judul_seri || params.judul || '');
             setEpisodes(cachedData.daftar_episode || []);
             setMalInfo(cachedData.mal || null);
-            
+
             if (cachedData.mal?.cover) {
               setCoverImage(cachedData.mal.cover);
             } else if (cachedData.cover_scraper) {
               setCoverImage(cachedData.cover_scraper);
             }
-            
+
             // Turn off loading instantly!
             setLoading(false);
           }
@@ -226,189 +226,189 @@ export default function AnimeDetailScreen() {
       <FlatList
         style={styles.container}
         data={filteredEpisodes}
-      keyExtractor={(item, index) => (item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '') + index.toString()}
-      renderItem={({ item }) => {
-        const realEpUrl = item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '';
-        const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
-        const isQueued = queuedUrls.has(realEpUrl);
-        
-        return (
-          <EpisodeItemComponent
-            realUrl={realEpUrl}
-            urlsJson={urlsJson}
-            judul={item.judul}
-            tanggal={item.tanggal}
-            malJudul={item.malJudul}
-            isQueued={isQueued}
-            progressPercent={progressMap[realEpUrl]?.duration > 0 ? Math.min((progressMap[realEpUrl].progress / progressMap[realEpUrl].duration) * 100, 100) : 0}
-            onPress={handleEpisodePress}
-            onQueuePress={handleQueuePress}
-          />
-        );
-      }}
-      ListHeaderComponent={
-        <View>
-          {/* MAL Panel */}
-          {malInfo ? (
-            <View style={styles.malPanel}>
-              <View style={styles.malPanelBorder} />
-              <Image source={{ uri: coverImage }} style={styles.malCover} />
-              <View style={styles.malInfo}>
-                <Text style={styles.malTitle}>{judulSeri}</Text>
+        keyExtractor={(item, index) => (item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '') + index.toString()}
+        renderItem={({ item }) => {
+          const realEpUrl = item.urls?.kuronime || item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.neosatsu || '';
+          const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
+          const isQueued = queuedUrls.has(realEpUrl);
 
-                {/* Meta tags */}
-                <View style={styles.malMeta}>
-                  {malInfo.malScore && (
-                    <View style={styles.scoreBadge}>
-                      <Text style={styles.starChar}>★</Text>
-                      <Text style={styles.scoreValue}>{malInfo.malScore}</Text>
-                    </View>
-                  )}
-                  {malInfo.status && (
-                    <View style={styles.tag}>
-                      <Text style={styles.tagText}>{malInfo.status}</Text>
-                    </View>
-                  )}
-                  {malInfo.year && (
-                    <View style={styles.tag}>
-                      <Text style={styles.tagText}>{malInfo.year}</Text>
-                    </View>
-                  )}
-                  {malInfo.episodes && (
-                    <View style={styles.tag}>
-                      <Text style={styles.tagText}>{malInfo.episodes} Eps</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Genres */}
-                <View style={styles.genresContainer}>
-                  {malInfo.genres.map((g, i) => (
-                    <View key={i} style={styles.genreChip}>
-                      <Text style={styles.genreText}>{g}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Synopsis */}
-                {malInfo.synopsis && (
-                  <>
-                    <Text
-                      style={styles.synopsis}
-                      numberOfLines={synopsisExpanded ? undefined : 3}
-                    >
-                      {malInfo.synopsis}
-                    </Text>
-                    <TouchableOpacity onPress={() => setSynopsisExpanded(!synopsisExpanded)}>
-                      <Text style={styles.toggleSynopsis}>
-                        {synopsisExpanded ? 'Sembunyikan sinopsis ▴' : 'Tampilkan sinopsis ▾'}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                {/* Studios */}
-                {malInfo.studios && malInfo.studios.length > 0 && (
-                  <Text style={styles.studios}>🎬 {malInfo.studios.join(', ')}</Text>
-                )}
-              </View>
-            </View>
-          ) : (
-            <View style={styles.malPanel}>
-              <View style={styles.malPanelBorder} />
-              {coverImage ? (
+          return (
+            <EpisodeItemComponent
+              realUrl={realEpUrl}
+              urlsJson={urlsJson}
+              judul={item.judul}
+              tanggal={item.tanggal}
+              malJudul={item.malJudul}
+              isQueued={isQueued}
+              progressPercent={progressMap[realEpUrl]?.duration > 0 ? Math.min((progressMap[realEpUrl].progress / progressMap[realEpUrl].duration) * 100, 100) : 0}
+              onPress={handleEpisodePress}
+              onQueuePress={handleQueuePress}
+            />
+          );
+        }}
+        ListHeaderComponent={
+          <View>
+            {/* MAL Panel */}
+            {malInfo ? (
+              <View style={styles.malPanel}>
+                <View style={styles.malPanelBorder} />
                 <Image source={{ uri: coverImage }} style={styles.malCover} />
-              ) : (
-                <View style={styles.malCover} />
-              )}
-              <View style={styles.malInfo}>
-                <Text style={styles.malTitle}>{judulSeri}</Text>
-                {loading ? (
-                  <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
-                    Memuat informasi detail & episode...
-                  </Text>
-                ) : (
-                  <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
-                    Informasi detail tidak tersedia.
-                  </Text>
-                )}
-              </View>
-            </View>
-          )}
+                <View style={styles.malInfo}>
+                  <Text style={styles.malTitle}>{judulSeri}</Text>
 
-          {/* Resume Button */}
-          {lastWatched && (
-            <View style={styles.resumeContainer}>
-              <TouchableOpacity 
-                style={styles.resumeBtn}
-                onPress={() => {
-                  router.push({
-                    pathname: '/player',
-                    params: {
-                      url: lastWatched.url,
-                      gambar: lastWatched.gambar,
-                      seriUrl: lastWatched.seriUrl,
-                      seriJudul: lastWatched.judulSeri,
-                      judul: lastWatched.nomorEp ? `${lastWatched.judulSeri} Episode ${lastWatched.nomorEp}` : lastWatched.judulSeri,
-                      autoPlayHost: lastWatched.host || '',
-                      uniqueId: malInfo?.malId ? `mal-${malInfo.malId}` : undefined,
-                    },
-                  });
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.resumeBtnText}>
-                  ▶ Lanjutkan Menonton {lastWatched.nomorEp ? `Episode ${lastWatched.nomorEp}` : ''}
-                </Text>
-                {lastWatched.duration > 0 && (
-                  <View style={styles.resumeProgressBg}>
-                    <View style={[styles.resumeProgressFill, { width: `${Math.min((lastWatched.progress / lastWatched.duration) * 100, 100)}%` }]} />
+                  {/* Meta tags */}
+                  <View style={styles.malMeta}>
+                    {malInfo.malScore && (
+                      <View style={styles.scoreBadge}>
+                        <Text style={styles.starChar}>★</Text>
+                        <Text style={styles.scoreValue}>{malInfo.malScore}</Text>
+                      </View>
+                    )}
+                    {malInfo.status && (
+                      <View style={styles.tag}>
+                        <Text style={styles.tagText}>{malInfo.status}</Text>
+                      </View>
+                    )}
+                    {malInfo.year && (
+                      <View style={styles.tag}>
+                        <Text style={styles.tagText}>{malInfo.year}</Text>
+                      </View>
+                    )}
+                    {malInfo.episodes && (
+                      <View style={styles.tag}>
+                        <Text style={styles.tagText}>{malInfo.episodes} Eps</Text>
+                      </View>
+                    )}
                   </View>
+
+                  {/* Genres */}
+                  <View style={styles.genresContainer}>
+                    {malInfo.genres.map((g, i) => (
+                      <View key={i} style={styles.genreChip}>
+                        <Text style={styles.genreText}>{g}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Synopsis */}
+                  {malInfo.synopsis && (
+                    <>
+                      <Text
+                        style={styles.synopsis}
+                        numberOfLines={synopsisExpanded ? undefined : 3}
+                      >
+                        {malInfo.synopsis}
+                      </Text>
+                      <TouchableOpacity onPress={() => setSynopsisExpanded(!synopsisExpanded)}>
+                        <Text style={styles.toggleSynopsis}>
+                          {synopsisExpanded ? 'Sembunyikan sinopsis ▴' : 'Tampilkan sinopsis ▾'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {/* Studios */}
+                  {malInfo.studios && malInfo.studios.length > 0 && (
+                    <Text style={styles.studios}>🎬 {malInfo.studios.join(', ')}</Text>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.malPanel}>
+                <View style={styles.malPanelBorder} />
+                {coverImage ? (
+                  <Image source={{ uri: coverImage }} style={styles.malCover} />
+                ) : (
+                  <View style={styles.malCover} />
                 )}
+                <View style={styles.malInfo}>
+                  <Text style={styles.malTitle}>{judulSeri}</Text>
+                  {loading ? (
+                    <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
+                      Memuat informasi detail & episode...
+                    </Text>
+                  ) : (
+                    <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
+                      Informasi detail tidak tersedia.
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Resume Button */}
+            {lastWatched && (
+              <View style={styles.resumeContainer}>
+                <TouchableOpacity
+                  style={styles.resumeBtn}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/player',
+                      params: {
+                        url: lastWatched.url,
+                        gambar: lastWatched.gambar,
+                        seriUrl: lastWatched.seriUrl,
+                        seriJudul: lastWatched.judulSeri,
+                        judul: lastWatched.nomorEp ? `${lastWatched.judulSeri} Episode ${lastWatched.nomorEp}` : lastWatched.judulSeri,
+                        autoPlayHost: lastWatched.host || '',
+                        uniqueId: malInfo?.malId ? `mal-${malInfo.malId}` : undefined,
+                      },
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.resumeBtnText}>
+                    ▶ Lanjutkan Menonton {lastWatched.nomorEp ? `Episode ${lastWatched.nomorEp}` : ''}
+                  </Text>
+                  {lastWatched.duration > 0 && (
+                    <View style={styles.resumeProgressBg}>
+                      <View style={[styles.resumeProgressFill, { width: `${Math.min((lastWatched.progress / lastWatched.duration) * 100, 100)}%` }]} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View style={styles.listHeader}>
+              <Text style={styles.sectionTitle}>Daftar Episode</Text>
+            </View>
+
+            {/* Episode controls */}
+            <View style={styles.epsControls}>
+              <TextInput
+                style={styles.epsSearch}
+                placeholder="Cari episode..."
+                placeholderTextColor={Colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.sortBtn}
+                onPress={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+              >
+                <Text style={styles.sortText}>
+                  {sortOrder === 'desc' ? 'Terbaru ↑' : 'Terlama ↓'}
+                </Text>
               </TouchableOpacity>
             </View>
-          )}
-
-          <View style={styles.listHeader}>
-            <Text style={styles.sectionTitle}>Daftar Episode</Text>
           </View>
-
-          {/* Episode controls */}
-          <View style={styles.epsControls}>
-            <TextInput
-              style={styles.epsSearch}
-              placeholder="Cari episode..."
-              placeholderTextColor={Colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCorrect={false}
-            />
-            <TouchableOpacity
-              style={styles.sortBtn}
-              onPress={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-            >
-              <Text style={styles.sortText}>
-                {sortOrder === 'desc' ? 'Terbaru ↑' : 'Terlama ↓'}
-              </Text>
-            </TouchableOpacity>
+        }
+        ListEmptyComponent={
+          <View style={styles.center}>
+            {loading ? (
+              <>
+                <ActivityIndicator size="large" color={Colors.accent} />
+                <Text style={[styles.emptyText, { marginTop: Spacing.md }]}>Mengambil daftar episode...</Text>
+              </>
+            ) : (
+              <Text style={styles.emptyText}>Tidak ada episode yang ditemukan.</Text>
+            )}
           </View>
-        </View>
-      }
-      ListEmptyComponent={
-        <View style={styles.center}>
-          {loading ? (
-            <>
-              <ActivityIndicator size="large" color={Colors.accent} />
-              <Text style={[styles.emptyText, { marginTop: Spacing.md }]}>Mengambil daftar episode...</Text>
-            </>
-          ) : (
-            <Text style={styles.emptyText}>Tidak ada episode yang ditemukan.</Text>
-          )}
-        </View>
-      }
-      contentContainerStyle={styles.listContent}
-      showsVerticalScrollIndicator={false}
-    />
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
     </>
   );
 }
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
-  
+
   // ── Source Picker ──
   sourcePickerContainer: {
     marginBottom: Spacing.xl,

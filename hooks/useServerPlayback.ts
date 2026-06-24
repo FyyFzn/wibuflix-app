@@ -70,13 +70,16 @@ export function useServerPlayback(state: any, player: any) {
     state.setActiveServerName('');
     state.setFallbackWebviewUrl('');
     state.setRetryCount(0);
-    const previousUrl = state.currentEpisodeUrlRef.current;
-    state.currentEpisodeUrlRef.current = url;
+    const previousUrl = state.currentEpisodeUrlRef?.current;
+    const previousParams = state.currentEpisodeParamsRef?.current;
+    
+    if (state.currentEpisodeUrlRef) state.currentEpisodeUrlRef.current = url;
+    if (state.currentEpisodeParamsRef) state.currentEpisodeParamsRef.current = params;
 
     if (state.abortControllerRef.current) {
       state.abortControllerRef.current.abort();
       if (previousUrl && previousUrl !== url) {
-        fetchCancelStream(previousUrl).catch(() => {});
+        fetchCancelStream(previousUrl, previousParams?.seriUrl, previousParams?.seriJudul, previousParams?.uniqueId).catch(() => {});
       }
     }
     state.abortControllerRef.current = new AbortController();
