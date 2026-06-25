@@ -100,10 +100,10 @@ export default function PlayerScreen() {
   }, [player]);
 
   const saveCurrentProgress = useCallback(async () => {
-    if (state.currentEpisodeUrlRef.current && state.currentPosition > 0) {
-      await updateProgress(state.currentEpisodeUrlRef.current, state.currentPosition, state.totalDuration, state.activeHost);
+    if (state.currentEpisodeUrlRef.current && state.lastKnownPositionRef.current > 0) {
+      await updateProgress(state.currentEpisodeUrlRef.current, state.lastKnownPositionRef.current, state.totalDuration, state.activeHost);
     }
-  }, [state.currentPosition, state.totalDuration, state.activeHost]);
+  }, [state.totalDuration, state.activeHost]);
 
   // Handle native player status / auto-webview fallback
   useEffect(() => {
@@ -284,7 +284,6 @@ export default function PlayerScreen() {
     setTimeout(() => {
       state.setShowEpisodesModal(false);
       saveCurrentProgress();
-      state.isMounted.current = false;
       if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
 
       let safeUrl = url;
@@ -347,7 +346,7 @@ export default function PlayerScreen() {
           navNext,
           new AbortController().signal,
           params.seriJudul as string,
-          ''
+          (params.uniqueId as string) || ''
         ).catch(() => { });
       });
     }
