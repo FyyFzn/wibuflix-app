@@ -80,19 +80,18 @@ export default function AnimeDetailScreen() {
 
       // Jika ada data sources di Zustand store (dan pastikan url-nya cocok untuk menghindari bug state nyangkut)
       if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
-        if (selectedAnime.sources.samehadaku && selectedAnime.sources.otakudesu) {
-          urlsObj = {
-            samehadaku: selectedAnime.sources.samehadaku.url,
-            otakudesu: `/anime/${selectedAnime.sources.otakudesu.id}`
-          };
-        }
+        urlsObj = {
+          samehadaku: selectedAnime.sources.samehadaku?.url,
+          otakudesu: selectedAnime.sources.otakudesu ? `/anime/${selectedAnime.sources.otakudesu.id}` : undefined,
+          kuronime: selectedAnime.sources.kuronime?.url
+        };
       }
 
       // --- Client-Side Stale-While-Revalidate ---
       try {
         let cacheKey = `episodes_${params.url}`;
-        if (urlsObj && urlsObj.samehadaku && urlsObj.otakudesu) {
-          cacheKey = `episodes_merged_${urlsObj.samehadaku}_${urlsObj.otakudesu}`;
+        if (urlsObj && (urlsObj.samehadaku || urlsObj.otakudesu || urlsObj.kuronime)) {
+          cacheKey = `episodes_merged_${urlsObj.samehadaku || ''}_${urlsObj.otakudesu || ''}_${urlsObj.kuronime || ''}`;
         }
         const cachedStr = await AsyncStorage.getItem(cacheKey);
         if (cachedStr) {

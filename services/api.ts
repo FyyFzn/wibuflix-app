@@ -186,13 +186,18 @@ export async function fetchHotAnime(signal?: AbortSignal): Promise<HotAnimeRespo
   return fetchWithCache<HotAnimeResponse>(API.hot, cacheKey, 3600000, signal); // Cache 1 jam
 }
 
-export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
+export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string; kuronime?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
   let url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
   let cacheKey = `episodes_${targetUrl}`;
   
-  if (urls && urls.samehadaku && urls.otakudesu) {
-    url = `${API.episodes}?urlSamehadaku=${encodeURIComponent(urls.samehadaku)}&urlOtakudesu=${encodeURIComponent(urls.otakudesu)}`;
-    cacheKey = `episodes_merged_${urls.samehadaku}_${urls.otakudesu}`;
+  if (urls && (urls.samehadaku || urls.otakudesu || urls.kuronime)) {
+    url = `${API.episodes}?`;
+    if (urls.samehadaku) url += `urlSamehadaku=${encodeURIComponent(urls.samehadaku)}&`;
+    if (urls.otakudesu) url += `urlOtakudesu=${encodeURIComponent(urls.otakudesu)}&`;
+    if (urls.kuronime) url += `urlKuronime=${encodeURIComponent(urls.kuronime)}&`;
+    url = url.replace(/&$/, ''); // remove trailing ampersand
+    
+    cacheKey = `episodes_merged_${urls.samehadaku || ''}_${urls.otakudesu || ''}_${urls.kuronime || ''}`;
   }
   
   return fetchWithCache<EpisodesResponse>(url, cacheKey, 86400000, signal); // Cache 24 jam
