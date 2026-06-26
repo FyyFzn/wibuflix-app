@@ -240,6 +240,7 @@ export async function fetchSmartPlay(
   seriesTitle?: string,
   episodeTitle?: string,
   uniqueId?: string,
+  urls?: string,
 ): Promise<SmartPlayResponse> {
   let url = `${getApiBase()}/api/smart-play?episodeUrl=${encodeURIComponent(episodeUrl)}`;
   if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
@@ -247,6 +248,7 @@ export async function fetchSmartPlay(
   if (seriesTitle) url += `&seriesTitle=${encodeURIComponent(seriesTitle)}`;
   if (episodeTitle) url += `&episodeTitle=${encodeURIComponent(episodeTitle)}`;
   if (uniqueId) url += `&uniqueId=${encodeURIComponent(uniqueId)}`;
+  if (urls) url += `&urls=${encodeURIComponent(urls)}`;
 
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

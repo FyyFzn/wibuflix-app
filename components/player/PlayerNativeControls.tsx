@@ -42,7 +42,7 @@ interface PlayerNativeControlsProps {
   handleSkipED: (e: any) => void;
 }
 
-export default function PlayerNativeControls({
+const PlayerNativeControls = React.memo(function PlayerNativeControls({
   player, status, title, isFullscreen, controlsVisible, isPlaying, currentPosition, totalDuration,
   playbackSpeed, activeServerName, activeHostItems, episodes, navPrev, navNext,
   skipInfo, rippleAnim, isSkipOPVisible, isSkipEDVisible,
@@ -212,4 +212,6 @@ export default function PlayerNativeControls({
       )}
     </Pressable>
   );
-}
+});
+
+export default PlayerNativeControls;

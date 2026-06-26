@@ -95,6 +95,7 @@ export function useServerPlayback(state: any, player: any) {
         params.seriJudul as string,
         params.judul as string,
         params.uniqueId as string,
+        params.urls as string,
       ).catch(e => {
         console.log('[Fast Smart-Play Error]', e.message);
         return null;
@@ -161,6 +162,7 @@ export function useServerPlayback(state: any, player: any) {
              params.seriJudul as string,
              (params.judul || data.judul) as string,
              params.uniqueId as string,
+             params.urls as string,
            ).catch(() => {}); // fire-and-forget
          }
 
@@ -181,6 +183,7 @@ export function useServerPlayback(state: any, player: any) {
                   params.seriJudul as string,
                   (params.judul || data.judul) as string,
                   params.uniqueId as string,
+                  params.urls as string,
                 );
                 if (!state.isMounted.current || signal.aborted) return;
                 

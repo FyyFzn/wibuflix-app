@@ -526,10 +526,15 @@ export default function PlayerScreen() {
   }, [state.servers]);
 
   useEffect(() => {
-    if (availableSources.length > 0 && !availableSources.includes(state.serverTab)) {
-      state.setServerTab(availableSources[0]);
+    if (availableSources.length > 0) {
+      const preferred = params.url?.includes('otakudesu') || params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : (params.url?.includes('kuronime') ? 'Kuronime' : (params.url?.includes('neosatsu') ? 'Neosatsu' : 'Samehadaku'));
+      if (availableSources.includes(preferred) && state.serverTab === 'Samehadaku' && preferred !== 'Samehadaku') {
+        state.setServerTab(preferred);
+      } else if (!availableSources.includes(state.serverTab)) {
+        state.setServerTab(availableSources[0]);
+      }
     }
-  }, [availableSources, state.serverTab]);
+  }, [availableSources, state.serverTab, params.url, params.seriUrl]);
 
   const visibleServers = React.useMemo(() => {
     return state.servers.filter(s => (s.source || 'Samehadaku') === state.serverTab);
