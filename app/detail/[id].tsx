@@ -80,10 +80,12 @@ export default function AnimeDetailScreen() {
 
       // Jika ada data sources di Zustand store (dan pastikan url-nya cocok untuk menghindari bug state nyangkut)
       if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
+        const otakuId = selectedAnime.sources.otakudesu?.id;
+        const otakuUrl = selectedAnime.sources.otakudesu?.url;
         urlsObj = {
-          samehadaku: selectedAnime.sources.samehadaku?.url,
-          otakudesu: selectedAnime.sources.otakudesu ? `/anime/${selectedAnime.sources.otakudesu.id}` : undefined,
-          kuronime: selectedAnime.sources.kuronime?.url
+          samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
+          otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
+          kuronime: selectedAnime.sources.kuronime?.url || undefined
         };
       }
 

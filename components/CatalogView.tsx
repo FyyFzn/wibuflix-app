@@ -321,7 +321,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={5}
-          removeClippedSubviews={true}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
