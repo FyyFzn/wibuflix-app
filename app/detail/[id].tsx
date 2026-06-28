@@ -74,20 +74,20 @@ export default function AnimeDetailScreen() {
     setLoading(true);
     setError(null);
 
-    try {
-      const selectedAnime = useAnimeStore.getState().selectedAnime;
-      let urlsObj = undefined;
+    const selectedAnime = useAnimeStore.getState().selectedAnime;
+    let urlsObj = undefined;
+    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
+      const otakuId = selectedAnime.sources.otakudesu?.id;
+      const otakuUrl = selectedAnime.sources.otakudesu?.url;
+      urlsObj = {
+        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
+        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
+        kuronime: selectedAnime.sources.kuronime?.url || undefined
+      };
+    }
+    const seriUrlsJson = urlsObj ? JSON.stringify(urlsObj) : params.sources;
 
-      // Jika ada data sources di Zustand store (dan pastikan url-nya cocok untuk menghindari bug state nyangkut)
-      if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
-        const otakuId = selectedAnime.sources.otakudesu?.id;
-        const otakuUrl = selectedAnime.sources.otakudesu?.url;
-        urlsObj = {
-          samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
-          otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
-          kuronime: selectedAnime.sources.kuronime?.url || undefined
-        };
-      }
+    try {
 
       // --- Client-Side Stale-While-Revalidate ---
       try {
@@ -169,11 +169,26 @@ export default function AnimeDetailScreen() {
     const historyItem = riwayat.find(r => r.seriUrl === params.url);
     const host = historyItem?.host || '';
 
+    const selectedAnime = useAnimeStore.getState().selectedAnime;
+    let seriUrlsObj: any = undefined;
+    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
+      const otakuId = selectedAnime.sources.otakudesu?.id;
+      const otakuUrl = selectedAnime.sources.otakudesu?.url;
+      seriUrlsObj = {
+        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
+        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
+        kuronime: selectedAnime.sources.kuronime?.url || undefined
+      };
+    }
+    const seriUrlsJson = seriUrlsObj ? JSON.stringify(seriUrlsObj) : params.sources;
+
     router.push({
       pathname: '/player',
       params: {
         url: realUrl,
         urls: urlsJson,
+        seriUrls: seriUrlsJson,
+        sources: params.sources,
         gambar: coverImage,
         seriUrl: params.url,
         judul: judul,
@@ -182,7 +197,7 @@ export default function AnimeDetailScreen() {
         uniqueId: malInfo?.malId ? `mal-${malInfo.malId}` : undefined
       },
     });
-  }, [params.url, coverImage, judulSeri, malInfo]);
+  }, [params.url, params.sources, coverImage, judulSeri, malInfo]);
 
   const handleQueuePress = useCallback(async (realUrl: string, judul: string) => {
     try {
@@ -343,10 +358,25 @@ export default function AnimeDetailScreen() {
                 <TouchableOpacity
                   style={styles.resumeBtn}
                   onPress={() => {
+                    const selectedAnime = useAnimeStore.getState().selectedAnime;
+                    let seriUrlsObj: any = undefined;
+                    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
+                      const otakuId = selectedAnime.sources.otakudesu?.id;
+                      const otakuUrl = selectedAnime.sources.otakudesu?.url;
+                      seriUrlsObj = {
+                        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
+                        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
+                        kuronime: selectedAnime.sources.kuronime?.url || undefined
+                      };
+                    }
+                    const seriUrlsJson = seriUrlsObj ? JSON.stringify(seriUrlsObj) : params.sources;
+
                     router.push({
                       pathname: '/player',
                       params: {
                         url: lastWatched.url,
+                        seriUrls: seriUrlsJson,
+                        sources: params.sources,
                         gambar: lastWatched.gambar,
                         seriUrl: lastWatched.seriUrl,
                         seriJudul: lastWatched.judulSeri,

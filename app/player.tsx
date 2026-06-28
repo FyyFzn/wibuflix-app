@@ -45,13 +45,13 @@ const getHostName = (srv: ServerItem) => {
 export default function PlayerScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ url: string; urls?: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; uniqueId?: string; }>();
+  const params = useLocalSearchParams<{ url: string; urls?: string; seriUrls?: string; sources?: string; gambar: string; seriUrl: string; judul: string; seriJudul?: string; autoPlayHost?: string; autoFullscreen?: string; uniqueId?: string; }>();
 
   // 1. Initialize State Hook
   const state = usePlayerState(params.judul || '');
 
   // 2. Initialize Navigation Hook
-  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null, params.urls);
+  const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null, params.seriUrls || params.sources || params.urls);
 
 
   const isAzureBlob = state.nativeVideoUrl && state.nativeVideoUrl.includes('.blob.core.windows.net');
@@ -324,6 +324,8 @@ export default function PlayerScreen() {
           url: finalUrl,
           gambar: params.gambar,
           seriUrl: params.seriUrl,
+          seriUrls: params.seriUrls,
+          sources: params.sources,
           judul: nextJudul,
           seriJudul: params.seriJudul,
           urls: nextUrls,
