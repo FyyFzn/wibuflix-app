@@ -51,11 +51,12 @@ export default function PlayerWebView({
     injectedJS += `
       setInterval(() => {
         try {
-          const overlays = document.querySelectorAll('div, iframe');
+          const overlays = document.querySelectorAll('div:not([data-cleaned]), iframe:not([data-cleaned])');
           overlays.forEach(o => {
              const z = window.getComputedStyle(o).zIndex;
              if (z && !isNaN(z) && parseInt(z) > 1000 && o.id !== 'vjs_video_3') {
                 o.style.display = 'none';
+                o.setAttribute('data-cleaned', '1');
              }
           });
         } catch(e){}
@@ -69,19 +70,20 @@ export default function PlayerWebView({
         try {
           // Hapus popup "Klik Disini" dan Copyright (khusus acefile)
           if (window.location.href.includes('acefile')) {
-            const texts = Array.from(document.querySelectorAll('div, span, a, p'));
+            const texts = document.querySelectorAll('div:not([data-cleaned]), span:not([data-cleaned]), p:not([data-cleaned])');
             for (const el of texts) {
               if (el.innerText && (el.innerText.includes('untuk menyalin dan memutar') || el.innerText.includes('Copyright ©') || el.innerText.includes('login terlebih dahulu'))) {
                 if (!el.querySelector('video') && !el.querySelector('iframe')) {
                   el.style.display = 'none';
                   el.style.pointerEvents = 'none';
+                  el.setAttribute('data-cleaned', '1');
                 }
               }
             }
           }
           // Jika video (Default server) sedang berjalan, paksa fullscreen
           const v = document.querySelector('video');
-          if (v && v.currentTime > 0) {
+          if (v && v.currentTime > 0 && !v.dataset.fsFixed) {
             v.style.position = 'fixed';
             v.style.top = '0px';
             v.style.left = '0px';
@@ -90,10 +92,11 @@ export default function PlayerWebView({
             v.style.zIndex = '2147483647';
             v.style.background = 'black';
             v.style.objectFit = 'contain';
+            v.dataset.fsFixed = '1';
           }
           // Jika menggunakan Mirror 2 (muncul iframe player baru), paksa iframe tersebut fullscreen
-          const iframes = Array.from(document.querySelectorAll('iframe'));
-          for (const frame of iframes) {
+          const iframes = document.querySelectorAll('iframe:not([data-fs-fixed])');
+          for (const frame of Array.from(iframes)) {
              const h = frame.getAttribute('height');
              const w = frame.getAttribute('width');
              // Abaikan iframe tracking/invisible
@@ -106,10 +109,11 @@ export default function PlayerWebView({
                 frame.style.zIndex = '2147483646';
                 frame.style.background = 'black';
                 frame.style.border = 'none';
+                frame.setAttribute('data-fs-fixed', '1');
              }
           }
         } catch(e){}
-      }, 500);
+      }, 1000);
     `;
   }
 

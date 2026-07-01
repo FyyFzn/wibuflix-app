@@ -179,7 +179,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     });
   };
 
-  const renderItem = ({ item }: { item: AnimeItem }) => (
+  const renderItem = useCallback(({ item }: { item: AnimeItem }) => (
     <AnimeCard
       judul={item.judul}
       gambar={item.gambar}
@@ -188,7 +188,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
       status={item.status}
       onPress={() => handleAnimePress(item)}
     />
-  );
+  ), []);
 
   return (
     <View style={localStyles.container}>
@@ -313,7 +313,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
           ref={flatListRef}
           data={animeList}
           renderItem={renderItem}
-          keyExtractor={(item, index) => item.url + index}
+          keyExtractor={(item, index) => item.url || index.toString()}
           numColumns={NUM_COLUMNS}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
@@ -321,7 +321,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={5}
-          removeClippedSubviews={false}
+          removeClippedSubviews={true}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

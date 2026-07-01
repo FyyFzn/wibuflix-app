@@ -35,7 +35,7 @@ function getBadgeColor(tipe: string): string {
   return Colors.teal;
 }
 
-export default function AnimeCard({
+const AnimeCard = React.memo(function AnimeCard({
   judul,
   gambar,
   tipe,
@@ -116,7 +116,7 @@ export default function AnimeCard({
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -231,3 +231,5 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 });
+
+export default AnimeCard;
