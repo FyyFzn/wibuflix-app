@@ -167,11 +167,26 @@ export default function BerandaScreen() {
     </View>
   );
 
-  const renderSection = (title: string, data: any[], renderFn: any) => {
+  const renderSection = (title: string, data: any[], renderFn: any, typeKey?: string) => {
     if (data.length === 0) return null;
     return (
       <View style={styles.horizontalSection}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          {typeKey && (
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: '/list/[type]',
+                  params: { type: typeKey, headerTitle: title },
+                })
+              }
+              activeOpacity={0.7}
+            >
+              <Text style={styles.seeAllText}>Lihat Semua ➔</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <FlatList
           data={data}
           renderItem={renderFn}
@@ -229,8 +244,8 @@ export default function BerandaScreen() {
           }
         >
           {renderSection("Sedang Populer 🔥", hotAnime, renderHotItem)}
-          {renderSection("Anime Terbaru 📺", latestAnime, renderHorizontalItem)}
-          {renderSection("Tokusatsu Terbaru 🏍️", latestToku, renderHorizontalItem)}
+          {renderSection("Anime Terbaru 📺", latestAnime, renderHorizontalItem, "latest_anime")}
+          {renderSection("Tokusatsu Terbaru 🏍️", latestToku, renderHorizontalItem, "latest_toku")}
           {renderSection("Rekomendasi Acak 🎲", randomAnime, renderHorizontalItem)}
         </ScrollView>
       )}
@@ -271,13 +286,23 @@ const styles = StyleSheet.create({
   horizontalSection: {
     marginBottom: Spacing.xl,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: '#fff',
     letterSpacing: 1,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+  },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   horizontalList: {
     paddingHorizontal: Spacing.lg,

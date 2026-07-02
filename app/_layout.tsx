@@ -49,6 +49,13 @@ export default function RootLayout() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="list/[type]"
+          options={{
+            headerTitle: 'Daftar',
+            headerBackTitle: 'Kembali',
+          }}
+        />
       </Stack>
     </View>
   );

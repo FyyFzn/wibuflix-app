@@ -120,21 +120,18 @@ export default function PlayerScreen() {
           finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || safeUrl;
       }
 
-      router.replace({
-        pathname: '/player',
-        params: {
-          url: finalUrl,
-          gambar: params.gambar,
-          seriUrl: params.seriUrl,
-          seriUrls: params.seriUrls,
-          sources: params.sources,
-          judul: nextJudul,
-          seriJudul: params.seriJudul,
-          urls: nextUrls,
-          autoPlayHost: state.preferredHostRef.current || state.activeHost,
-          autoFullscreen: isFullscreen ? '1' : '0',
-          uniqueId: params.uniqueId
-        }
+      router.setParams({
+        url: finalUrl,
+        gambar: params.gambar,
+        seriUrl: params.seriUrl,
+        seriUrls: params.seriUrls,
+        sources: params.sources,
+        judul: nextJudul,
+        seriJudul: params.seriJudul,
+        urls: nextUrls,
+        autoPlayHost: state.preferredHostRef.current || state.activeHost,
+        autoFullscreen: isFullscreen ? '1' : '0',
+        uniqueId: params.uniqueId
       });
     }, 500);
   }, [stopAllMedia, state, episodes, router, params, isFullscreen]);
@@ -259,6 +256,11 @@ export default function PlayerScreen() {
     isFullscreenRef.current = isFullscreen;
   }, [isFullscreen]);
 
+  const handleUIBackPressRef = useRef(handleUIBackPress);
+  useEffect(() => {
+    handleUIBackPressRef.current = handleUIBackPress;
+  }, [handleUIBackPress]);
+
   useFocusEffect(
     useCallback(() => {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -266,11 +268,11 @@ export default function PlayerScreen() {
           exitFullscreen();
           return true;
         }
-        handleUIBackPress();
+        handleUIBackPressRef.current();
         return true;
       });
       return () => backHandler.remove();
-    }, [handleUIBackPress, exitFullscreen])
+    }, [exitFullscreen])
   );
 
   // Cross-Source Prefetch logic
