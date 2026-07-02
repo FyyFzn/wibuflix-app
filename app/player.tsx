@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Dimensions, BackHandler, useWindowDimensions, Animated
+  View, Text, TouchableOpacity, StatusBar, BackHandler, useWindowDimensions
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -12,35 +12,22 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { styles } from '../styles/playerStyles';
 import { Colors } from '../styles/theme';
-import { ServerItem, cancelUploads } from '../services/api';
-import { updateProgress, getProgress, formatDuration } from '../services/storage';
+import { cancelUploads } from '../services/api';
+import { getProgress, formatDuration } from '../services/storage';
 import PlayerNativeControls from '../components/player/PlayerNativeControls';
 import PlayerWebView from '../components/player/PlayerWebView';
 import PlayerModals from '../components/player/PlayerModals';
+import PlayerLoadingOverlay from '../components/player/PlayerLoadingOverlay';
+import PlayerBottomInfo from '../components/player/PlayerBottomInfo';
 
-// Custom Hooks
+// Custom Hooks & Utilities
 import { usePlayerState } from '../hooks/usePlayerState';
 import { useServerPlayback } from '../hooks/useServerPlayback';
 import { useDoubleTapSkip } from '../hooks/useDoubleTapSkip';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpisodeNavigation } from '../hooks/useEpisodeNavigation';
-
-const getHostName = (srv: ServerItem) => {
-  if (srv.namaHost) return srv.namaHost.toLowerCase();
-  const nama = srv.nama || '';
-  const parts = nama.split('·');
-  let candidate = (parts[parts.length - 1].trim().split(' ')[0] || 'unknown').toLowerCase();
-
-  if (candidate === 'server' || candidate === 'unknown') {
-    candidate = 'alternatif';
-  }
-
-  if (srv.source && srv.source === 'Otakudesu') {
-    candidate = `[otaku] ${candidate}`;
-  }
-
-  return candidate;
-};
+import { useProgressSync } from '../hooks/useProgressSync';
+import { getHostName, generateInjectedJS } from '../utils/playerScripts';
 
 export default function PlayerScreen() {
   const router = useRouter();
@@ -53,12 +40,10 @@ export default function PlayerScreen() {
   // 2. Initialize Navigation Hook
   const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null, params.seriUrls || params.sources || params.urls);
 
-
   const isAzureBlob = state.nativeVideoUrl && state.nativeVideoUrl.includes('.blob.core.windows.net');
   let videoSource = null;
   if (state.nativeVideoUrl) {
     if (isAzureBlob) {
-      // JANGAN sertakan properti headers sama sekali untuk Azure Blob
       videoSource = { uri: state.nativeVideoUrl };
     } else {
       videoSource = {
@@ -99,11 +84,71 @@ export default function PlayerScreen() {
     } catch (e) { }
   }, [player]);
 
-  const saveCurrentProgress = useCallback(async () => {
-    if (state.currentEpisodeUrlRef.current && state.lastKnownPositionRef.current > 0) {
-      await updateProgress(state.currentEpisodeUrlRef.current, state.lastKnownPositionRef.current, state.totalDuration, state.activeHost);
-    }
-  }, [state.totalDuration, state.activeHost]);
+  const navigateEpisode = useCallback((url: string) => {
+    stopAllMedia();
+    setTimeout(() => {
+      state.setShowEpisodesModal(false);
+      if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+
+      let safeUrl = url;
+      if (safeUrl.includes('#neosatsu_ep_')) {
+        safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
+      }
+
+      const targetEp = episodes.find(e => {
+        const urlsToCheck = [
+          e.urls?.kuronime,
+          e.url,
+          e.urls?.samehadaku,
+          e.urls?.otakudesu,
+          e.urls?.neosatsu
+        ].filter(Boolean).map(u => decodeURIComponent(u as string));
+
+        return urlsToCheck.some(epUrl => {
+          if (epUrl === url) return true;
+          if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
+            return epUrl.split('#')[1] === url.split('#')[1];
+          }
+          return false;
+        });
+      });
+      const nextJudul = targetEp ? targetEp.judul : '';
+      const nextUrls = targetEp?.urls ? JSON.stringify(targetEp.urls) : undefined;
+      
+      let finalUrl = safeUrl;
+      if (targetEp) {
+          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || safeUrl;
+      }
+
+      router.replace({
+        pathname: '/player',
+        params: {
+          url: finalUrl,
+          gambar: params.gambar,
+          seriUrl: params.seriUrl,
+          seriUrls: params.seriUrls,
+          sources: params.sources,
+          judul: nextJudul,
+          seriJudul: params.seriJudul,
+          urls: nextUrls,
+          autoPlayHost: state.preferredHostRef.current || state.activeHost,
+          autoFullscreen: isFullscreen ? '1' : '0',
+          uniqueId: params.uniqueId
+        }
+      });
+    }, 500);
+  }, [stopAllMedia, state, episodes, router, params, isFullscreen]);
+
+  // 6. Progress Synchronization Hook
+  const { saveCurrentProgress } = useProgressSync({
+    status,
+    player,
+    isPlaying,
+    state,
+    url: params.url as string,
+    navNext,
+    navigateEpisode,
+  });
 
   // Handle native player status / auto-webview fallback
   useEffect(() => {
@@ -157,56 +202,6 @@ export default function PlayerScreen() {
     state.setShowSpeedModal(false);
   };
 
-  // Restore saved progress
-  useEffect(() => {
-    if (status === 'readyToPlay' && state.nativeVideoUrl) {
-      if (player.duration) {
-        state.setTotalDuration(Math.floor(player.duration));
-      }
-
-      if (state.restoredVideoUrl !== state.nativeVideoUrl && state.savedProgress > 5) {
-        console.log(`[Resume] Seeking to ${state.savedProgress}s on ${state.nativeVideoUrl.substring(0, 60)}`);
-        player.currentTime = state.savedProgress;
-        state.setRestoredVideoUrl(state.nativeVideoUrl);
-
-        const retryTimer = setTimeout(() => {
-          try {
-            if (Math.floor(player.currentTime) < state.savedProgress - 3) {
-              console.log(`[Resume] Retry seek to ${state.savedProgress}s (was at ${Math.floor(player.currentTime)}s)`);
-              player.currentTime = state.savedProgress;
-            }
-          } catch { }
-        }, 1500);
-        return () => clearTimeout(retryTimer);
-      }
-    }
-  }, [status, player, state.savedProgress, state.restoredVideoUrl, state.nativeVideoUrl]);
-
-  // Progress tracking interval
-  useEffect(() => {
-    if (state.playerMode === 'native' && isPlaying) {
-      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
-      state.progressIntervalRef.current = setInterval(() => {
-        try {
-          const curr = Math.floor(player.currentTime || 0);
-          state.setCurrentPosition(curr);
-          state.lastKnownPositionRef.current = curr;
-          if (curr > 0 && params.url) {
-            updateProgress(params.url, curr, Math.floor(player.duration || 0));
-          }
-        } catch (e) {
-          if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
-        }
-      }, 1000);
-    } else {
-      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
-    }
-
-    return () => {
-      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
-    };
-  }, [state.playerMode, isPlaying, params.url, player]);
-
   // Load episode on mount or params.url change
   useEffect(() => {
     state.isMounted.current = true;
@@ -241,7 +236,6 @@ export default function PlayerScreen() {
         state.abortControllerRef.current.abort();
       }
       saveCurrentProgress();
-      if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
     };
   }, [params.url]);
 
@@ -258,7 +252,7 @@ export default function PlayerScreen() {
     } catch (e) {
       router.replace('/');
     }
-  }, [saveCurrentProgress, router]);
+  }, [saveCurrentProgress, stopAllMedia, router]);
 
   const isFullscreenRef = useRef(isFullscreen);
   useEffect(() => {
@@ -270,7 +264,7 @@ export default function PlayerScreen() {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         if (isFullscreenRef.current) {
           exitFullscreen();
-          return true; // Hanya kembalikan ke portrait, jangan keluar player
+          return true;
         }
         handleUIBackPress();
         return true;
@@ -279,65 +273,7 @@ export default function PlayerScreen() {
     }, [handleUIBackPress, exitFullscreen])
   );
 
-  const navigateEpisode = (url: string) => {
-    stopAllMedia();
-    setTimeout(() => {
-      state.setShowEpisodesModal(false);
-      saveCurrentProgress();
-      if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
-
-      let safeUrl = url;
-      if (safeUrl.includes('#neosatsu_ep_')) {
-        safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
-      }
-
-      // Cari episode target — support mode merge (e.urls) maupun legacy (e.url)
-      const targetEp = episodes.find(e => {
-        const urlsToCheck = [
-          e.urls?.kuronime,
-          e.url,
-          e.urls?.samehadaku,
-          e.urls?.otakudesu,
-          e.urls?.neosatsu
-        ].filter(Boolean).map(u => decodeURIComponent(u as string));
-
-        return urlsToCheck.some(epUrl => {
-          if (epUrl === url) return true;
-          // Handle neosatsu #fragment URL
-          if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
-            return epUrl.split('#')[1] === url.split('#')[1];
-          }
-          return false;
-        });
-      });
-      const nextJudul = targetEp ? targetEp.judul : '';
-      const nextUrls = targetEp?.urls ? JSON.stringify(targetEp.urls) : undefined;
-      
-      let finalUrl = safeUrl;
-      if (targetEp) {
-          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || safeUrl;
-      }
-
-      router.replace({
-        pathname: '/player',
-        params: {
-          url: finalUrl,
-          gambar: params.gambar,
-          seriUrl: params.seriUrl,
-          seriUrls: params.seriUrls,
-          sources: params.sources,
-          judul: nextJudul,
-          seriJudul: params.seriJudul,
-          urls: nextUrls,
-          autoPlayHost: state.preferredHostRef.current || state.activeHost,
-          autoFullscreen: isFullscreen ? '1' : '0',
-          uniqueId: params.uniqueId
-        }
-      });
-    }, 500);
-  };
-
-  // Cross-Source Prefetch logic: Trigger SmartPlay background prefetch when Unified navNext is available
+  // Cross-Source Prefetch logic
   useEffect(() => {
     if (status === 'readyToPlay' && state.playerMode === 'native' && navNext) {
       console.log(`[Unified Prefetch] Memastikan episode selanjutnya diprefetch lintas server: ${navNext}`);
@@ -353,16 +289,6 @@ export default function PlayerScreen() {
       });
     }
   }, [status, state.playerMode, navNext]);
-
-  // Auto-next logic
-  useEffect(() => {
-    if (state.totalDuration > 0 && state.currentPosition > 0 && navNext) {
-      if (state.currentPosition >= state.totalDuration - 2) {
-        console.log('[Auto-Next] Triggered navigateEpisode');
-        navigateEpisode(navNext);
-      }
-    }
-  }, [state.currentPosition, state.totalDuration, navNext]);
 
   const isSkipOPVisible = state.controlsVisible && state.totalDuration > 0 && state.currentPosition < 360;
   const isSkipEDVisible = state.controlsVisible && state.totalDuration > 0 && state.currentPosition >= state.totalDuration - 90 && state.currentPosition < state.totalDuration - 2;
@@ -424,103 +350,12 @@ export default function PlayerScreen() {
     ? { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#000' }
     : { height: (screenWidth * 9) / 16 };
 
-  // WebView Javascript setup
+  // WebView Javascript setup via helper
   const activeHostItems = state.servers.filter(s => getHostName(s) === state.activeHost);
-  const isBlogger = state.activeHost.toLowerCase().includes('blog');
-  const isVidhide = state.activeHost.toLowerCase().includes('vidhide') || state.activeHost.toLowerCase().includes('vidlion');
-  const isGdrive = state.activeHost.toLowerCase().includes('drive') || state.activeHost.toLowerCase().includes('gdrive');
-  const isMega = state.activeHost.toLowerCase().includes('mega');
-
-  let injectedJS = `
-    window.open = function() { return null; };
-    window.hasRestoredProgress = false;
-    document.addEventListener('click', function(e) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({type: 'webviewClick'}));
-    }, true);
-    document.addEventListener('touchstart', function(e) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'webviewClick' }));
-    }, {passive: true, capture: true});
-
-    ['fullscreenchange', 'webkitfullscreenchange'].forEach(evt => {
-      document.addEventListener(evt, () => {
-        const isFS = document.fullscreenElement || document.webkitFullscreenElement;
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: isFS ? 'fullscreen' : 'exitFullscreen' }));
-      });
-    });
-  `;
-
-  if (isBlogger || isGdrive) {
-    injectedJS += `
-      let extracted = false;
-      setInterval(() => {
-        if(extracted) return;
-        try {
-          const playBtn = document.querySelector('.ytp-large-play-button, .play-button, button, .ndfHFb-c4YZDc-Wrql6b, [role="button"]');
-          if (playBtn) playBtn.click();
-          
-          const v = document.querySelector('video');
-          if (v && v.src && v.src.startsWith('http') && !v.src.startsWith('blob:')) {
-            extracted = true;
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'videoUrl', url: v.src }));
-          }
-        } catch(e){}
-      }, 500);
-    `;
-  }
-
-  if (isVidhide) {
-    injectedJS += `
-      setInterval(() => {
-        try {
-          const overlays = document.querySelectorAll('div, iframe');
-          overlays.forEach(o => {
-             const z = window.getComputedStyle(o).zIndex;
-             if (z && !isNaN(z) && parseInt(z) > 1000 && o.id !== 'vjs_video_3') {
-                o.style.display = 'none';
-              }
-          });
-        } catch(e){}
-      }, 1000);
-    `;
-  }
-
-  if (isMega) {
-    injectedJS += `
-      const meta = document.createElement('meta');
-      meta.name = 'viewport';
-      meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-      document.head.appendChild(meta);
-    `;
-  }
-
-  if (!isBlogger && !isGdrive) {
-    injectedJS += `
-      console.log('[InjectedJS] savedProgress=${state.savedProgress}');
-      setInterval(() => {
-        try {
-          const v = document.querySelector('video');
-          if (v) {
-             if (v.paused) {
-                v.play().catch(()=>{});
-             }
-             if (!window.hasRestoredProgress && ${state.savedProgress} > 5 && v.readyState >= 1) {
-                v.currentTime = ${state.savedProgress};
-                window.hasRestoredProgress = true;
-             }
-             if (v.currentTime > 5 && v.duration > 0 && !v.paused) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ 
-                   type: 'progress', 
-                   currentTime: v.currentTime, 
-                   duration: v.duration 
-                }));
-             }
-          }
-        } catch(e){}
-      }, 1000);
-    `;
-  }
-
-  injectedJS += "true;";
+  const { injectedJS, isBlogger } = generateInjectedJS({
+    activeHost: state.activeHost,
+    savedProgress: state.savedProgress,
+  });
 
   const availableSources = React.useMemo(() => {
     const sources = new Set(state.servers.map(s => s.source || 'Samehadaku'));
@@ -538,10 +373,6 @@ export default function PlayerScreen() {
     }
   }, [availableSources, state.serverTab, params.url, params.seriUrl]);
 
-  const visibleServers = React.useMemo(() => {
-    return state.servers.filter(s => (s.source || 'Samehadaku') === state.serverTab);
-  }, [state.servers, state.serverTab]);
-
   const getResName = (nama: string) => {
     const p = nama.split('·');
     return p[0]?.trim() || 'Default';
@@ -549,11 +380,7 @@ export default function PlayerScreen() {
 
   return (
     <>
-      <StatusBar
-        hidden={isFullscreen}
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar hidden={isFullscreen} translucent backgroundColor="transparent" />
       <SafeAreaView style={styles.container} edges={isFullscreen ? [] : ['top']}>
         {!isFullscreen && (
           <View style={styles.header}>
@@ -565,32 +392,11 @@ export default function PlayerScreen() {
         )}
 
         <View style={[styles.playerWrapper, playerWrapperStyle]}>
-          {(state.loading || state.playerLoading) && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={Colors.accent} style={{ marginBottom: 16 }} />
-              {state.uploadProgress ? (
-                <View style={{
-                  backgroundColor: 'rgba(0,0,0,0.6)',
-                  borderRadius: 12,
-                  padding: 16,
-                  borderWidth: 1,
-                  borderColor: Colors.border2,
-                  alignItems: 'center',
-                  gap: 8
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="cloud-upload" size={20} color={Colors.accent} />
-                    <Text style={{ color: Colors.white, fontSize: 15, fontWeight: 'bold' }}>Memproses Video ke Azure</Text>
-                  </View>
-                  <Text style={{ color: Colors.textMuted, fontSize: 13, textAlign: 'center' }}>
-                    {state.uploadProgress}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.overlayText}>{state.loading ? 'Mencari server...' : 'Menyiapkan video...'}</Text>
-              )}
-            </View>
-          )}
+          <PlayerLoadingOverlay
+            loading={state.loading}
+            playerLoading={state.playerLoading}
+            uploadProgress={state.uploadProgress}
+          />
 
           {state.playerMode === 'native' && state.nativeVideoUrl ? (
             <View style={{ flex: 1 }}>
@@ -647,56 +453,11 @@ export default function PlayerScreen() {
         </View>
 
         {!isFullscreen && (
-          <ScrollView style={styles.controlsContainer} contentContainerStyle={styles.controlsContent}>
-            <View style={{
-              backgroundColor: Colors.surface,
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: Colors.border2,
-              marginTop: 10,
-              gap: 12,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 6,
-              elevation: 4
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="sparkles" size={20} color={Colors.accent} />
-                <Text style={{ color: Colors.white, fontSize: 16, fontWeight: 'bold' }}>Smart Auto-Play Premium</Text>
-              </View>
-              <Text style={{ color: Colors.textMuted, fontSize: 13, lineHeight: 18 }}>
-                Sistem secara otomatis memilih resolusi terbaik dan mengalirkan video secara stabil langsung ke Cloud Storage.
-              </Text>
-              <View style={{ height: 1, backgroundColor: Colors.border2, marginVertical: 4 }} />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View>
-                  <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Status Koneksi</Text>
-                  <Text style={{ color: Colors.white, fontSize: 14, fontWeight: '600', marginTop: 2 }}>Terhubung (Direct Stream)</Text>
-                </View>
-                <View style={{
-                  backgroundColor: 'rgba(46,196,182,0.15)',
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 20,
-                  borderWidth: 1,
-                  borderColor: '#2EC4B6'
-                }}>
-                  <Text style={{ color: '#2EC4B6', fontSize: 11, fontWeight: 'bold' }}>READY</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.navRow}>
-              <TouchableOpacity style={[styles.navBtn, !navPrev && styles.navBtnDisabled]} onPress={() => navPrev && navigateEpisode(navPrev)} disabled={!navPrev}>
-                <Text style={[styles.navBtnText, !navPrev && styles.navBtnTextDisabled]}>« Episode Sebelumnya</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.navBtn, !navNext && styles.navBtnDisabled]} onPress={() => navNext && navigateEpisode(navNext)} disabled={!navNext}>
-                <Text style={[styles.navBtnText, !navNext && styles.navBtnTextDisabled]}>Episode Selanjutnya »</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+          <PlayerBottomInfo
+            navPrev={navPrev}
+            navNext={navNext}
+            navigateEpisode={navigateEpisode}
+          />
         )}
 
         <PlayerModals
@@ -708,7 +469,6 @@ export default function PlayerScreen() {
           showSpeedModal={state.showSpeedModal} setShowSpeedModal={state.setShowSpeedModal}
           playbackSpeed={state.playbackSpeed} changeSpeed={changeSpeed}
         />
-
       </SafeAreaView>
     </>
   );

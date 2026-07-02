@@ -126,7 +126,37 @@ export interface ExtractVideoResponse {
 // ── API Functions ──────────────────────────────────────────
 
 // Memori cache untuk performa (mengurangi block I/O pada AsyncStorage)
-const memoryCache = new Map<string, { timestamp: number; data: any }>();
+class LRUMemoryCache<K, V> {
+  private cache = new Map<K, V>();
+  private max: number;
+
+  constructor(max: number = 50) {
+    this.max = max;
+  }
+
+  get(key: K): V | undefined {
+    const item = this.cache.get(key);
+    if (item !== undefined) {
+      this.cache.delete(key);
+      this.cache.set(key, item);
+    }
+    return item;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.max) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
+}
+
+const memoryCache = new LRUMemoryCache<string, { timestamp: number; data: any }>(50);
 
 function isCacheValid(data: any): boolean {
   if (!data || data.status === 'error') return false;
