@@ -1,4 +1,4 @@
-name: Wibuflix Frontend CD (EAS Build & Update)
+name: Wibuflix CI/CD Pipeline
 
 on:
   push:
@@ -16,7 +16,7 @@ on:
           - build-production (Buat file AAB Android untuk Play Store)
 
 jobs:
-  deploy-or-build:
+  validate-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,6 +38,9 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: Validate TypeScript Syntax (CI Check)
+        run: npx tsc --noEmit
 
       - name: Deploy OTA Update (Android Preview)
         if: github.event_name == 'push' || startsWith(github.event.inputs.action_type, 'update')
