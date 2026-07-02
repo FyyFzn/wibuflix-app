@@ -45,6 +45,24 @@ export default function AnimeDetailScreen() {
   const [progressMap, setProgressMap] = useState<Record<string, EpisodeProgress>>({});
   const [lastWatched, setLastWatched] = useState<WatchHistoryItem | null>(null);
 
+  const selectedAnime = useAnimeStore((state) => state.selectedAnime);
+  const { urlsObj, seriUrlsJson } = useMemo(() => {
+    let uObj: any = undefined;
+    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
+      const otakuId = selectedAnime.sources.otakudesu?.id;
+      const otakuUrl = selectedAnime.sources.otakudesu?.url;
+      uObj = {
+        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
+        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
+        kuronime: selectedAnime.sources.kuronime?.url || undefined
+      };
+    }
+    return {
+      urlsObj: uObj,
+      seriUrlsJson: uObj ? JSON.stringify(uObj) : params.sources,
+    };
+  }, [selectedAnime, params.url, params.sources]);
+
   useEffect(() => {
     loadEpisodes();
   }, [params.url, params.sources]);
@@ -73,19 +91,6 @@ export default function AnimeDetailScreen() {
     if (!params.url) return;
     setLoading(true);
     setError(null);
-
-    const selectedAnime = useAnimeStore.getState().selectedAnime;
-    let urlsObj = undefined;
-    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
-      const otakuId = selectedAnime.sources.otakudesu?.id;
-      const otakuUrl = selectedAnime.sources.otakudesu?.url;
-      urlsObj = {
-        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
-        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
-        kuronime: selectedAnime.sources.kuronime?.url || undefined
-      };
-    }
-    const seriUrlsJson = urlsObj ? JSON.stringify(urlsObj) : params.sources;
 
     try {
 
@@ -168,19 +173,6 @@ export default function AnimeDetailScreen() {
     const riwayat = await getRiwayat();
     const historyItem = riwayat.find(r => r.seriUrl === params.url);
     const host = historyItem?.host || '';
-
-    const selectedAnime = useAnimeStore.getState().selectedAnime;
-    let seriUrlsObj: any = undefined;
-    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
-      const otakuId = selectedAnime.sources.otakudesu?.id;
-      const otakuUrl = selectedAnime.sources.otakudesu?.url;
-      seriUrlsObj = {
-        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
-        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
-        kuronime: selectedAnime.sources.kuronime?.url || undefined
-      };
-    }
-    const seriUrlsJson = seriUrlsObj ? JSON.stringify(seriUrlsObj) : params.sources;
 
     router.push({
       pathname: '/player',
@@ -358,19 +350,6 @@ export default function AnimeDetailScreen() {
                 <TouchableOpacity
                   style={styles.resumeBtn}
                   onPress={() => {
-                    const selectedAnime = useAnimeStore.getState().selectedAnime;
-                    let seriUrlsObj: any = undefined;
-                    if (selectedAnime && selectedAnime.sources && selectedAnime.url === params.url) {
-                      const otakuId = selectedAnime.sources.otakudesu?.id;
-                      const otakuUrl = selectedAnime.sources.otakudesu?.url;
-                      seriUrlsObj = {
-                        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
-                        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
-                        kuronime: selectedAnime.sources.kuronime?.url || undefined
-                      };
-                    }
-                    const seriUrlsJson = seriUrlsObj ? JSON.stringify(seriUrlsObj) : params.sources;
-
                     router.push({
                       pathname: '/player',
                       params: {
