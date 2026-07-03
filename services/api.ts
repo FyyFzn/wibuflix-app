@@ -53,9 +53,10 @@ export interface HotAnimeResponse {
 
 export interface EpisodeItem {
   judul: string;
+  num?: number | null;
   url?: string; // Untuk backward compatibility
-  urls?: { samehadaku?: string; otakudesu?: string; neosatsu?: string; kuronime?: string };
-  tanggal: string;
+  urls?: Record<string, string>;
+  tanggal?: string;
   malJudul?: string;
 }
 

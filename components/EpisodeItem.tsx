@@ -11,7 +11,7 @@ interface EpisodeItemProps {
   realUrl: string;
   urlsJson: string;
   judul: string;
-  tanggal: string;
+  tanggal?: string;
   malJudul?: string;
   isQueued?: boolean;
   progressPercent?: number;
@@ -30,7 +30,7 @@ export default React.memo(function EpisodeItem({ realUrl, urlsJson, judul, tangg
           )}
         </View>
         <View style={styles.rightContent}>
-          <Text style={styles.date}>{tanggal}</Text>
+          {tanggal ? <Text style={styles.date}>{tanggal}</Text> : null}
           {onQueuePress && (
             <TouchableOpacity 
               style={[styles.queueBtn, isQueued && { backgroundColor: 'rgba(0,255,0,0.1)' }]} 
