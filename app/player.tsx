@@ -3,7 +3,6 @@ import {
   View, Text, TouchableOpacity, StatusBar, BackHandler, useWindowDimensions
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
-import { WebView } from 'react-native-webview';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,7 +14,6 @@ import { Colors } from '../styles/theme';
 import { cancelUploads } from '../services/api';
 import { getProgress, formatDuration } from '../services/storage';
 import PlayerNativeControls from '../components/player/PlayerNativeControls';
-import PlayerWebView from '../components/player/PlayerWebView';
 import PlayerModals from '../components/player/PlayerModals';
 import PlayerLoadingOverlay from '../components/player/PlayerLoadingOverlay';
 import PlayerBottomInfo from '../components/player/PlayerBottomInfo';
@@ -27,7 +25,7 @@ import { useDoubleTapSkip } from '../hooks/useDoubleTapSkip';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpisodeNavigation } from '../hooks/useEpisodeNavigation';
 import { useProgressSync } from '../hooks/useProgressSync';
-import { getHostName, generateInjectedJS } from '../utils/playerScripts';
+import { getHostName } from '../utils/playerScripts';
 
 export default function PlayerScreen() {
   const router = useRouter();
@@ -67,8 +65,7 @@ export default function PlayerScreen() {
   const playback = useServerPlayback(state, player);
 
   // 4. Initialize Fullscreen Hook
-  const webviewRef = useRef<WebView>(null);
-  const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen(params.autoFullscreen === '1', webviewRef, state.playerMode);
+  const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen(params.autoFullscreen === '1', { current: null }, state.playerMode);
 
   // 5. Initialize DoubleTap Skip Hook
   const { skipInfo, rippleAnim, playerLayoutWidth, setPlayerLayoutWidth, handleDoubleTapSkip } = useDoubleTapSkip(player);
@@ -76,11 +73,6 @@ export default function PlayerScreen() {
   const stopAllMedia = useCallback(() => {
     try {
       if (player) player.pause();
-    } catch (e) { }
-    try {
-      if (webviewRef.current) {
-        webviewRef.current.injectJavaScript('var v=document.querySelectorAll("video");for(var i=0;i<v.length;i++){v[i].pause();}true;');
-      }
     } catch (e) { }
   }, [player]);
 
@@ -147,7 +139,7 @@ export default function PlayerScreen() {
     navigateEpisode,
   });
 
-  // Handle native player status / auto-webview fallback
+  // Handle native player error / retry
   useEffect(() => {
     if (status === 'error' && playerError && state.playerMode === 'native' && state.fallbackWebviewUrl) {
       if (state.retryCount < 2) {
@@ -161,17 +153,15 @@ export default function PlayerScreen() {
         playback.playServer(state.fallbackWebviewUrl, state.activeServerName, true, signal).then(success => {
           if (signal.aborted) return;
           if (!success) {
-            state.setPlayerMode('webview');
-            state.setWebviewUrl(state.fallbackWebviewUrl);
+            state.setError('Gagal memutar video dari server. Silakan pilih server atau resolusi lain.');
             state.setNativeVideoUrl('');
             state.setFallbackWebviewUrl('');
             state.setRetryCount(0);
           }
         });
       } else {
-        console.log('Max retries reached. Falling back to WebView');
-        state.setPlayerMode('webview');
-        state.setWebviewUrl(state.fallbackWebviewUrl);
+        console.log('Max retries reached. Direct link not available.');
+        state.setError('Gagal memutar video dari server. Silakan pilih server atau resolusi lain.');
         state.setNativeVideoUrl('');
         state.setFallbackWebviewUrl('');
         state.setRetryCount(0);
@@ -299,30 +289,12 @@ export default function PlayerScreen() {
     e.stopPropagation();
     if (state.playerMode === 'native' && player) {
       player.currentTime = Math.min(state.totalDuration, (player.currentTime || 0) + 85);
-    } else if (state.playerMode === 'webview') {
-      skipWebview(85);
     }
   };
 
   const handleSkipED = (e: any) => {
     e.stopPropagation();
     if (navNext) navigateEpisode(navNext);
-  };
-
-  const skipWebview = (amount: number) => {
-    if (webviewRef.current) {
-      webviewRef.current.injectJavaScript(`
-        try {
-          const v = document.querySelector('video');
-          if (v) {
-            v.currentTime = Math.max(0, v.currentTime + (${amount}));
-          }
-        } catch(e){}
-        true;
-      `);
-    }
-    if (state.webviewControlsTimeoutRef.current) clearTimeout(state.webviewControlsTimeoutRef.current);
-    state.webviewControlsTimeoutRef.current = setTimeout(() => state.setShowWebviewControls(false), 4000);
   };
 
   const toggleControls = () => {
@@ -352,12 +324,7 @@ export default function PlayerScreen() {
     ? { position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#000' }
     : { height: (screenWidth * 9) / 16 };
 
-  // WebView Javascript setup via helper
   const activeHostItems = state.servers.filter(s => getHostName(s) === state.activeHost);
-  const { injectedJS, isBlogger } = generateInjectedJS({
-    activeHost: state.activeHost,
-    savedProgress: state.savedProgress,
-  });
 
   const availableSources = React.useMemo(() => {
     const sources = new Set(state.servers.map(s => s.source || 'Samehadaku'));
@@ -426,21 +393,6 @@ export default function PlayerScreen() {
                 handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
               />
             </View>
-          ) : state.playerMode === 'webview' && state.webviewUrl ? (
-            <PlayerWebView
-              webviewRef={webviewRef} webviewUrl={state.webviewUrl} isBlogger={isBlogger} injectedJS={injectedJS}
-              isFullscreen={isFullscreen} showWebviewControls={state.showWebviewControls}
-              setShowWebviewControls={state.setShowWebviewControls} setPlayerMode={state.setPlayerMode}
-              setNativeVideoUrl={state.setNativeVideoUrl} setWebviewUrl={state.setWebviewUrl}
-              setCurrentPosition={state.setCurrentPosition} setTotalDuration={state.setTotalDuration}
-              lastKnownPositionRef={state.lastKnownPositionRef} enterFullscreen={enterFullscreen}
-              exitFullscreen={exitFullscreen} setPlayerLoading={state.setPlayerLoading}
-              handleUIBackPress={handleUIBackPress} navPrev={navPrev} navNext={navNext}
-              navigateEpisode={navigateEpisode} webviewControlsTimeoutRef={state.webviewControlsTimeoutRef}
-              isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
-              handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
-              playbackSpeed={state.playbackSpeed} setShowSpeedModal={state.setShowSpeedModal}
-            />
           ) : !state.loading && state.error ? (
             <View style={styles.playerError}>
               {isFullscreen && (

@@ -28,10 +28,9 @@ export function useServerPlayback(state: any, player: any) {
     }
     
     if (!state.isMounted.current || signal.aborted) return false;
-    state.setPlayerMode('webview');
-    state.setWebviewUrl(iframeUrl);
+    state.setError('Link video langsung (HLS/MP4) tidak tersedia untuk server ini.');
     state.setPlayerLoading(false);
-    return true;
+    return false;
   };
 
   const attemptToPlayServers = async (serverList: ServerItem[], episodeUrl: string, signal: AbortSignal): Promise<boolean> => {
@@ -232,11 +231,11 @@ export function useServerPlayback(state: any, player: any) {
             }
          }
          
-         // FALLBACK
+         // FALLBACK: Jika Azure gagal, coba ekstrak direct link dari server list (tanpa WebView)
          if (fallbackTriggered && !isReady) {
             const played = await attemptToPlayServers(data.servers || [], url, signal);
             if (!played && !signal.aborted && state.isMounted.current) {
-              state.setError('Gagal memproses video dari Azure dan Fallback Server tidak tersedia.');
+              state.setError('Gagal memutar video: file Azure belum siap dan direct link tidak tersedia.');
               state.setPlayerLoading(false);
             }
          }
