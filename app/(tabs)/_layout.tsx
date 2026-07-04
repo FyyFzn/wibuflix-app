@@ -1,44 +1,9 @@
-import React, { useCallback } from 'react';
-import { Tabs, usePathname, useRouter, useFocusEffect } from 'expo-router';
+import React from 'react';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
-import { BackHandler, ToastAndroid } from 'react-native';
 
 export default function TabLayout() {
-  const pathname = usePathname();
-  const router = useRouter();
-
-
-
-  const lastBackPressRef = React.useRef(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        // Jika sedang berada di tab selain Beranda (misal Katalog, Riwayat, Antrean),
-        // maka tombol Back fisik akan membawa pengguna kembali ke tab Beranda terlebih dahulu!
-        if (pathname !== '/' && pathname !== '/index') {
-          router.replace('/');
-          return true;
-        }
-
-        // Jika sudah di Beranda, tekan 2x dalam 2 detik untuk keluar dari aplikasi
-        const now = Date.now();
-        if (now - lastBackPressRef.current < 2000) {
-          BackHandler.exitApp();
-          return true;
-        }
-
-        lastBackPressRef.current = now;
-        ToastAndroid.show('Tekan sekali lagi untuk keluar', ToastAndroid.SHORT);
-        return true;
-      };
-
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove();
-    }, [pathname, router])
-  );
-
   return (
     <Tabs
       screenOptions={{

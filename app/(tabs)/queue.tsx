@@ -5,8 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import EventSource from 'react-native-sse';
 import { useRouter } from 'expo-router';
 import { fetchQueueStatus, queueCancel, queuePrioritize, queueAdd, QueueItem, getApiBase } from '../../services/api';
+import { useTabBackHandler } from '../../hooks/useTabBackHandler';
 
 export default function QueueScreen() {
+  useTabBackHandler(false); // Bukan root tab: tombol Back kembali ke Beranda ('/')
+
   const router = useRouter();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);

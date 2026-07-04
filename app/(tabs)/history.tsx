@@ -24,6 +24,7 @@ import {
   formatDuration,
   WatchHistoryItem,
 } from '../../services/storage';
+import { useTabBackHandler } from '../../hooks/useTabBackHandler';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const NUM_COLUMNS = SCREEN_WIDTH > 600 ? 4 : 3;
@@ -31,6 +32,8 @@ const CARD_GAP = Spacing.md;
 const CARD_WIDTH = (SCREEN_WIDTH - Spacing.lg * 2 - CARD_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
 export default function HistoryScreen() {
+  useTabBackHandler(false); // Bukan root tab: tombol Back kembali ke Beranda ('/')
+
   const router = useRouter();
   const [history, setHistory] = useState<WatchHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);

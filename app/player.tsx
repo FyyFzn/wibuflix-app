@@ -251,18 +251,23 @@ export default function PlayerScreen() {
     handleUIBackPressRef.current = handleUIBackPress;
   }, [handleUIBackPress]);
 
+  const exitFullscreenRef = useRef(exitFullscreen);
+  useEffect(() => {
+    exitFullscreenRef.current = exitFullscreen;
+  }, [exitFullscreen]);
+
   useFocusEffect(
     useCallback(() => {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         if (isFullscreenRef.current) {
-          exitFullscreen();
+          exitFullscreenRef.current();
           return true;
         }
         handleUIBackPressRef.current();
         return true;
       });
       return () => backHandler.remove();
-    }, [exitFullscreen])
+    }, [])
   );
 
   // Cross-Source Prefetch logic

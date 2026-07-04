@@ -17,12 +17,15 @@ import LoadingOverlay from '../../components/LoadingOverlay';
 import SearchBar from '../../components/SearchBar';
 import CatalogView from '../../components/CatalogView';
 import { useAnimeStore } from '../../store/animeStore';
+import { useTabBackHandler } from '../../hooks/useTabBackHandler';
 
 export default function BerandaScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const setSelectedAnime = useAnimeStore((state) => state.setSelectedAnime);
   
+  useTabBackHandler(true); // Root tab: tekan 2x untuk keluar
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
