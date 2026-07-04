@@ -27,9 +27,10 @@ interface CatalogViewProps {
   externalSearchQuery?: string;
   hideSearchBar?: boolean;
   onClearSearch?: () => void;
+  sort?: 'az' | 'latest';
 }
 
-export default function CatalogView({ category, externalSearchQuery, hideSearchBar, onClearSearch }: CatalogViewProps) {
+export default function CatalogView({ category, externalSearchQuery, hideSearchBar, onClearSearch, sort = 'az' }: CatalogViewProps) {
   const router = useRouter();
   const navigation = useNavigation();
   const [animeList, setAnimeList] = useState<AnimeItem[]>([]);
@@ -68,7 +69,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     else if (tType === 'Tokusatsu') tabParam = 'toku';
 
     try {
-      const json = await fetchKatalog(page, search, tabParam, tSubclass, tGenre, undefined, isRefresh);
+      const json = await fetchKatalog(page, search, tabParam, tSubclass, tGenre, undefined, isRefresh, sort);
       if (json.status !== 'success') throw new Error('Gagal memuat');
 
       const newList = json.data.list || [];
@@ -86,7 +87,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
       setLoading(false);
       if (isRefresh) setRefreshing(false);
     }
-  }, [category]);
+  }, [category, sort, setCatalog]);
 
   useEffect(() => {
     loadKatalog(currentPage, searchQuery, activeType, activeSubclass, activeGenre);

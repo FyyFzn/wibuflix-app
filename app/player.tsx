@@ -391,6 +391,7 @@ export default function PlayerScreen() {
                 navigateEpisode={navigateEpisode} formatDuration={formatDuration}
                 controlsTimeoutRef={state.controlsTimeoutRef} setControlsVisible={state.setControlsVisible}
                 handleSkipOP={handleSkipOP} handleSkipED={handleSkipED}
+                onReportBroken={() => playback.handleReportBroken(params, stopAllMedia)}
               />
             </View>
           ) : !state.loading && state.error ? (
@@ -411,6 +412,7 @@ export default function PlayerScreen() {
             navPrev={navPrev}
             navNext={navNext}
             navigateEpisode={navigateEpisode}
+            onReportBroken={() => playback.handleReportBroken(params, stopAllMedia)}
           />
         )}
 

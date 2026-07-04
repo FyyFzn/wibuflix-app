@@ -1,4 +1,4 @@
-import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus, fetchCancelStream } from '../services/api';
+import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus, fetchCancelStream, fetchReportBroken } from '../services/api';
 import { simpanKeRiwayat } from '../services/storage';
 
 export function useServerPlayback(state: any, player: any) {
@@ -288,11 +288,56 @@ export function useServerPlayback(state: any, player: any) {
     }
   };
 
+  const handleReportBroken = async (params: any, stopAllMedia: () => void) => {
+    stopAllMedia();
+    state.setPlayerLoading(true);
+    state.setError(null);
+    
+    // 1. Laporkan ke backend untuk menghapus blob dari Azure Cloud
+    await fetchReportBroken(
+      params.url,
+      params.seriUrl,
+      params.seriJudul,
+      params.uniqueId,
+      params.judul,
+      state.activeServerName
+    );
+
+    // 2. Cari server alternatif yang berbeda dari server aktif saat ini
+    const activeServers = state.servers.filter((s: ServerItem) => s.aktif && s.nama !== state.activeServerName);
+    
+    if (activeServers.length > 0) {
+      const nextSrv = activeServers[0];
+      state.setActiveHost(nextSrv.namaHost || 'Alternatif');
+      try {
+        if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+        state.abortControllerRef.current = new AbortController();
+        const signal = state.abortControllerRef.current.signal;
+        
+        let iframeUrl = nextSrv.iframeUrl;
+        if (!iframeUrl) {
+           const res = await resolveServer(params.url, nextSrv.nume, signal);
+           if (!signal.aborted) iframeUrl = res.data.iframeUrl;
+        }
+        if (iframeUrl) {
+           await playServer(iframeUrl, nextSrv.nama, false, signal);
+           return;
+        }
+      } catch (e) {
+        console.log('Failed to switch to next server after report broken', e);
+      }
+    }
+    
+    // 3. Fallback jika tidak ada server lain di list: muat ulang dari awal
+    loadEpisode(params.url, params);
+  };
+
   return {
     playServer,
     attemptToPlayServers,
     loadEpisode,
     handleSelectHost,
-    handleSelectResolution
+    handleSelectResolution,
+    handleReportBroken
   };
 }

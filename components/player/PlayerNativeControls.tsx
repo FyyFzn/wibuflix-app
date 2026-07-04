@@ -40,6 +40,7 @@ interface PlayerNativeControlsProps {
   setControlsVisible: (val: boolean) => void;
   handleSkipOP: (e: any) => void;
   handleSkipED: (e: any) => void;
+  onReportBroken?: () => void;
 }
 
 const PlayerNativeControls = React.memo(function PlayerNativeControls({
@@ -49,7 +50,7 @@ const PlayerNativeControls = React.memo(function PlayerNativeControls({
   handleVideoTap, setPlayerLayoutWidth, exitFullscreen, enterFullscreen,
   setShowSpeedModal, setShowResModal, setShowEpisodesModal, getResName,
   navigateEpisode, formatDuration, controlsTimeoutRef, setControlsVisible,
-  handleSkipOP, handleSkipED
+  handleSkipOP, handleSkipED, onReportBroken
 }: PlayerNativeControlsProps) {
   // State untuk seek preview bubble
   const [isSeeking, setIsSeeking] = useState(false);
@@ -108,6 +109,11 @@ const PlayerNativeControls = React.memo(function PlayerNativeControls({
               {isFullscreen && <Text style={styles.topBarTitle} numberOfLines={1}>{title}</Text>}
             </View>
             <View style={styles.topRightActions}>
+              {onReportBroken && (
+                <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: 'rgba(230, 57, 70, 0.25)', borderColor: '#E63946', borderWidth: 1 }]} onPress={onReportBroken}>
+                  <Ionicons name="warning" size={14} color="#E63946" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.ctrlBtn} onPress={() => setShowSpeedModal(true)}>
                 <Text style={styles.ctrlBtnText}>{playbackSpeed}x</Text>
               </TouchableOpacity>

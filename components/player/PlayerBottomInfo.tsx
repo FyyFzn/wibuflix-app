@@ -8,12 +8,14 @@ interface PlayerBottomInfoProps {
   navPrev?: string | null;
   navNext?: string | null;
   navigateEpisode: (url: string) => void;
+  onReportBroken?: () => void;
 }
 
 export default function PlayerBottomInfo({
   navPrev,
   navNext,
   navigateEpisode,
+  onReportBroken,
 }: PlayerBottomInfoProps) {
   return (
     <ScrollView style={styles.controlsContainer} contentContainerStyle={styles.controlsContent}>
@@ -55,6 +57,30 @@ export default function PlayerBottomInfo({
             <Text style={{ color: '#2EC4B6', fontSize: 11, fontWeight: 'bold' }}>READY</Text>
           </View>
         </View>
+
+        {onReportBroken && (
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(230, 57, 70, 0.15)',
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#E63946',
+              marginTop: 4,
+              gap: 8,
+            }}
+            onPress={onReportBroken}
+          >
+            <Ionicons name="warning" size={16} color="#E63946" />
+            <Text style={{ color: '#E63946', fontSize: 12, fontWeight: 'bold' }}>
+              Lapor Rusak / Tanpa Sub (Ganti Server)
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.navRow}>

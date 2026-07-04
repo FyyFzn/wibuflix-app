@@ -213,12 +213,12 @@ async function fetchWithCache<T>(url: string, cacheKey: string, ttl: number = 36
   return json;
 }
 
-export async function fetchKatalog(page = 1, search = '', tab = 'all', typeFilter = '', genreFilter = '', signal?: AbortSignal, forceRefresh = false): Promise<KatalogResponse> {
-  let url = `${API.katalog}?page=${page}&tab=${tab}`;
+export async function fetchKatalog(page = 1, search = '', tab = 'all', typeFilter = '', genreFilter = '', signal?: AbortSignal, forceRefresh = false, sort = 'az'): Promise<KatalogResponse> {
+  let url = `${API.katalog}?page=${page}&tab=${tab}&sort=${sort}`;
   if (search) url += `&s=${encodeURIComponent(search)}`;
   if (typeFilter && typeFilter !== 'Semua') url += `&typeFilter=${encodeURIComponent(typeFilter)}`;
   if (genreFilter && genreFilter !== 'Semua') url += `&genre=${encodeURIComponent(genreFilter)}`;
-  const cacheKey = `katalog_${page}_${search}_${tab}_${typeFilter}_${genreFilter}`;
+  const cacheKey = `katalog_${page}_${search}_${tab}_${typeFilter}_${genreFilter}_${sort}`;
   return fetchWithCache<KatalogResponse>(url, cacheKey, 3600000, signal, forceRefresh); // Cache 1 jam
 }
 
@@ -325,6 +325,20 @@ export async function fetchCancelStream(url: string, seriesUrl?: string, seriesT
     });
   } catch (e) {
     console.error('[API] Failed to cancel stream', e);
+  }
+}
+
+export async function fetchReportBroken(url: string, seriesUrl?: string, seriesTitle?: string, uniqueId?: string, episodeTitle?: string, currentServer?: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/report-broken`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, seriesUrl, seriesTitle, uniqueId, episodeTitle, currentServer })
+    });
+    return await res.json();
+  } catch (e) {
+    console.error('[API] Failed to report broken video', e);
+    return { success: false };
   }
 }
 

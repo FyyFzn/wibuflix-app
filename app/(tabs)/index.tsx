@@ -67,10 +67,10 @@ export default function BerandaScreen() {
 
       const [hotRes, latestAnimeRes, latestTokuRes, randomAnimeRes, randomTokuRes] = await Promise.allSettled([
         fetchHotAnime(),
-        fetchKatalog(1, '', 'anime'),
-        fetchKatalog(1, '', 'toku'),
-        fetchKatalog(randomAnimePage, '', 'anime'),
-        fetchKatalog(randomTokuPage, '', 'toku'),
+        fetchKatalog(1, '', 'anime', '', '', undefined, false, 'latest'),
+        fetchKatalog(1, '', 'toku', '', '', undefined, false, 'latest'),
+        fetchKatalog(randomAnimePage, '', 'anime', '', '', undefined, false, 'latest'),
+        fetchKatalog(randomTokuPage, '', 'toku', '', '', undefined, false, 'latest'),
       ]);
 
       if (hotRes.status === 'fulfilled') setHotAnime(hotRes.value.data.list || []);

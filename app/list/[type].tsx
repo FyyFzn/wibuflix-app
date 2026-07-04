@@ -8,8 +8,14 @@ export default function DynamicListScreen() {
   const { type, headerTitle } = useLocalSearchParams<{ type: string; headerTitle?: string }>();
 
   let category: 'anime' | 'toku' | 'all' = 'all';
-  if (type === 'latest_anime') category = 'anime';
-  else if (type === 'latest_toku') category = 'toku';
+  let sortMode: 'latest' | 'az' = 'az';
+  if (type === 'latest_anime') {
+    category = 'anime';
+    sortMode = 'latest';
+  } else if (type === 'latest_toku') {
+    category = 'toku';
+    sortMode = 'latest';
+  }
 
   const title = headerTitle || (category === 'anime' ? 'Anime Terbaru' : category === 'toku' ? 'Toku Terbaru' : 'Daftar');
 
@@ -23,7 +29,7 @@ export default function DynamicListScreen() {
           headerTintColor: Colors.text,
         }}
       />
-      <CatalogView category={category} hideSearchBar={true} />
+      <CatalogView category={category} sort={sortMode} hideSearchBar={true} />
     </View>
   );
 }
