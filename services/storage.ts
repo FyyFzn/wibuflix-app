@@ -7,7 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cleanSeriesTitle } from '../utils/titleUtils';
 
 const HISTORY_KEY = 'wibuflix_riwayat';
-const MAX_HISTORY = 100;
+const MAX_HISTORY_ITEMS = 150; // Batasi ketat jumlah riwayat untuk mencegah OOM AsyncStorage (batas 6MB SQLite Android)
+const MAX_HISTORY = MAX_HISTORY_ITEMS;
 
 export interface WatchHistoryItem {
   judulSeri: string;
@@ -75,42 +76,46 @@ export async function simpanKeRiwayat(
   seriJudul?: string,
   uniqueId?: string
 ): Promise<void> {
-  let baseJudul = cleanSeriesTitle(judul);
-  if (!baseJudul) baseJudul = judul;
-  
-  let finalJudulSeri = cleanSeriesTitle(seriJudul || baseJudul);
-  if (!finalJudulSeri) finalJudulSeri = seriJudul || baseJudul;
-  
-  const judulSeri = finalJudulSeri;
-  
-  const epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
-  const nomorEp = epMatch ? epMatch[1] : '';
+  try {
+    let baseJudul = cleanSeriesTitle(judul);
+    if (!baseJudul) baseJudul = judul;
+    
+    let finalJudulSeri = cleanSeriesTitle(seriJudul || baseJudul);
+    if (!finalJudulSeri) finalJudulSeri = seriJudul || baseJudul;
+    
+    const judulSeri = finalJudulSeri;
+    
+    const epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
+    const nomorEp = epMatch ? epMatch[1] : '';
 
-  let riwayat = await getRawRiwayat();
+    let riwayat = await getRawRiwayat();
 
-  // Remove exact same episode from history so it jumps to top
-  riwayat = riwayat.filter(r => r.url !== url);
+    // Hapus duplikat jika episode yang sama ditonton ulang agar naik ke paling atas
+    riwayat = riwayat.filter(r => r.url !== url);
 
-  // Add new entry at the top
-  riwayat.unshift({
-    judulSeri,
-    nomorEp,
-    url,
-    seriUrl,
-    gambar,
-    waktu: Date.now(),
-    progress,
-    duration,
-    host,
-    uniqueId,
-  });
+    // Masukkan ke paling depan (FIFO unshift)
+    riwayat.unshift({
+      judulSeri,
+      nomorEp,
+      url,
+      seriUrl,
+      gambar,
+      waktu: Date.now(),
+      progress,
+      duration,
+      host,
+      uniqueId,
+    });
 
-  // Limit size
-  if (riwayat.length > MAX_HISTORY) {
-    riwayat = riwayat.slice(0, MAX_HISTORY);
+    // POTONG array jika melebihi batas untuk mencegah OOM AsyncStorage
+    if (riwayat.length > MAX_HISTORY_ITEMS) {
+      riwayat = riwayat.slice(0, MAX_HISTORY_ITEMS);
+    }
+
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+  } catch (e) {
+    console.error('[Storage Error] Gagal menyimpan ke riwayat AsyncStorage:', e);
   }
-
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
 }
 
 const PROGRESS_KEY = 'wibuflix_progress';
@@ -130,14 +135,18 @@ export async function updateProgress(
   host?: string
 ): Promise<void> {
   // Update in History (for latest episode card)
-  const riwayat = await getRawRiwayat();
-  const itemIndex = riwayat.findIndex(r => r.url === url);
-  if (itemIndex !== -1) {
-    riwayat[itemIndex].progress = progress;
-    riwayat[itemIndex].duration = duration;
-    riwayat[itemIndex].waktu = Date.now();
-    if (host) riwayat[itemIndex].host = host;
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+  try {
+    const riwayat = await getRawRiwayat();
+    const itemIndex = riwayat.findIndex(r => r.url === url);
+    if (itemIndex !== -1) {
+      riwayat[itemIndex].progress = progress;
+      riwayat[itemIndex].duration = duration;
+      riwayat[itemIndex].waktu = Date.now();
+      if (host) riwayat[itemIndex].host = host;
+      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+    }
+  } catch (e) {
+    console.warn('[Storage Error] Gagal update progress di riwayat:', e);
   }
 
   // Update in standalone Progress DB (for episode lists)

@@ -166,62 +166,70 @@ export function useServerPlayback(state: any, player: any) {
            ).catch(() => {}); // fire-and-forget
          }
 
-         // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling
+         // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling dengan Exponential Backoff
          if (!isReady && !fallbackTriggered) {
             state.setPlayerLoading(true); // Pastikan UI menampilkan overlay progress
-            let pollCount = 0;
-            const maxPolls = 150;
-            while (!isReady && pollCount < maxPolls) {
-              if (!state.isMounted.current || signal.aborted) return;
-              console.log(`[Smart-Play Poll] Attempt ${pollCount + 1}/${maxPolls} for ${url}`);
-              try {
-                 const pollRes = await fetchSmartPlay(
-                  url,
-                  params.seriUrl as string,
-                  data.nav_next || undefined,
-                  signal,
-                  params.seriJudul as string,
-                  (params.judul || data.judul) as string,
-                  params.uniqueId as string,
-                  params.urls as string,
-                );
-                if (!state.isMounted.current || signal.aborted) return;
+            
+            const pollSmartPlay = async (maxAttempts = 35): Promise<boolean> => {
+              let delay = 2000;
+              for (let i = 0; i < maxAttempts; i++) {
+                if (!state.isMounted.current || signal.aborted) return false;
+                console.log(`[Smart-Play Poll] Attempt ${i + 1}/${maxAttempts} (delay ${delay}ms) for ${url}`);
                 
-                // Cek progress upload secara real-time
                 try {
-                  const progRes = await fetchUploadStatus(url, params.seriUrl as string, params.seriJudul as string, params.uniqueId as string, signal);
-                  if (progRes && progRes.success && progRes.progressMessage) {
-                    state.setUploadProgress(progRes.progressMessage);
+                  const pollRes = await fetchSmartPlay(
+                    url,
+                    params.seriUrl as string,
+                    data.nav_next || undefined,
+                    signal,
+                    params.seriJudul as string,
+                    (params.judul || data.judul) as string,
+                    params.uniqueId as string,
+                    params.urls as string,
+                  );
+                  if (!state.isMounted.current || signal.aborted) return false;
+
+                  // Cek progress upload secara real-time
+                  try {
+                    const progRes = await fetchUploadStatus(url, params.seriUrl as string, params.seriJudul as string, params.uniqueId as string, signal);
+                    if (progRes && progRes.success && progRes.progressMessage) {
+                      state.setUploadProgress(progRes.progressMessage);
+                    }
+                  } catch (err) {}
+
+                  if (pollRes.success) {
+                    if (pollRes.status === 'READY' && pollRes.url) {
+                      state.setPlayerMode('native');
+                      state.setNativeVideoUrl(pollRes.url);
+                      state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob
+                      state.setActiveHost('Azure Cloud');
+                      state.setActiveServerName('Premium Direct Link');
+                      state.setPlayerLoading(false);
+                      return true;
+                    } else if (pollRes.status === 'FAILED') {
+                      return false;
+                    }
+                  } else {
+                    return false;
                   }
-                } catch (err) {}
-                
-                if (pollRes.success) {
-                  if (pollRes.status === 'READY' && pollRes.url) {
-                    isReady = true;
-                    state.setPlayerMode('native');
-                    state.setNativeVideoUrl(pollRes.url);
-                    state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob
-                    state.setActiveHost('Azure Cloud');
-                    state.setActiveServerName('Premium Direct Link');
-                    state.setPlayerLoading(false);
-                    break;
-                  } else if (pollRes.status === 'FAILED') {
-                    fallbackTriggered = true;
-                    break;
-                  }
-                } else {
-                  fallbackTriggered = true;
-                  break;
+                } catch (e) {
+                  if (signal.aborted) return false;
+                  return false;
                 }
-              } catch (e) {
-                if (signal.aborted) return;
-                fallbackTriggered = true;
-                break;
+
+                // Exponential backoff: 2s, 3s, 4.5s... max 10s untuk menghemat baterai & resource mobile
+                await new Promise(res => setTimeout(res, delay));
+                delay = Math.min(delay * 1.5, 10000);
               }
-              pollCount++;
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              return false;
+            };
+
+            const isSuccess = await pollSmartPlay();
+            if (!isSuccess) {
+              fallbackTriggered = true;
+            } else {
+              isReady = true;
             }
-            if (!isReady && pollCount >= maxPolls) fallbackTriggered = true;
          }
          
          // FALLBACK

@@ -162,7 +162,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     loadKatalog(currentPage, searchQuery, activeType, activeSubclass, activeGenre, true);
   };
 
-  const handleAnimePress = (item: AnimeItem) => {
+  const handleAnimePress = useCallback((item: AnimeItem) => {
     // Simpan anime lengkap di Global Store (Zustand) agar layar berikutnya tidak perlu mencari ulang
     setSelectedAnime(item);
     
@@ -174,10 +174,9 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
         url: item.url,
         gambar: item.gambar,
         judul: item.judul,
-        // Dihapus: sources: item.sources ? JSON.stringify(item.sources) : undefined,
       },
     });
-  };
+  }, [setSelectedAnime, router]);
 
   const renderItem = useCallback(({ item }: { item: AnimeItem }) => (
     <AnimeCard
@@ -186,9 +185,10 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
       tipe={item.tipe}
       skor={item.skor}
       status={item.status}
-      onPress={() => handleAnimePress(item)}
+      itemData={item}
+      onPress={handleAnimePress}
     />
-  ), []);
+  ), [handleAnimePress]);
 
   return (
     <View style={localStyles.container}>
@@ -313,7 +313,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
           ref={flatListRef}
           data={animeList}
           renderItem={renderItem}
-          keyExtractor={(item, index) => item.url || index.toString()}
+          keyExtractor={(item) => item.url}
           numColumns={NUM_COLUMNS}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}

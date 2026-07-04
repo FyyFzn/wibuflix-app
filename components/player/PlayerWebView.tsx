@@ -49,7 +49,8 @@ export default function PlayerWebView({
 
   if (webviewUrl.includes('vidhide')) {
     injectedJS += `
-      setInterval(() => {
+      if (window.vidhideInterval) clearInterval(window.vidhideInterval);
+      window.vidhideInterval = setInterval(() => {
         try {
           const overlays = document.querySelectorAll('div:not([data-cleaned]), iframe:not([data-cleaned])');
           overlays.forEach(o => {
@@ -66,7 +67,8 @@ export default function PlayerWebView({
 
   if (webviewUrl.includes('acefile') || webviewUrl.includes('filedon') || webviewUrl.includes('pucuk')) {
     injectedJS += `
-      setInterval(() => {
+      if (window.acefileInterval) clearInterval(window.acefileInterval);
+      window.acefileInterval = setInterval(() => {
         try {
           // Hapus popup "Klik Disini" dan Copyright (khusus acefile)
           if (window.location.href.includes('acefile')) {
@@ -123,6 +125,9 @@ export default function PlayerWebView({
       if (webviewRef.current) {
         webviewRef.current.injectJavaScript(`
           try {
+            if (window.vidhideInterval) clearInterval(window.vidhideInterval);
+            if (window.acefileInterval) clearInterval(window.acefileInterval);
+            if (window.cleanerInterval) clearInterval(window.cleanerInterval);
             var mediaElements = document.querySelectorAll('video, audio');
             for (var i = 0; i < mediaElements.length; i++) {
               mediaElements[i].pause();

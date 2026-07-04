@@ -18,7 +18,8 @@ interface AnimeCardProps {
   tipe?: string;
   skor?: string;
   status?: string;
-  onPress: () => void;
+  onPress: (item?: any) => void;
+  itemData?: any;
   // History-specific props
   nomorEp?: string;
   progress?: number;
@@ -48,13 +49,14 @@ const AnimeCard = React.memo(function AnimeCard({
   waktuLabel,
   customStyle,
   hideTitle,
+  itemData,
 }: AnimeCardProps) {
   const progressPercent = duration && duration > 0 ? Math.min((progress || 0) / duration, 1) : 0;
 
   return (
     <TouchableOpacity
       style={[styles.card, customStyle]}
-      onPress={onPress}
+      onPress={() => onPress(itemData)}
       activeOpacity={0.7}
     >
       <View style={styles.imgContainer}>
