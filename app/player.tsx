@@ -231,15 +231,17 @@ export default function PlayerScreen() {
     stopAllMedia();
     cancelUploads(); // Membatalkan semua upload/prefetch yang masih berjalan di latar belakang
     try {
-      if (router.canGoBack()) {
-        router.back();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
       } else {
-        router.replace('/');
+        (navigation as any).navigate('(tabs)' as never);
       }
     } catch (e) {
-      router.replace('/');
+      try {
+        router.replace('/');
+      } catch (err) {}
     }
-  }, [saveCurrentProgress, stopAllMedia, router]);
+  }, [saveCurrentProgress, stopAllMedia, navigation, router]);
 
   const isFullscreenRef = useRef(isFullscreen);
   useEffect(() => {
@@ -255,6 +257,22 @@ export default function PlayerScreen() {
   useEffect(() => {
     exitFullscreenRef.current = exitFullscreen;
   }, [exitFullscreen]);
+
+  // Gunakan beforeRemove dari React Navigation (superpower untuk mencegah keluar aplikasi saat di Player)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (isFullscreenRef.current) {
+        // Cegah keluar dari layar Player jika sedang Fullscreen!
+        e.preventDefault();
+        exitFullscreenRef.current();
+      } else {
+        // Izinkan keluar, tapi bersihkan media & RAM dulu
+        stopAllMedia();
+        cancelUploads();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, stopAllMedia]);
 
   useFocusEffect(
     useCallback(() => {

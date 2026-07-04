@@ -1,11 +1,30 @@
-import React from 'react';
-import { View } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import React, { useCallback } from 'react';
+import { View, BackHandler } from 'react-native';
+import { useLocalSearchParams, Stack, useNavigation, useFocusEffect } from 'expo-router';
 import CatalogView from '../../components/CatalogView';
 import { Colors } from '../../styles/theme';
 
 export default function DynamicListScreen() {
   const { type, headerTitle } = useLocalSearchParams<{ type: string; headerTitle?: string }>();
+  const navigation = useNavigation();
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          try {
+            (navigation as any).navigate('(tabs)' as never);
+          } catch (e) {}
+        }
+        return true; // Cegah Android keluar aplikasi!
+      };
+
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => backHandler.remove();
+    }, [navigation])
+  );
 
   let category: 'anime' | 'toku' | 'all' = 'all';
   let sortMode: 'latest' | 'az' = 'az';

@@ -36,7 +36,7 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
-          name="anime/[id]"
+          name="detail/[id]"
           options={{
             headerTitle: 'Daftar Episode',
             headerBackTitle: 'Kembali',

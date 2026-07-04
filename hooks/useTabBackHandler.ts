@@ -1,9 +1,9 @@
 import React, { useCallback } from 'react';
 import { BackHandler, ToastAndroid } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useNavigation, useFocusEffect } from 'expo-router';
 
 export function useTabBackHandler(isRootTab = false) {
-  const router = useRouter();
+  const navigation = useNavigation();
   const lastBackPressRef = React.useRef(0);
 
   useFocusEffect(
@@ -11,8 +11,12 @@ export function useTabBackHandler(isRootTab = false) {
       const onBackPress = () => {
         if (!isRootTab) {
           // Jika berada di tab selain Beranda (Katalog, Riwayat, Antrean),
-          // tombol Back akan mengarahkan pengguna kembali ke Beranda ('/')
-          router.replace('/');
+          // gunakan navigation.navigate('index') untuk pindah tab secara natif tanpa unmount/exit
+          try {
+            (navigation as any).navigate('index');
+          } catch (e) {
+            // Fallback aman
+          }
           return true;
         }
 
@@ -30,6 +34,6 @@ export function useTabBackHandler(isRootTab = false) {
 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => backHandler.remove();
-    }, [isRootTab, router])
+    }, [isRootTab, navigation])
   );
 }
