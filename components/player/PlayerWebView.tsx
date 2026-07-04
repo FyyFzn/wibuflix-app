@@ -49,9 +49,15 @@ export default function PlayerWebView({
 
   if (webviewUrl.includes('vidhide')) {
     injectedJS += `
-      if (window.vidhideInterval) clearInterval(window.vidhideInterval);
-      window.vidhideInterval = setInterval(() => {
-        try {
+      try {
+        if (window.vidhideObserver) window.vidhideObserver.disconnect();
+        window.vidhideObserver = new MutationObserver(() => {
+          const style = document.createElement('style');
+          style.innerHTML = 'div:not([data-cleaned])[style*="z-index: 2147483647"], iframe[width="1"][height="1"] { display: none !important; pointer-events: none !important; }';
+          if (!document.head.querySelector('#vidhide-ad-blocker')) {
+             style.id = 'vidhide-ad-blocker';
+             document.head.appendChild(style);
+          }
           const overlays = document.querySelectorAll('div:not([data-cleaned]), iframe:not([data-cleaned])');
           overlays.forEach(o => {
              const z = window.getComputedStyle(o).zIndex;
@@ -60,17 +66,23 @@ export default function PlayerWebView({
                 o.setAttribute('data-cleaned', '1');
              }
           });
-        } catch(e){}
-      }, 1000);
+        });
+        window.vidhideObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+      } catch(e){}
     `;
   }
 
   if (webviewUrl.includes('acefile') || webviewUrl.includes('filedon') || webviewUrl.includes('pucuk')) {
     injectedJS += `
-      if (window.acefileInterval) clearInterval(window.acefileInterval);
-      window.acefileInterval = setInterval(() => {
-        try {
-          // Hapus popup "Klik Disini" dan Copyright (khusus acefile)
+      try {
+        if (window.acefileObserver) window.acefileObserver.disconnect();
+        window.acefileObserver = new MutationObserver(() => {
+          const style = document.createElement('style');
+          style.innerHTML = 'div:not([data-cleaned])[style*="z-index: 2147483647"], iframe[width="1"][height="1"] { display: none !important; pointer-events: none !important; }';
+          if (!document.head.querySelector('#acefile-ad-blocker')) {
+             style.id = 'acefile-ad-blocker';
+             document.head.appendChild(style);
+          }
           if (window.location.href.includes('acefile')) {
             const texts = document.querySelectorAll('div:not([data-cleaned]), span:not([data-cleaned]), p:not([data-cleaned])');
             for (const el of texts) {
@@ -83,39 +95,23 @@ export default function PlayerWebView({
               }
             }
           }
-          // Jika video (Default server) sedang berjalan, paksa fullscreen
           const v = document.querySelector('video');
           if (v && v.currentTime > 0 && !v.dataset.fsFixed) {
-            v.style.position = 'fixed';
-            v.style.top = '0px';
-            v.style.left = '0px';
-            v.style.width = '100vw';
-            v.style.height = '100vh';
-            v.style.zIndex = '2147483647';
-            v.style.background = 'black';
-            v.style.objectFit = 'contain';
+            v.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483647; background: black; object-fit: contain;';
             v.dataset.fsFixed = '1';
           }
-          // Jika menggunakan Mirror 2 (muncul iframe player baru), paksa iframe tersebut fullscreen
           const iframes = document.querySelectorAll('iframe:not([data-fs-fixed])');
           for (const frame of Array.from(iframes)) {
              const h = frame.getAttribute('height');
              const w = frame.getAttribute('width');
-             // Abaikan iframe tracking/invisible
              if (h !== '1' && w !== '1' && frame.style.visibility !== 'hidden' && frame.style.display !== 'none') {
-                frame.style.position = 'fixed';
-                frame.style.top = '0px';
-                frame.style.left = '0px';
-                frame.style.width = '100vw';
-                frame.style.height = '100vh';
-                frame.style.zIndex = '2147483646';
-                frame.style.background = 'black';
-                frame.style.border = 'none';
+                frame.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2147483646; background: black; border: none;';
                 frame.setAttribute('data-fs-fixed', '1');
              }
           }
-        } catch(e){}
-      }, 1000);
+        });
+        window.acefileObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+      } catch(e){}
     `;
   }
 
@@ -128,6 +124,8 @@ export default function PlayerWebView({
             if (window.vidhideInterval) clearInterval(window.vidhideInterval);
             if (window.acefileInterval) clearInterval(window.acefileInterval);
             if (window.cleanerInterval) clearInterval(window.cleanerInterval);
+            if (window.vidhideObserver) window.vidhideObserver.disconnect();
+            if (window.acefileObserver) window.acefileObserver.disconnect();
             var mediaElements = document.querySelectorAll('video, audio');
             for (var i = 0; i < mediaElements.length; i++) {
               mediaElements[i].pause();
