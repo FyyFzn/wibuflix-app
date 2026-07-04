@@ -6,6 +6,7 @@ import { Colors } from '../../styles/theme';
 export default function TabLayout() {
   return (
     <Tabs
+      backBehavior="firstRoute"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.accent,
