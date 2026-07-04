@@ -144,15 +144,10 @@ export function useServerPlayback(state: any, player: any) {
          
          state.setLoading(false); // Pastikan layar loading 'Mencari server' mati
 
-         // ═══════════════════════════════════════════════════════════════
-         // PENTING: Jika episode sudah READY dari awal (fast-path),
-         // smart-play pertama dipanggil SEBELUM scrape selesai sehingga
-         // nextEpisodeUrl belum diketahui → prefetch
-         // tidak terpicu! Perbaikan: panggil smart-play sekali lagi di
-         // background setelah scrape selesai untuk memastikan prefetch jalan.
-         // ═══════════════════════════════════════════════════════════════
-         if (isReady && data.nav_next && !signal.aborted) {
-           console.log(`[Smart-Play] Episode READY, trigger prefetch window: nav_next=${data.nav_next}`);
+         // PENTING: Setelah scrape selesai dan menemukan nextEpisodeUrl (nav_next),
+         // langsung panggil smart-play di background untuk memicu prefetch window!
+         if (data.nav_next && !signal.aborted) {
+           console.log(`[Smart-Play] Scrape selesai, trigger prefetch window: nav_next=${data.nav_next}`);
            fetchSmartPlay(
              url,
              params.seriUrl as string,

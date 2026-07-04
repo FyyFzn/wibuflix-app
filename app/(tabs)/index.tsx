@@ -190,7 +190,7 @@ export default function BerandaScreen() {
         <Text style={styles.logoText}>
           WIBU<Text style={styles.logoAccent}>FLIX</Text>
         </Text>
-        <Text style={{ color: Colors.textMuted, fontSize: 11, fontWeight: 'bold', marginLeft: 8, marginTop: 4 }}>v2.8</Text>
+        <Text style={{ color: Colors.textMuted, fontSize: 11, fontWeight: 'bold', marginLeft: 8, marginTop: 4 }}>v2.9</Text>
       </View>
       <View style={styles.headerLine} />
 
