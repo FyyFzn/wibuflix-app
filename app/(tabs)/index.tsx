@@ -7,10 +7,8 @@ import {
   ScrollView,
   RefreshControl,
   StyleSheet,
-  BackHandler,
-  ToastAndroid,
 } from 'react-native';
-import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight } from '../../styles/theme';
 import { fetchKatalog, fetchHotAnime, AnimeItem } from '../../services/api';
@@ -24,27 +22,6 @@ export default function BerandaScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const setSelectedAnime = useAnimeStore((state) => state.setSelectedAnime);
-  
-  const lastBackPressRef = React.useRef(0);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      const onBackPress = () => {
-        const now = Date.now();
-        if (now - lastBackPressRef.current < 2000) {
-          BackHandler.exitApp();
-          return true;
-        }
-
-        lastBackPressRef.current = now;
-        ToastAndroid.show('Tekan sekali lagi untuk keluar', ToastAndroid.SHORT);
-        return true;
-      };
-
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove();
-    }, [])
-  );
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -210,7 +187,7 @@ export default function BerandaScreen() {
         <Text style={styles.logoText}>
           WIBU<Text style={styles.logoAccent}>FLIX</Text>
         </Text>
-        <Text style={{ color: Colors.textMuted, fontSize: 11, fontWeight: 'bold', marginLeft: 8, marginTop: 4 }}>v2.5</Text>
+        <Text style={{ color: Colors.textMuted, fontSize: 11, fontWeight: 'bold', marginLeft: 8, marginTop: 4 }}>v2.6</Text>
       </View>
       <View style={styles.headerLine} />
 
