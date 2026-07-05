@@ -4,11 +4,12 @@ import { fetchEpisodes, EpisodeItem, MalInfo, fetchQueueStatus, queueAdd } from 
 import { getRiwayat, getAllProgressMap, EpisodeProgress, WatchHistoryItem } from '../services/storage';
 import { useAnimeStore } from '../store/animeStore';
 import { ToastAndroid } from 'react-native';
+import { cleanSeriesTitle } from '../utils/titleUtils';
 
 export function useAnimeDetailData(url: string, initialJudul: string, initialGambar: string, sourcesParam?: string) {
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [malInfo, setMalInfo] = useState<MalInfo | null>(null);
-  const [judulSeri, setJudulSeri] = useState(initialJudul);
+  const [judulSeri, setJudulSeri] = useState(() => cleanSeriesTitle(initialJudul));
   const [coverImage, setCoverImage] = useState(initialGambar);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
     if (!url) return;
     setLoading(true);
     setError(null);
-    setJudulSeri(initialJudul);
+    setJudulSeri(cleanSeriesTitle(initialJudul));
     setCoverImage(initialGambar);
 
     try {
@@ -52,7 +53,7 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
       if (json.status !== 'success') throw new Error('Gagal memuat daftar episode');
 
       const data = json.data;
-      setJudulSeri(data.judul_seri || initialJudul);
+      setJudulSeri(cleanSeriesTitle(data.judul_seri || initialJudul));
       setEpisodes(data.daftar_episode || []);
       setMalInfo(data.mal || null);
 
