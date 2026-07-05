@@ -1,5 +1,6 @@
 import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus, fetchCancelStream, fetchReportBroken } from '../services/api';
 import { simpanKeRiwayat } from '../services/storage';
+import { formatEpisodeTitle } from './usePlayerState';
 
 export function useServerPlayback(state: any, player: any) {
   
@@ -135,11 +136,11 @@ export function useServerPlayback(state: any, player: any) {
          if (!isReady) throw new Error(json?.data?.judul || 'Gagal memuat metadata episode.');
       } else {
          const data = json.data;
-         if (!params.judul && data.judul) state.setTitle(data.judul);
+         if (!params.judul && data.judul) state.setTitle(formatEpisodeTitle(data.judul));
          state.setServers(data.servers || []);
          
          await simpanKeRiwayat(
-            (params.judul as string) || data.judul, url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
+            formatEpisodeTitle((params.judul as string) || data.judul), url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
          );
          
          state.setLoading(false); // Pastikan layar loading 'Mencari server' mati

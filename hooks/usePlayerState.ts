@@ -1,5 +1,17 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ServerItem } from '../services/api';
+
+export function formatEpisodeTitle(title?: string): string {
+  if (!title) return 'Episode ?';
+  if (title.toLowerCase().includes('batch')) return 'Batch';
+  const typeMatch = title.match(/(OVA|OAD|Special|SP)\s*(\d+(\.\d+)?)/i);
+  if (typeMatch) return `${typeMatch[1].toUpperCase()} ${typeMatch[2]}`;
+  const epMatch = title.match(/(?:episode|ep|eps)\s*(\d+(?:\.\d+)?)/i);
+  if (epMatch) return `Episode ${epMatch[1]}`;
+  const fallback = title.match(/\b(\d+(\.\d+)?)\s*(?:\(End\))?\s*$/i);
+  if (fallback) return `Episode ${fallback[1]}`;
+  return title;
+}
 
 export function usePlayerState(initialTitle: string = '') {
   const [loading, setLoading] = useState(true);
@@ -7,7 +19,13 @@ export function usePlayerState(initialTitle: string = '') {
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [nativeVideoHeaders, setNativeVideoHeaders] = useState<Record<string, string>>({});
-  const [title, setTitle] = useState(initialTitle);
+  const [title, setTitle] = useState(() => formatEpisodeTitle(initialTitle));
+
+  useEffect(() => {
+    if (initialTitle) {
+      setTitle(formatEpisodeTitle(initialTitle));
+    }
+  }, [initialTitle]);
   const [servers, setServers] = useState<ServerItem[]>([]);
   const [serverTab, setServerTab] = useState<string>('Samehadaku');
   
