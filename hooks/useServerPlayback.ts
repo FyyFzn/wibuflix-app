@@ -289,9 +289,12 @@ export function useServerPlayback(state: any, player: any) {
     state.setPlayerLoading(true);
     state.setError(null);
     
+    const currentUrl = state.currentEpisodeUrlRef?.current || params.url;
+    console.log(`[Report Broken] Melaporkan video rusak untuk URL: ${currentUrl}`);
+
     // 1. Laporkan ke backend untuk menghapus blob dari Azure Cloud
     await fetchReportBroken(
-      params.url,
+      currentUrl,
       params.seriUrl,
       params.seriJudul,
       params.uniqueId,
@@ -299,9 +302,68 @@ export function useServerPlayback(state: any, player: any) {
       state.activeServerName
     );
 
-    // 2. Cari server alternatif yang berbeda dari server aktif saat ini
+    // 2. Identifikasi provider/source saat ini (Samehadaku, Otakudesu, Kuronime)
+    const currentSource = state.serverTab || (currentUrl.includes('otakudesu') ? 'Otakudesu' : (currentUrl.includes('kuronime') ? 'Kuronime' : 'Samehadaku'));
+    console.log(`[Report Broken] Source rusak saat ini: ${currentSource}. Mencari provider alternatif...`);
+
+    // Prioritas A: Cek apakah ada URL dari provider lain di params.urls (lintas provider)
+    let urlsObj: any = null;
+    try {
+      if (params.urls) urlsObj = typeof params.urls === 'string' ? JSON.parse(params.urls) : params.urls;
+    } catch (e) {}
+
+    if (urlsObj) {
+      let altUrl: string | null = null;
+      let altSource: string | null = null;
+
+      if (currentSource === 'Samehadaku') {
+        if (urlsObj.otakudesu && !urlsObj.otakudesu.includes('null')) { altUrl = urlsObj.otakudesu; altSource = 'Otakudesu'; }
+        else if (urlsObj.kuronime && !urlsObj.kuronime.includes('null')) { altUrl = urlsObj.kuronime; altSource = 'Kuronime'; }
+      } else if (currentSource === 'Otakudesu') {
+        if (urlsObj.samehadaku && !urlsObj.samehadaku.includes('null')) { altUrl = urlsObj.samehadaku; altSource = 'Samehadaku'; }
+        else if (urlsObj.kuronime && !urlsObj.kuronime.includes('null')) { altUrl = urlsObj.kuronime; altSource = 'Kuronime'; }
+      } else if (currentSource === 'Kuronime') {
+        if (urlsObj.samehadaku && !urlsObj.samehadaku.includes('null')) { altUrl = urlsObj.samehadaku; altSource = 'Samehadaku'; }
+        else if (urlsObj.otakudesu && !urlsObj.otakudesu.includes('null')) { altUrl = urlsObj.otakudesu; altSource = 'Otakudesu'; }
+      }
+
+      if (altUrl && altSource && altUrl !== currentUrl) {
+        console.log(`[Report Broken] Berhasil menemukan provider alternatif: ${altSource} (${altUrl}). Beralih provider!`);
+        state.setServerTab(altSource);
+        loadEpisode(altUrl, { ...params, url: altUrl });
+        return;
+      }
+    }
+
+    // Prioritas B: Jika tidak ada di params.urls, cari server dari source/provider lain di state.servers
+    const altSourceServers = state.servers.filter((s: ServerItem) => s.aktif && (s.source || 'Samehadaku') !== currentSource);
+    if (altSourceServers.length > 0) {
+      const nextSrv = altSourceServers[0];
+      const nextSource = nextSrv.source || 'Otakudesu';
+      console.log(`[Report Broken] Beralih ke server dari provider lain di memori: ${nextSource} (${nextSrv.nama})`);
+      state.setServerTab(nextSource);
+      state.setActiveHost(nextSrv.namaHost || 'Alternatif');
+      try {
+        if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
+        state.abortControllerRef.current = new AbortController();
+        const signal = state.abortControllerRef.current.signal;
+        
+        let iframeUrl = nextSrv.iframeUrl;
+        if (!iframeUrl) {
+           const res = await resolveServer(currentUrl, nextSrv.nume, signal);
+           if (!signal.aborted) iframeUrl = res.data.iframeUrl;
+        }
+        if (iframeUrl) {
+           await playServer(iframeUrl, nextSrv.nama, false, signal);
+           return;
+        }
+      } catch (e) {
+        console.log('Failed to play alternative provider server', e);
+      }
+    }
+
+    // Prioritas C (Last Resort): Jika hanya ada 1 provider, cari server/host lain di provider yang sama
     const activeServers = state.servers.filter((s: ServerItem) => s.aktif && s.nama !== state.activeServerName);
-    
     if (activeServers.length > 0) {
       const nextSrv = activeServers[0];
       state.setActiveHost(nextSrv.namaHost || 'Alternatif');
@@ -312,7 +374,7 @@ export function useServerPlayback(state: any, player: any) {
         
         let iframeUrl = nextSrv.iframeUrl;
         if (!iframeUrl) {
-           const res = await resolveServer(params.url, nextSrv.nume, signal);
+           const res = await resolveServer(currentUrl, nextSrv.nume, signal);
            if (!signal.aborted) iframeUrl = res.data.iframeUrl;
         }
         if (iframeUrl) {
@@ -324,8 +386,8 @@ export function useServerPlayback(state: any, player: any) {
       }
     }
     
-    // 3. Fallback jika tidak ada server lain di list: muat ulang dari awal
-    loadEpisode(params.url, params);
+    // Fallback terakhir
+    loadEpisode(currentUrl, params);
   };
 
   return {
