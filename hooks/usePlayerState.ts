@@ -37,18 +37,15 @@ export function usePlayerState(initialTitle: string = '') {
   const [showEpisodesModal, setShowEpisodesModal] = useState(false);
   const [showSpeedModal, setShowSpeedModal] = useState(false);
   const [showResModal, setShowResModal] = useState(false);
-  const [showWebviewControls, setShowWebviewControls] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [restoredVideoUrl, setRestoredVideoUrl] = useState<string>('');
   const [savedProgress, setSavedProgress] = useState(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isSwitchingHost, setIsSwitchingHost] = useState(false);
 
-  // Player state
-  const [playerMode, setPlayerMode] = useState<'webview' | 'native' | 'none'>('none');
-  const [webviewUrl, setWebviewUrl] = useState<string>('');
+  // Player state (100% Azure Blob / Native Cloud Player)
+  const [playerMode, setPlayerMode] = useState<'native' | 'none'>('none');
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string>('');
-  const [fallbackWebviewUrl, setFallbackWebviewUrl] = useState<string>('');
   const [retryCount, setRetryCount] = useState(0);
 
   // Progress tracking
@@ -60,24 +57,21 @@ export function usePlayerState(initialTitle: string = '') {
   const currentEpisodeUrlRef = useRef<string | null>(null);
   const currentEpisodeParamsRef = useRef<any>(null);
   const lastKnownPositionRef = useRef<number>(0);
-  const webviewControlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef<boolean>(true);
 
-  // Reset player state (Fix F6)
+  // Reset player state
   const resetPlayerState = useCallback(() => {
     setPlayerMode('none');
     setNativeVideoUrl('');
-    setWebviewUrl('');
     setPlayerLoading(true);
     setError(null);
-    setFallbackWebviewUrl('');
     setRetryCount(0);
   }, []);
 
-  // Capture position from sources (Fix F5)
+  // Capture position from sources
   const captureCurrentPosition = useCallback((player: any) => {
     let pos = Math.max(lastKnownPositionRef.current, currentPosition);
     if (playerMode === 'native' && player) {
@@ -103,16 +97,13 @@ export function usePlayerState(initialTitle: string = '') {
     showEpisodesModal, setShowEpisodesModal,
     showSpeedModal, setShowSpeedModal,
     showResModal, setShowResModal,
-    showWebviewControls, setShowWebviewControls,
     playbackSpeed, setPlaybackSpeed,
     restoredVideoUrl, setRestoredVideoUrl,
     savedProgress, setSavedProgress,
     controlsVisible, setControlsVisible,
     isSwitchingHost, setIsSwitchingHost,
     playerMode, setPlayerMode,
-    webviewUrl, setWebviewUrl,
     nativeVideoUrl, setNativeVideoUrl,
-    fallbackWebviewUrl, setFallbackWebviewUrl,
     retryCount, setRetryCount,
     currentPosition, setCurrentPosition,
     totalDuration, setTotalDuration,
@@ -120,7 +111,6 @@ export function usePlayerState(initialTitle: string = '') {
     currentEpisodeUrlRef,
     currentEpisodeParamsRef,
     lastKnownPositionRef,
-    webviewControlsTimeoutRef,
     progressIntervalRef,
     controlsTimeoutRef,
     abortControllerRef,

@@ -29,6 +29,7 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
         samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
         otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
         kuronime: selectedAnime.sources.kuronime?.url || undefined,
+        nanime: selectedAnime.sources.nanime?.url || undefined,
       };
     }
     return {

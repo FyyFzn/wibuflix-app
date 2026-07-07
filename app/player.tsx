@@ -25,7 +25,7 @@ import { useDoubleTapSkip } from '../hooks/useDoubleTapSkip';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpisodeNavigation } from '../hooks/useEpisodeNavigation';
 import { useProgressSync } from '../hooks/useProgressSync';
-import { getHostName } from '../utils/playerScripts';
+import { getHostName } from '../utils/hostUtils';
 
 export default function PlayerScreen() {
   const router = useRouter();
@@ -38,20 +38,8 @@ export default function PlayerScreen() {
   // 2. Initialize Navigation Hook
   const { episodes, setEpisodes, navPrev, setNavPrev, navNext, setNavNext } = useEpisodeNavigation(params.seriUrl, params.url, null, null, params.seriUrls || params.sources || params.urls);
 
-  const isAzureBlob = state.nativeVideoUrl && state.nativeVideoUrl.includes('.blob.core.windows.net');
-  let videoSource = null;
-  if (state.nativeVideoUrl) {
-    if (isAzureBlob) {
-      videoSource = { uri: state.nativeVideoUrl };
-    } else {
-      videoSource = {
-        uri: state.nativeVideoUrl,
-        headers: Object.keys(state.nativeVideoHeaders).length > 0 ? state.nativeVideoHeaders : {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-        }
-      };
-    }
-  }
+  const isAzureBlob = true; // 100% Azure Blob Architecture
+  const videoSource = state.nativeVideoUrl ? { uri: state.nativeVideoUrl } : null;
 
   const player = useVideoPlayer(videoSource, (player) => {
     player.preservesPitch = true;
@@ -93,7 +81,8 @@ export default function PlayerScreen() {
           e.url,
           e.urls?.samehadaku,
           e.urls?.otakudesu,
-          e.urls?.neosatsu
+          e.urls?.neosatsu,
+          e.urls?.nanime
         ].filter(Boolean).map(u => decodeURIComponent(u as string));
 
         return urlsToCheck.some(epUrl => {
@@ -109,7 +98,7 @@ export default function PlayerScreen() {
       
       let finalUrl = safeUrl;
       if (targetEp) {
-          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || safeUrl;
+          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || targetEp.urls?.nanime || safeUrl;
       }
 
       router.setParams({
@@ -117,16 +106,25 @@ export default function PlayerScreen() {
         gambar: params.gambar,
         seriUrl: params.seriUrl,
         seriUrls: params.seriUrls,
-        sources: params.sources,
-        judul: nextJudul,
+        sources: params.sources || params.urls,
+        judul: nextJudul || params.judul,
         seriJudul: params.seriJudul,
-        urls: nextUrls,
-        autoPlayHost: state.preferredHostRef.current || state.activeHost,
-        autoFullscreen: isFullscreen ? '1' : '0',
-        uniqueId: params.uniqueId
+        uniqueId: params.uniqueId,
+        urls: nextUrls || params.urls
       });
-    }, 500);
-  }, [stopAllMedia, state, episodes, router, params, isFullscreen]);
+    }, 50);
+  }, [episodes, router, params, stopAllMedia]);
+
+  // Handle autoPlayHost when servers load
+  useEffect(() => {
+    if (state.servers && state.servers.length > 0 && params.autoPlayHost) {
+      const targetHost = decodeURIComponent(params.autoPlayHost as string).toLowerCase();
+      const srv = state.servers.find(s => (s.namaHost || '').toLowerCase().includes(targetHost) && s.aktif);
+      if (srv) {
+        playback.handleSelectHost(srv.namaHost || '', state.servers, params, stopAllMedia, () => state.captureCurrentPosition(player));
+      }
+    }
+  }, [state.servers, params.autoPlayHost]);
 
   // 6. Progress Synchronization Hook
   const { saveCurrentProgress } = useProgressSync({
@@ -139,35 +137,14 @@ export default function PlayerScreen() {
     navigateEpisode,
   });
 
-  // Handle native player error / retry
+  // Handle native player error
   useEffect(() => {
-    if (status === 'error' && playerError && state.playerMode === 'native' && state.fallbackWebviewUrl) {
-      if (state.retryCount < 2) {
-        console.log(`Native Player Error: ${playerError.message}. Retrying extraction (${state.retryCount + 1}/2)...`);
-        state.setRetryCount((prev: number) => prev + 1);
-
-        if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
-        state.abortControllerRef.current = new AbortController();
-        const signal = state.abortControllerRef.current.signal;
-
-        playback.playServer(state.fallbackWebviewUrl, state.activeServerName, true, signal).then(success => {
-          if (signal.aborted) return;
-          if (!success) {
-            state.setError('Gagal memutar video dari server. Silakan pilih server atau resolusi lain.');
-            state.setNativeVideoUrl('');
-            state.setFallbackWebviewUrl('');
-            state.setRetryCount(0);
-          }
-        });
-      } else {
-        console.log('Max retries reached. Direct link not available.');
-        state.setError('Gagal memutar video dari server. Silakan pilih server atau resolusi lain.');
-        state.setNativeVideoUrl('');
-        state.setFallbackWebviewUrl('');
-        state.setRetryCount(0);
-      }
+    if (status === 'error' && playerError) {
+      console.log(`Native Player Error: ${playerError.message}`);
+      state.setError('Gagal memutar video dari Azure Cloud Storage. Silakan klik tombol Lapor Rusak untuk memicu failover otomatis di server.');
+      state.setNativeVideoUrl('');
     }
-  }, [status, playerError, state.playerMode, state.fallbackWebviewUrl]);
+  }, [status, playerError]);
 
   // Load speed settings
   useEffect(() => {
@@ -356,7 +333,7 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     if (availableSources.length > 0) {
-      const preferred = params.url?.includes('otakudesu') || params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : (params.url?.includes('kuronime') ? 'Kuronime' : (params.url?.includes('neosatsu') ? 'Neosatsu' : 'Samehadaku'));
+      const preferred = params.url?.includes('otakudesu') || params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : (params.url?.includes('kuronime') ? 'Kuronime' : (params.url?.includes('nanime') ? 'Nanime' : (params.url?.includes('neosatsu') ? 'Neosatsu' : 'Samehadaku')));
       if (availableSources.includes(preferred) && state.serverTab === 'Samehadaku' && preferred !== 'Samehadaku') {
         state.setServerTab(preferred);
       } else if (!availableSources.includes(state.serverTab)) {

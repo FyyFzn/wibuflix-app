@@ -29,7 +29,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
 
       // Helper: dapatkan URL representatif dari episode (support mode merge & legacy)
       const getEpUrl = (ep: EpisodeItem): string => {
-        const raw = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.kuronime || ep.urls?.neosatsu || '';
+        const raw = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.kuronime || ep.urls?.neosatsu || ep.urls?.nanime || '';
         return decodeURIComponent(raw);
       };
 
@@ -39,7 +39,8 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
           e.url,
           e.urls?.samehadaku,
           e.urls?.otakudesu,
-          e.urls?.neosatsu
+          e.urls?.neosatsu,
+          e.urls?.nanime
         ].filter(Boolean).map(u => decodeURIComponent(u as string));
 
         return urlsToCheck.some(url => {

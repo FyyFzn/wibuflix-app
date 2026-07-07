@@ -1,74 +1,16 @@
-import { scrapeVideo, fetchSmartPlay, ServerItem, resolveServer, extractVideoUrl, fetchUploadStatus, fetchCancelStream, fetchReportBroken } from '../services/api';
+import { scrapeVideo, fetchSmartPlay, ServerItem, fetchUploadStatus, fetchCancelStream, fetchReportBroken } from '../services/api';
 import { simpanKeRiwayat } from '../services/storage';
 import { formatEpisodeTitle } from './usePlayerState';
 
 export function useServerPlayback(state: any, player: any) {
   
-  const playServer = async (iframeUrl: string, serverName: string, isAutoPlay = false, signal: AbortSignal) => {
-    state.setPlayerMode('none');
-    state.setWebviewUrl('');
-    state.setNativeVideoUrl('');
-    state.setPlayerLoading(true);
-    state.setActiveServerName(serverName);
-
-    try {
-      const extractRes = await extractVideoUrl(iframeUrl, signal);
-      if (!state.isMounted.current || signal.aborted) return false;
-
-      if (extractRes.success && extractRes.url) {
-        state.setPlayerMode('native');
-        state.setNativeVideoUrl(extractRes.url);
-        state.setNativeVideoHeaders(extractRes.headers || {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/120.0.0.0',
-        });
-        state.setPlayerLoading(false);
-        return true;
-      }
-    } catch (e) {
-      console.log('Native extract error', e);
-    }
-    
-    if (!state.isMounted.current || signal.aborted) return false;
-    state.setError('Link video langsung (HLS/MP4) tidak tersedia untuk server ini.');
-    state.setPlayerLoading(false);
-    return false;
-  };
-
-  const attemptToPlayServers = async (serverList: ServerItem[], episodeUrl: string, signal: AbortSignal): Promise<boolean> => {
-    state.setServers(serverList);
-    const activeServers = serverList.filter(s => s.aktif);
-    if (activeServers.length === 0) return false;
-
-    // Try first active server
-    const srv = activeServers[0];
-    state.setActiveHost(srv.namaHost || 'Alternatif');
-    
-    try {
-      let iframeUrl = srv.iframeUrl;
-      if (!iframeUrl) {
-         const res = await resolveServer(episodeUrl, srv.nume, signal);
-         if (signal.aborted) return false;
-         iframeUrl = res.data.iframeUrl;
-      }
-      
-      if (iframeUrl) {
-        return await playServer(iframeUrl, srv.nama, true, signal);
-      }
-    } catch(e) {
-      console.log('Failed to resolve server', e);
-    }
-    return false;
-  };
-
   const loadEpisode = async (url: string, params: any) => {
     state.setLoading(true);
     state.setError(null);
     state.setPlayerMode('none');
-    state.setWebviewUrl('');
     state.setNativeVideoUrl('');
     state.setActiveHost('');
     state.setActiveServerName('');
-    state.setFallbackWebviewUrl('');
     state.setRetryCount(0);
     const previousUrl = state.currentEpisodeUrlRef?.current;
     const previousParams = state.currentEpisodeParamsRef?.current;
@@ -227,11 +169,11 @@ export function useServerPlayback(state: any, player: any) {
             }
          }
          
-         // FALLBACK: Jika Azure gagal, coba ekstrak direct link dari server list (tanpa WebView)
+         // Dalam arsitektur Server-Driven (Thin Client), kita TIDAK memutar direct link/webview eksternal.
+         // Jika polling selesai dan file Azure belum siap, tampilkan pesan error yang jelas.
          if (fallbackTriggered && !isReady) {
-            const played = await attemptToPlayServers(data.servers || [], url, signal);
-            if (!played && !signal.aborted && state.isMounted.current) {
-              state.setError('Gagal memutar video: file Azure belum siap dan direct link tidak tersedia.');
+            if (!signal.aborted && state.isMounted.current) {
+              state.setError('Gagal memutar video dari Azure Cloud Storage. Silakan klik tombol Lapor Rusak untuk memicu failover otomatis di server.');
               state.setPlayerLoading(false);
             }
          }
@@ -254,34 +196,11 @@ export function useServerPlayback(state: any, player: any) {
   const handleSelectResolution = async (srv: ServerItem, params: any, stopAllMedia: () => void, saveCurrentProgress: () => void) => {
     stopAllMedia();
     saveCurrentProgress();
-    
-    if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
-    state.abortControllerRef.current = new AbortController();
-    const signal = state.abortControllerRef.current.signal;
-    
     state.setShowResModal(false);
-    state.setPlayerLoading(true);
-    state.setError(null);
-    state.setActiveHost(srv.namaHost || 'Alternatif');
-
-    try {
-      let iframeUrl = srv.iframeUrl;
-      if (!iframeUrl) {
-         const res = await resolveServer(params.url, srv.nume, signal);
-         if (signal.aborted) return;
-         iframeUrl = res.data.iframeUrl;
-      }
-      if (iframeUrl) {
-         await playServer(iframeUrl, srv.nama, false, signal);
-      } else {
-         state.setError('Gagal mendapatkan link video untuk server ini.');
-         state.setPlayerLoading(false);
-      }
-    } catch(e: any) {
-      if (signal.aborted) return;
-      state.setError(e.message || 'Gagal memuat server.');
-      state.setPlayerLoading(false);
-    }
+    state.setActiveServerName(srv.nama);
+    state.setActiveHost(srv.namaHost || 'Azure Cloud');
+    // Dalam arsitektur Server-Driven (Thin Client), semua resolusi dan provider dilayani via Azure Blob.
+    loadEpisode(params.url, params);
   };
 
   const handleReportBroken = async (params: any, stopAllMedia: () => void) => {
@@ -290,10 +209,10 @@ export function useServerPlayback(state: any, player: any) {
     state.setError(null);
     
     const currentUrl = state.currentEpisodeUrlRef?.current || params.url;
-    console.log(`[Report Broken] Melaporkan video rusak untuk URL: ${currentUrl}`);
+    console.log(`[Report Broken V2] Melaporkan video rusak untuk URL: ${currentUrl}. Backend akan otomatis melakukan failover ke provider cadangan...`);
 
-    // 1. Laporkan ke backend untuk menghapus blob dari Azure Cloud
-    await fetchReportBroken(
+    // 1. Laporkan ke backend (V2 Server-Driven Failover)
+    const reportRes = await fetchReportBroken(
       currentUrl,
       params.seriUrl,
       params.seriJudul,
@@ -302,97 +221,15 @@ export function useServerPlayback(state: any, player: any) {
       state.activeServerName
     );
 
-    // 2. Identifikasi provider/source saat ini (Samehadaku, Otakudesu, Kuronime)
-    const currentSource = state.serverTab || (currentUrl.includes('otakudesu') ? 'Otakudesu' : (currentUrl.includes('kuronime') ? 'Kuronime' : 'Samehadaku'));
-    console.log(`[Report Broken] Source rusak saat ini: ${currentSource}. Mencari provider alternatif...`);
-
-    // Prioritas A: Cek apakah ada URL dari provider lain di params.urls (lintas provider)
-    let urlsObj: any = null;
-    try {
-      if (params.urls) urlsObj = typeof params.urls === 'string' ? JSON.parse(params.urls) : params.urls;
-    } catch (e) {}
-
-    if (urlsObj) {
-      let altUrl: string | null = null;
-      let altSource: string | null = null;
-
-      if (currentSource === 'Samehadaku') {
-        if (urlsObj.otakudesu && !urlsObj.otakudesu.includes('null')) { altUrl = urlsObj.otakudesu; altSource = 'Otakudesu'; }
-        else if (urlsObj.kuronime && !urlsObj.kuronime.includes('null')) { altUrl = urlsObj.kuronime; altSource = 'Kuronime'; }
-      } else if (currentSource === 'Otakudesu') {
-        if (urlsObj.samehadaku && !urlsObj.samehadaku.includes('null')) { altUrl = urlsObj.samehadaku; altSource = 'Samehadaku'; }
-        else if (urlsObj.kuronime && !urlsObj.kuronime.includes('null')) { altUrl = urlsObj.kuronime; altSource = 'Kuronime'; }
-      } else if (currentSource === 'Kuronime') {
-        if (urlsObj.samehadaku && !urlsObj.samehadaku.includes('null')) { altUrl = urlsObj.samehadaku; altSource = 'Samehadaku'; }
-        else if (urlsObj.otakudesu && !urlsObj.otakudesu.includes('null')) { altUrl = urlsObj.otakudesu; altSource = 'Otakudesu'; }
-      }
-
-      if (altUrl && altSource && altUrl !== currentUrl) {
-        console.log(`[Report Broken] Berhasil menemukan provider alternatif: ${altSource} (${altUrl}). Beralih provider!`);
-        state.setServerTab(altSource);
-        loadEpisode(altUrl, { ...params, url: altUrl });
-        return;
-      }
+    if (reportRes && reportRes.success && reportRes.message) {
+       console.log(`[Report Broken V2] Backend response: ${reportRes.message}`);
     }
 
-    // Prioritas B: Jika tidak ada di params.urls, cari server dari source/provider lain di state.servers
-    const altSourceServers = state.servers.filter((s: ServerItem) => s.aktif && (s.source || 'Samehadaku') !== currentSource);
-    if (altSourceServers.length > 0) {
-      const nextSrv = altSourceServers[0];
-      const nextSource = nextSrv.source || 'Otakudesu';
-      console.log(`[Report Broken] Beralih ke server dari provider lain di memori: ${nextSource} (${nextSrv.nama})`);
-      state.setServerTab(nextSource);
-      state.setActiveHost(nextSrv.namaHost || 'Alternatif');
-      try {
-        if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
-        state.abortControllerRef.current = new AbortController();
-        const signal = state.abortControllerRef.current.signal;
-        
-        let iframeUrl = nextSrv.iframeUrl;
-        if (!iframeUrl) {
-           const res = await resolveServer(currentUrl, nextSrv.nume, signal);
-           if (!signal.aborted) iframeUrl = res.data.iframeUrl;
-        }
-        if (iframeUrl) {
-           await playServer(iframeUrl, nextSrv.nama, false, signal);
-           return;
-        }
-      } catch (e) {
-        console.log('Failed to play alternative provider server', e);
-      }
-    }
-
-    // Prioritas C (Last Resort): Jika hanya ada 1 provider, cari server/host lain di provider yang sama
-    const activeServers = state.servers.filter((s: ServerItem) => s.aktif && s.nama !== state.activeServerName);
-    if (activeServers.length > 0) {
-      const nextSrv = activeServers[0];
-      state.setActiveHost(nextSrv.namaHost || 'Alternatif');
-      try {
-        if (state.abortControllerRef.current) state.abortControllerRef.current.abort();
-        state.abortControllerRef.current = new AbortController();
-        const signal = state.abortControllerRef.current.signal;
-        
-        let iframeUrl = nextSrv.iframeUrl;
-        if (!iframeUrl) {
-           const res = await resolveServer(currentUrl, nextSrv.nume, signal);
-           if (!signal.aborted) iframeUrl = res.data.iframeUrl;
-        }
-        if (iframeUrl) {
-           await playServer(iframeUrl, nextSrv.nama, false, signal);
-           return;
-        }
-      } catch (e) {
-        console.log('Failed to switch to next server after report broken', e);
-      }
-    }
-    
-    // Fallback terakhir
+    // 2. Muat ulang episode. Karena backend V2 sudah memulai re-ekstraksi dari provider alternatif (Nanime/Otakudesu) ke Azure Blob, loadEpisode akan otomatis memutar stream baru tersebut!
     loadEpisode(currentUrl, params);
   };
 
   return {
-    playServer,
-    attemptToPlayServers,
     loadEpisode,
     handleSelectHost,
     handleSelectResolution,

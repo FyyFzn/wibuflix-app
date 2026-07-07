@@ -16,10 +16,10 @@ export function getApiBase(): string {
 
 export const API = {
   katalog: `${API_BASE}/api/katalog`,
-  episodes: `${API_BASE}/api/episodes`,
+  episodes: `${API_BASE}/api/v2/episodes`, // Beralih ke V2 Server-Driven (Thin Client)
+  v2Stream: `${API_BASE}/api/v2/stream`,
+  v2ReportBroken: `${API_BASE}/api/v2/stream/report-broken`,
   scrape: `${API_BASE}/api/scrape`,
-  resolve: `${API_BASE}/api/resolve`,
-  extractVideo: `${API_BASE}/api/extract-video`,
   hot: `${API_BASE}/api/hot`,
 };
 
@@ -109,20 +109,6 @@ export interface ScrapeResponse {
   };
 }
 
-export interface ResolveResponse {
-  status: string;
-  data: {
-    iframeUrl: string;
-    namaHost: string;
-  };
-}
-
-export interface ExtractVideoResponse {
-  success: boolean;
-  url?: string;
-  message?: string;
-  headers?: Record<string, string>;
-}
 
 // ── API Functions ──────────────────────────────────────────
 
@@ -227,23 +213,11 @@ export async function fetchHotAnime(signal?: AbortSignal): Promise<HotAnimeRespo
   return fetchWithCache<HotAnimeResponse>(API.hot, cacheKey, 3600000, signal); // Cache 1 jam
 }
 
-export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string; kuronime?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
-  let url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
-  let cacheKey = `episodes_${targetUrl}`;
-  
-  if (urls && (urls.samehadaku || urls.otakudesu || urls.kuronime)) {
-    url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}&`;
-    if (urls.samehadaku) url += `urlSamehadaku=${encodeURIComponent(urls.samehadaku)}&`;
-    if (urls.otakudesu && !urls.otakudesu.includes('null') && !urls.otakudesu.includes('undefined')) {
-      url += `urlOtakudesu=${encodeURIComponent(urls.otakudesu)}&`;
-    }
-    if (urls.kuronime) url += `urlKuronime=${encodeURIComponent(urls.kuronime)}&`;
-    url = url.replace(/&$/, ''); // remove trailing ampersand
-    
-    cacheKey = `episodes_merged_${urls.samehadaku || ''}_${urls.otakudesu || ''}_${urls.kuronime || ''}`;
-  }
-  
-  return fetchWithCache<EpisodesResponse>(url, cacheKey, 86400000, signal); // Cache 24 jam
+export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string; kuronime?: string; nanime?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
+  // Gunakan endpoint V2 Server-Driven (Thin Client) yang otomatis mengorkestrasi merge di backend
+  const url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
+  const cacheKey = `v2_episodes_${targetUrl}`;
+  return fetchWithCache<EpisodesResponse>(url, cacheKey, 3600000, signal); // Cache 1 jam di client
 }
 
 export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episodeTitle?: string, signal?: AbortSignal, urls?: string): Promise<ScrapeResponse> {
@@ -256,23 +230,13 @@ export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episo
   return res.json();
 }
 
-export async function resolveServer(targetUrl: string, nume: string, signal?: AbortSignal): Promise<ResolveResponse> {
-  const res = await fetch(`${API.resolve}?url=${encodeURIComponent(targetUrl)}&nume=${nume}`, { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function extractVideoUrl(embedUrl: string, signal?: AbortSignal): Promise<ExtractVideoResponse> {
-  const res = await fetch(`${API.extractVideo}?url=${encodeURIComponent(embedUrl)}`, { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
 
 export interface SmartPlayResponse {
   success: boolean;
-  status: 'READY' | 'UPLOADING' | 'FAILED';
+  status: 'READY' | 'UPLOADING' | 'FAILED' | 'PENDING';
   url?: string;
   message?: string;
+  progress?: number;
 }
 
 export async function fetchSmartPlay(
@@ -285,17 +249,26 @@ export async function fetchSmartPlay(
   uniqueId?: string,
   urls?: string,
 ): Promise<SmartPlayResponse> {
-  let url = `${getApiBase()}/api/smart-play?episodeUrl=${encodeURIComponent(episodeUrl)}`;
+  let url = `${API.v2Stream}?episodeUrl=${encodeURIComponent(episodeUrl)}`;
   if (seriesUrl) url += `&seriesUrl=${encodeURIComponent(seriesUrl)}`;
   if (nextEpisodeUrl) url += `&nextEpisodeUrl=${encodeURIComponent(nextEpisodeUrl)}`;
   if (seriesTitle) url += `&seriesTitle=${encodeURIComponent(seriesTitle)}`;
   if (episodeTitle) url += `&episodeTitle=${encodeURIComponent(episodeTitle)}`;
   if (uniqueId) url += `&uniqueId=${encodeURIComponent(uniqueId)}`;
-  if (urls) url += `&urls=${encodeURIComponent(urls)}`;
 
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  if (json && json.status === 'success' && json.data) {
+    return {
+      success: true,
+      status: json.data.stream_status || 'UPLOADING',
+      url: json.data.url,
+      message: json.data.message,
+      progress: json.data.progress
+    };
+  }
+  return json;
 }
 
 export async function fetchUploadStatus(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, uniqueId?: string, signal?: AbortSignal): Promise<{ success: boolean; progressMessage?: string }> {
@@ -330,14 +303,18 @@ export async function fetchCancelStream(url: string, seriesUrl?: string, seriesT
 
 export async function fetchReportBroken(url: string, seriesUrl?: string, seriesTitle?: string, uniqueId?: string, episodeTitle?: string, currentServer?: string): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${getApiBase()}/api/report-broken`, {
+    const res = await fetch(API.v2ReportBroken, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, seriesUrl, seriesTitle, uniqueId, episodeTitle, currentServer })
     });
-    return await res.json();
+    const json = await res.json();
+    if (json && json.status === 'success') {
+      return { success: true, message: json.data?.message };
+    }
+    return { success: false };
   } catch (e) {
-    console.error('[API] Failed to report broken video', e);
+    console.error('[API] Failed to report broken video to V2', e);
     return { success: false };
   }
 }
