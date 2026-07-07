@@ -75,6 +75,13 @@ export default function PlayerScreen() {
         safeUrl = safeUrl.replace('#neosatsu_ep_', '___HASH_NEOSATSU___');
       }
 
+      const cleanEpUrl = (u?: string) => {
+        if (!u) return '';
+        let str = decodeURIComponent(u);
+        if (str.includes('?url=')) str = decodeURIComponent(str.split('?url=')[1]);
+        return str.replace(/\/$/, '');
+      };
+
       const targetEp = episodes.find(e => {
         const urlsToCheck = [
           e.urls?.kuronime,
@@ -85,8 +92,9 @@ export default function PlayerScreen() {
           e.urls?.nanime
         ].filter(Boolean).map(u => decodeURIComponent(u as string));
 
+        const targetNorm = cleanEpUrl(url);
         return urlsToCheck.some(epUrl => {
-          if (epUrl === url) return true;
+          if (cleanEpUrl(epUrl) === targetNorm) return true;
           if (epUrl.includes('#neosatsu_ep_') && url.includes('#neosatsu_ep_')) {
             return epUrl.split('#')[1] === url.split('#')[1];
           }

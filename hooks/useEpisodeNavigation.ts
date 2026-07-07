@@ -33,6 +33,14 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
         return decodeURIComponent(raw);
       };
 
+      const cleanEpUrl = (u?: string) => {
+        if (!u) return '';
+        let str = decodeURIComponent(u);
+        if (str.includes('?url=')) str = decodeURIComponent(str.split('?url=')[1]);
+        return str.replace(/\/$/, '');
+      };
+
+      const targetNorm = cleanEpUrl(decodedCurrent);
       const currentIndex = episodes.findIndex(e => {
         const urlsToCheck = [
           e.urls?.kuronime,
@@ -44,7 +52,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
         ].filter(Boolean).map(u => decodeURIComponent(u as string));
 
         return urlsToCheck.some(url => {
-          if (url === decodedCurrent) return true;
+          if (cleanEpUrl(url) === targetNorm) return true;
           // Handle neosatsu #fragment URL
           if (url.includes('#neosatsu_ep_') && decodedCurrent.includes('#neosatsu_ep_')) {
             return url.split('#')[1] === decodedCurrent.split('#')[1];
