@@ -118,7 +118,8 @@ export default function PlayerScreen() {
         judul: nextJudul || params.judul,
         seriJudul: params.seriJudul,
         uniqueId: params.uniqueId,
-        urls: nextUrls || params.urls
+        urls: nextUrls || params.urls,
+        autoFullscreen: params.autoFullscreen
       });
     }, 50);
   }, [episodes, router, params, stopAllMedia]);
@@ -174,15 +175,18 @@ export default function PlayerScreen() {
     state.setShowSpeedModal(false);
   };
 
-  // Load episode on mount or params.url change
+  // Initialize fullscreen ONLY on initial component mount
   useEffect(() => {
-    state.isMounted.current = true;
-
     if (params.autoFullscreen === '1') {
       enterFullscreen();
     } else {
       exitFullscreen();
     }
+  }, []);
+
+  // Load episode on mount or params.url change
+  useEffect(() => {
+    state.isMounted.current = true;
 
     if (params.url) {
       state.setRestoredVideoUrl('');
