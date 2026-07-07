@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { styles } from '../styles/playerStyles';
 import { Colors } from '../styles/theme';
-import { cancelUploads } from '../services/api';
+import { cancelUploads, fetchCancelStream } from '../services/api';
 import { getProgress, formatDuration } from '../services/storage';
 import PlayerNativeControls from '../components/player/PlayerNativeControls';
 import PlayerModals from '../components/player/PlayerModals';
@@ -200,6 +200,13 @@ export default function PlayerScreen() {
         state.abortControllerRef.current.abort();
       }
       saveCurrentProgress();
+      // Batalkan semua upload/prefetch di backend saat player keluar (dengan cara apapun)
+      cancelUploads();
+      const exitUrl = state.currentEpisodeUrlRef?.current || (params.url as string);
+      const exitParams = state.currentEpisodeParamsRef?.current || params;
+      if (exitUrl) {
+        fetchCancelStream(exitUrl, exitParams?.seriUrl, exitParams?.seriJudul, exitParams?.uniqueId).catch(() => {});
+      }
     };
   }, [params.url]);
 
