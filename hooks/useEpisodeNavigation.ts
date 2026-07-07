@@ -59,7 +59,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
           const extractEpNum = (title: string) => {
             const match = title.match(/(?:episode|ep|eps)[\s-_]*0*(\d+(?:\.\d+)?)/i);
             if (match) return parseFloat(match[1]);
-            const fallback = title.match(/(?:--|__|-\s*|\s+-\s*|\[|\()[\s-_]*0*(\d+(?:\.\d+)?)\s*(?:--|__|-\s*|\s+-\s*|\]|\)|_|\.|$)/) || title.match(/\b0*(\d+(?:\.\d+)?)\s*(?:\(End\))?\s*$/i);
+            const fallback = title.match(/(?:--|__|-\s*|\s+-\s*|\[|\()[\s-_]*0*(\d+(?:\.\d+)?)(?:\b|\s|[-_\]\)\.]|$)/) || title.match(/\b0*(\d+(?:\.\d+)?)\s*(?:\(End\))?\s*$/i);
             return fallback ? parseFloat(fallback[1]) : null;
           };
           const numFirst = extractEpNum(episodes[0].judul);
