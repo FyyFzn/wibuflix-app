@@ -28,6 +28,13 @@ export function useServerPlayback(state: any, player: any) {
     const signal = state.abortControllerRef.current.signal;
 
     try {
+      // 0. Simpan ke riwayat sejak awal menggunakan metadata dari params agar selalu masuk riwayat meskipun scrape UI di background gagal/lambat!
+      if (params.seriJudul || params.judul) {
+         simpanKeRiwayat(
+            formatEpisodeTitle((params.judul as string) || 'Episode'), url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
+         ).catch(() => {});
+      }
+
       // 1. Eksekusi Smart-Play secepat kilat TANPA menunggu Scrape UI selesai
       const smartPlayPromise = fetchSmartPlay(
         url,

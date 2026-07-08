@@ -59,7 +59,7 @@ export default function PlayerModals({
               data={episodes}
               keyExtractor={(item) => item.url || item.judul}
               renderItem={({item}) => {
-                const epUrl = item.url || (item.urls ? item.urls.samehadaku || item.urls.otakudesu : '');
+                const epUrl = item.url || (item.urls ? item.urls.samehadaku || item.urls.otakudesu || item.urls.kuronime || item.urls.nanime || item.urls.neosatsu || item.urls.nimegami : '');
                 return (
                 <TouchableOpacity 
                   style={[styles.modalItem, currentUrl === epUrl && styles.modalItemActive]}

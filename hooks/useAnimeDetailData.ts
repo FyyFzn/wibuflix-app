@@ -30,6 +30,8 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
         otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
         kuronime: selectedAnime.sources.kuronime?.url || undefined,
         nanime: selectedAnime.sources.nanime?.url || undefined,
+        neosatsu: selectedAnime.sources.neosatsu?.url || undefined,
+        nimegami: selectedAnime.sources.nimegami?.url || undefined,
       };
     }
     return {

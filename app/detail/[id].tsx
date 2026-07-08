@@ -145,14 +145,14 @@ export default function AnimeDetailScreen() {
         keyExtractor={(item, index) =>
           item.num != null
             ? `ep_${item.num}`
-            : (item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || item.urls?.nanime || `idx_${index}`)
+            : (item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || item.urls?.nanime || item.urls?.nimegami || `idx_${index}`)
         }
         initialNumToRender={12}
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={true}
         renderItem={({ item }) => {
-          const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || item.urls?.nanime || '';
+          const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || item.urls?.nanime || item.urls?.nimegami || '';
           const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
           const isQueued = queuedUrls.has(realEpUrl);
           const prog = progressMap[realEpUrl];

@@ -89,7 +89,8 @@ export default function PlayerScreen() {
           e.urls?.samehadaku,
           e.urls?.otakudesu,
           e.urls?.neosatsu,
-          e.urls?.nanime
+          e.urls?.nanime,
+          e.urls?.nimegami
         ].filter(Boolean).map(u => decodeURIComponent(u as string));
 
         const targetNorm = cleanEpUrl(url);
@@ -106,7 +107,7 @@ export default function PlayerScreen() {
       
       let finalUrl = safeUrl;
       if (targetEp) {
-          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || targetEp.urls?.nanime || safeUrl;
+          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || targetEp.urls?.nanime || targetEp.urls?.nimegami || safeUrl;
       }
 
       router.setParams({
@@ -352,7 +353,7 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     if (availableSources.length > 0) {
-      const preferred = params.url?.includes('otakudesu') || params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : (params.url?.includes('kuronime') ? 'Kuronime' : (params.url?.includes('nanime') ? 'Nanime' : (params.url?.includes('neosatsu') ? 'Neosatsu' : 'Samehadaku')));
+      const preferred = params.url?.includes('otakudesu') || params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : (params.url?.includes('kuronime') ? 'Kuronime' : (params.url?.includes('nanime') ? 'Nanime' : (params.url?.includes('neosatsu') ? 'Neosatsu' : (params.url?.includes('nimegami') ? 'Nimegami' : 'Samehadaku'))));
       if (availableSources.includes(preferred) && state.serverTab === 'Samehadaku' && preferred !== 'Samehadaku') {
         state.setServerTab(preferred);
       } else if (!availableSources.includes(state.serverTab)) {
