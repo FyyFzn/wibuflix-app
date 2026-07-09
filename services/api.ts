@@ -213,7 +213,7 @@ export async function fetchHotAnime(signal?: AbortSignal): Promise<HotAnimeRespo
   return fetchWithCache<HotAnimeResponse>(API.hot, cacheKey, 3600000, signal); // Cache 1 jam
 }
 
-export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string; kuronime?: string; nanime?: string; neosatsu?: string; nimegami?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
+export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string; kuronime?: string; nanime?: string; neosatsu?: string; nimegami?: string; oploverz?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
   // Gunakan endpoint V2 Server-Driven (Thin Client) yang otomatis mengorkestrasi merge di backend
   const url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
   const cacheKey = `v2_episodes_${targetUrl}`;

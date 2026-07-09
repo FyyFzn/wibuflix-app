@@ -32,6 +32,7 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
         nanime: selectedAnime.sources.nanime?.url || undefined,
         neosatsu: selectedAnime.sources.neosatsu?.url || undefined,
         nimegami: selectedAnime.sources.nimegami?.url || undefined,
+        oploverz: selectedAnime.sources.oploverz?.url || undefined,
       };
     }
     return {
