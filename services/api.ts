@@ -33,6 +33,7 @@ export interface AnimeItem {
   tipe: string;
   skor: string;
   status: string;
+  id?: string;
   sources?: any;
 }
 
@@ -61,19 +62,19 @@ export interface EpisodeItem {
 }
 
 export interface MalInfo {
-  malId: number;
-  malUrl: string;
+  malId: number | null;
+  malUrl?: string | null;
   malScore: string | null;
-  malRank: number | null;
+  malRank?: number | null;
   genres: string[];
-  synopsis: string;
+  synopsis: string | null;
   episodes: number | null;
   status: string;
-  studios: string[];
+  studios?: string[];
   year: number | null;
-  rating: string;
+  rating?: string | null;
   cover: string;
-  coverWebp: string | null;
+  coverWebp?: string | null;
 }
 
 export interface EpisodesResponse {
@@ -148,6 +149,9 @@ const memoryCache = new LRUMemoryCache<string, { timestamp: number; data: any }>
 function isCacheValid(data: any): boolean {
   if (!data || data.status === 'error') return false;
   if (data.data && Array.isArray(data.data.list) && data.data.list.length === 0) return false;
+  if (data.data && Array.isArray(data.data.daftar_episode) && data.data.daftar_episode.length === 0) return false;
+  if (data.data && Array.isArray(data.data.episodes) && data.data.episodes.length === 0) return false;
+  if (data.data && Array.isArray(data.data.servers) && data.data.servers.length === 0) return false;
   return true;
 }
 

@@ -172,15 +172,20 @@ const PlayerNativeControls = React.memo(function PlayerNativeControls({
                 value={currentPosition}
                 onValueChange={(val) => {
                   if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-                  setIsSeeking(true);
-                  setSeekingValue(val);
-                  setSeekBubbleLeft(
-                    getSeekBubbleLeft(val, totalDuration || 1, sliderWidthRef.current)
-                  );
+                  if (!isSeeking) setIsSeeking(true);
+                  // Perbarui UI bubble hanya saat pergeseran melampaui ambang batas >0.5s atau saat durasi sangat pendek
+                  if (Math.abs(val - seekingValue) > 0.5 || (totalDuration && totalDuration < 30)) {
+                    setSeekingValue(val);
+                    setSeekBubbleLeft(
+                      getSeekBubbleLeft(val, totalDuration || 1, sliderWidthRef.current)
+                    );
+                  }
                 }}
                 onSlidingComplete={(val) => {
                   setIsSeeking(false);
-                  player.currentTime = val;
+                  if (player) {
+                    player.currentTime = val;
+                  }
                   controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 4000);
                 }}
                 minimumTrackTintColor={Colors.accent}

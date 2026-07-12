@@ -90,10 +90,9 @@ export async function simpanKeRiwayat(
 
     let riwayat = await getRawRiwayat();
 
-    // Hapus duplikat jika episode yang sama ditonton ulang agar naik ke paling atas
-    riwayat = riwayat.filter(r => r.url !== url);
+    // Dedup agresif: Hapus episode lama dari seri yang sama agar riwayat tidak bengkak
+    riwayat = riwayat.filter(r => r.url !== url && (seriUrl ? r.seriUrl !== seriUrl : r.judulSeri !== judulSeri));
 
-    // Masukkan ke paling depan (FIFO unshift)
     riwayat.unshift({
       judulSeri,
       nomorEp,
@@ -107,9 +106,8 @@ export async function simpanKeRiwayat(
       uniqueId,
     });
 
-    // POTONG array jika melebihi batas untuk mencegah OOM AsyncStorage
-    if (riwayat.length > MAX_HISTORY_ITEMS) {
-      riwayat = riwayat.slice(0, MAX_HISTORY_ITEMS);
+    if (riwayat.length > 100) {
+      riwayat = riwayat.slice(0, 100);
     }
 
     await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
@@ -128,48 +126,78 @@ export interface EpisodeProgress {
 
 // ── Update progress for specific episode ───────────────
 
+let isProgressUpdating = false;
+let pendingProgressUpdate: { url: string; progress: number; duration: number; host?: string } | null = null;
+
 export async function updateProgress(
   url: string,
   progress: number,
   duration: number,
   host?: string
 ): Promise<void> {
-  // Update in History (for latest episode card)
-  try {
-    const riwayat = await getRawRiwayat();
-    const itemIndex = riwayat.findIndex(r => r.url === url);
-    if (itemIndex !== -1) {
-      riwayat[itemIndex].progress = progress;
-      riwayat[itemIndex].duration = duration;
-      riwayat[itemIndex].waktu = Date.now();
-      if (host) riwayat[itemIndex].host = host;
-      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
-    }
-  } catch (e) {
-    console.warn('[Storage Error] Gagal update progress di riwayat:', e);
+  if (!url || progress < 0 || duration <= 0) return;
+  if (isProgressUpdating) {
+    pendingProgressUpdate = { url, progress, duration, host };
+    return;
   }
 
-  // Update in standalone Progress DB (for episode lists)
+  isProgressUpdating = true;
   try {
-    const data = await AsyncStorage.getItem(PROGRESS_KEY);
-    let allProgress: Record<string, EpisodeProgress> = data ? JSON.parse(data) : {};
-    
-    allProgress[url] = { progress, duration, waktu: Date.now() };
-    
-    // Cleanup if too large (keep last 500)
-    const keys = Object.keys(allProgress);
-    if (keys.length > 500) {
-      const sortedKeys = keys.sort((a, b) => allProgress[b].waktu - allProgress[a].waktu);
-      const newProgress: Record<string, EpisodeProgress> = {};
-      sortedKeys.slice(0, 500).forEach(k => {
-        newProgress[k] = allProgress[k];
-      });
-      allProgress = newProgress;
+    // 1. Update in History DB secara aman
+    try {
+      const riwayat = await getRawRiwayat();
+      const itemIndex = riwayat.findIndex(r => r.url === url);
+      if (itemIndex !== -1) {
+        const validDuration = duration > 0 ? duration : (riwayat[itemIndex].duration || 1);
+        riwayat[itemIndex].progress = Math.min(progress, validDuration);
+        riwayat[itemIndex].duration = validDuration;
+        riwayat[itemIndex].waktu = Date.now();
+        if (host) riwayat[itemIndex].host = host;
+        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+      }
+    } catch (e) {
+      console.warn('[Storage Error] Gagal update progress di riwayat:', e);
     }
 
-    await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(allProgress));
-  } catch (e) {
-    console.warn('Failed to save progress', e);
+    // 2. Update in standalone Progress DB secara tersanitasi
+    try {
+      const data = await AsyncStorage.getItem(PROGRESS_KEY);
+      let allProgress: Record<string, EpisodeProgress> = {};
+      if (data) {
+        try {
+          allProgress = JSON.parse(data) || {};
+        } catch {
+          allProgress = {};
+        }
+      }
+      
+      allProgress[url] = { 
+        progress: Math.min(progress, duration), 
+        duration, 
+        waktu: Date.now() 
+      };
+      
+      const keys = Object.keys(allProgress);
+      if (keys.length > 150) {
+        const sortedKeys = keys.sort((a, b) => (allProgress[b]?.waktu || 0) - (allProgress[a]?.waktu || 0));
+        const newProgress: Record<string, EpisodeProgress> = {};
+        sortedKeys.slice(0, 150).forEach(k => {
+          if (allProgress[k]) newProgress[k] = allProgress[k];
+        });
+        allProgress = newProgress;
+      }
+
+      await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(allProgress));
+    } catch (e) {
+      console.warn('[Storage Error] Gagal update progress di Progress DB:', e);
+    }
+  } finally {
+    isProgressUpdating = false;
+    if (pendingProgressUpdate) {
+      const next = pendingProgressUpdate;
+      pendingProgressUpdate = null;
+      updateProgress(next.url, next.progress, next.duration, next.host);
+    }
   }
 }
 

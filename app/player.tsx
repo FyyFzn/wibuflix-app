@@ -123,7 +123,7 @@ export default function PlayerScreen() {
         autoFullscreen: params.autoFullscreen
       });
     }, 50);
-  }, [episodes, router, params, stopAllMedia]);
+  }, [episodes, router, params.gambar, params.seriUrl, params.seriUrls, params.sources, params.urls, params.judul, params.seriJudul, params.uniqueId, params.autoFullscreen, stopAllMedia]);
 
   // Handle autoPlayHost when servers load
   useEffect(() => {
@@ -147,12 +147,21 @@ export default function PlayerScreen() {
     navigateEpisode,
   });
 
-  // Handle native player error
+  // Handle native player error dengan Auto-Failover
+  const autoFailoverAttemptedRef = useRef(false);
+
   useEffect(() => {
-    if (status === 'error' && playerError) {
-      console.log(`Native Player Error: ${playerError.message}`);
-      state.setError('Gagal memutar video dari Azure Cloud Storage. Silakan klik tombol Lapor Rusak untuk memicu failover otomatis di server.');
-      state.setNativeVideoUrl('');
+    if (status === 'error' && playerError && state.isMounted.current) {
+      console.warn(`[Native Player Error] ${playerError.message}. Mengecek auto-failover...`);
+      if (!autoFailoverAttemptedRef.current) {
+        autoFailoverAttemptedRef.current = true;
+        console.info('[Auto-Failover] Memicu failover otomatis ke server cadangan tanpa intervensi manual.');
+        state.setError('Mendeteksi gangguan stream. Sedang mengalihkan ke server cadangan secara otomatis...');
+        playback.handleReportBroken(params, stopAllMedia);
+      } else {
+        state.setError('Gagal memutar video dari Azure Cloud Storage. Silakan klik tombol Lapor Rusak atau coba server alternatif.');
+        state.setNativeVideoUrl('');
+      }
     }
   }, [status, playerError]);
 
@@ -197,18 +206,25 @@ export default function PlayerScreen() {
         realUrl = realUrl.replace('___HASH_NEOSATSU___', '#neosatsu_ep_');
       }
       getProgress(realUrl).then(saved => {
-        if (saved && saved.progress > 5) state.setSavedProgress(saved.progress);
+        if (saved && saved.progress > 5 && state.isMounted.current) {
+          state.setSavedProgress(saved.progress);
+        }
       });
       playback.loadEpisode(realUrl, params).then((data: any) => {
-        if (data) {
+        if (data && state.isMounted.current) {
           if (data.nav_prev) setNavPrev(data.nav_prev);
           if (data.nav_next) setNavNext(data.nav_next);
+        }
+      }).catch((err: any) => {
+        if (state.isMounted.current) {
+          console.warn('[Player Load Error]', err.message);
         }
       });
     }
     return () => {
       state.isMounted.current = false;
       stopAllMedia();
+      if (state.controlsTimeoutRef.current) clearTimeout(state.controlsTimeoutRef.current);
       if (state.abortControllerRef.current) {
         state.abortControllerRef.current.abort();
       }

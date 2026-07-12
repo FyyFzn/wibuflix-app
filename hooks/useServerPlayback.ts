@@ -85,14 +85,18 @@ export function useServerPlayback(state: any, player: any) {
          if (!isReady) throw new Error(json?.data?.judul || 'Gagal memuat metadata episode.');
       } else {
          const data = json.data;
-         if (!params.judul && data.judul) state.setTitle(formatEpisodeTitle(data.judul));
-         state.setServers(data.servers || []);
-         
-         await simpanKeRiwayat(
-            formatEpisodeTitle((params.judul as string) || data.judul), url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
-         );
-         
-         state.setLoading(false); // Pastikan layar loading 'Mencari server' mati
+         if (state.isMounted.current && !signal.aborted) {
+           if (!params.judul && data.judul) state.setTitle(formatEpisodeTitle(data.judul));
+           state.setServers(data.servers || []);
+           
+           await simpanKeRiwayat(
+              formatEpisodeTitle((params.judul as string) || data.judul), url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
+           );
+           
+           if (state.isMounted.current) {
+             state.setLoading(false); // Pastikan layar loading 'Mencari server' mati
+           }
+         }
 
          // PENTING: Setelah scrape selesai dan menemukan nextEpisodeUrl (nav_next),
          // langsung panggil smart-play di background untuk memicu prefetch window!
@@ -161,8 +165,19 @@ export function useServerPlayback(state: any, player: any) {
                   return false;
                 }
 
-                // Exponential backoff: 2s, 3s, 4.5s... max 10s untuk menghemat baterai & resource mobile
-                await new Promise(res => setTimeout(res, delay));
+                // Exponential backoff: 2s, 3s, 4.5s... max 10s dengan proteksi pembatalan abort
+                await new Promise<void>(res => {
+                  const timer = setTimeout(res, delay);
+                  if (signal.aborted) {
+                    clearTimeout(timer);
+                    res();
+                  } else {
+                    signal.addEventListener('abort', () => {
+                      clearTimeout(timer);
+                      res();
+                    }, { once: true });
+                  }
+                });
                 delay = Math.min(delay * 1.5, 10000);
               }
               return false;
@@ -180,8 +195,24 @@ export function useServerPlayback(state: any, player: any) {
          // Jika polling selesai dan file Azure belum siap, tampilkan pesan error yang jelas.
          if (fallbackTriggered && !isReady) {
             if (!signal.aborted && state.isMounted.current) {
-              state.setError('Gagal memutar video dari Azure Cloud Storage. Silakan klik tombol Lapor Rusak untuk memicu failover otomatis di server.');
-              state.setPlayerLoading(false);
+              console.warn('[Auto-Failover] Video gagal diproses di Azure Blob. Memicu failover otomatis ke provider alternatif...');
+              state.setError('Mendeteksi kendala pada stream cloud. Sedang memproses failover otomatis ke server alternatif...');
+              fetchReportBroken(
+                url,
+                params.seriUrl as string,
+                params.seriJudul as string,
+                params.uniqueId as string,
+                params.judul as string,
+                state.activeServerName
+              ).then(() => {
+                if (state.isMounted.current && !signal.aborted && state.retryCount < 1) {
+                  state.setRetryCount(1);
+                  loadEpisode(url, params);
+                } else if (state.isMounted.current) {
+                  state.setError('Gagal memutar video dari semua server cadangan. Silakan coba beberapa saat lagi.');
+                  state.setPlayerLoading(false);
+                }
+              });
             }
          }
          

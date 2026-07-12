@@ -45,31 +45,48 @@ export function useProgressSync({
     }
   }, [status, player, state.savedProgress, state.restoredVideoUrl, state.nativeVideoUrl]);
 
-  // Progress tracking interval
+  // Progress tracking & Throttled Disk Persistence
   useEffect(() => {
+    let tickCount = 0;
+    let isWritingToDisk = false;
+
     if (state.playerMode === 'native' && isPlaying) {
       if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
-      state.progressIntervalRef.current = setInterval(() => {
+      
+      state.progressIntervalRef.current = setInterval(async () => {
         try {
           if (!player) return;
           const curr = Math.floor(player.currentTime || 0);
+          const dur = Math.floor(player.duration || 0);
+          
+          // 1. Selalu perbarui posisi state di RAM (untuk UI slider tiap detik)
           state.setCurrentPosition(curr);
           state.lastKnownPositionRef.current = curr;
-          if (curr > 0 && url) {
-            updateProgress(url, curr, Math.floor(player.duration || 0));
+          if (dur > 0) state.setTotalDuration(dur);
+
+          // 2. Throttling: Tulis ke disk AsyncStorage HANYA setiap 5 detik (dan jika tidak sedang menulis)
+          tickCount++;
+          if (tickCount % 5 === 0 && curr > 0 && dur > 0 && url && !isWritingToDisk) {
+            isWritingToDisk = true;
+            await updateProgress(url, curr, dur, state.activeHost).catch(() => {});
+            isWritingToDisk = false;
           }
         } catch (e) {
-          if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+          isWritingToDisk = false;
         }
       }, 1000);
     } else {
       if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
+      // Flush progres saat video di-pause atau dihentikan
+      if (url && state.lastKnownPositionRef.current > 0 && state.totalDuration > 0) {
+        updateProgress(url, state.lastKnownPositionRef.current, state.totalDuration, state.activeHost).catch(() => {});
+      }
     }
 
     return () => {
       if (state.progressIntervalRef.current) clearInterval(state.progressIntervalRef.current);
     };
-  }, [state.playerMode, isPlaying, url, player]);
+  }, [state.playerMode, isPlaying, url, player, state.activeHost]);
 
   // Auto-next logic when reaching end of video
   useEffect(() => {
