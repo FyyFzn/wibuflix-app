@@ -148,10 +148,11 @@ const memoryCache = new LRUMemoryCache<string, { timestamp: number; data: any }>
 
 function isCacheValid(data: any): boolean {
   if (!data || data.status === 'error') return false;
-  if (data.data && Array.isArray(data.data.list) && data.data.list.length === 0) return false;
-  if (data.data && Array.isArray(data.data.daftar_episode) && data.data.daftar_episode.length === 0) return false;
-  if (data.data && Array.isArray(data.data.episodes) && data.data.episodes.length === 0) return false;
-  if (data.data && Array.isArray(data.data.servers) && data.data.servers.length === 0) return false;
+  const payload = data.data || data;
+  if (Array.isArray(payload.list) && payload.list.length === 0) return false;
+  if (Array.isArray(payload.daftar_episode) && payload.daftar_episode.length === 0) return false;
+  if (Array.isArray(payload.episodes) && payload.episodes.length === 0) return false;
+  if (Array.isArray(payload.servers) && payload.servers.length === 0) return false;
   return true;
 }
 
