@@ -12,6 +12,8 @@ export function useServerPlayback(state: any, player: any) {
     state.setActiveHost('');
     state.setActiveServerName('');
     state.setRetryCount(0);
+    state.setCurrentPosition(0);
+    state.setTotalDuration(0);
     const previousUrl = state.currentEpisodeUrlRef?.current;
     const previousParams = state.currentEpisodeParamsRef?.current;
     

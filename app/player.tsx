@@ -66,6 +66,8 @@ export default function PlayerScreen() {
 
   const navigateEpisode = useCallback((url: string) => {
     stopAllMedia();
+    state.setCurrentPosition(0);
+    state.setTotalDuration(0);
     setTimeout(() => {
       state.setShowEpisodesModal(false);
       if (state.abortControllerRef.current) state.abortControllerRef.current.abort();

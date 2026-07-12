@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { updateProgress } from '../services/storage';
 
 interface UseProgressSyncProps {
@@ -20,6 +20,13 @@ export function useProgressSync({
   navNext,
   navigateEpisode,
 }: UseProgressSyncProps) {
+  const autoNextTriggeredForUrlRef = useRef<string | null>(null);
+
+  // Reset autoNext tracker when url changes
+  useEffect(() => {
+    autoNextTriggeredForUrlRef.current = null;
+  }, [url]);
+
   // Restore saved progress on readyToPlay
   useEffect(() => {
     if (status === 'readyToPlay' && state.nativeVideoUrl) {
@@ -90,13 +97,19 @@ export function useProgressSync({
 
   // Auto-next logic when reaching end of video
   useEffect(() => {
-    if (state.totalDuration > 0 && state.currentPosition > 0 && navNext) {
+    if (state.totalDuration > 0 && state.currentPosition > 0 && navNext && url) {
       if (state.currentPosition >= state.totalDuration - 2) {
-        console.log('[Auto-Next] Triggered navigateEpisode');
-        navigateEpisode(navNext);
+        if (autoNextTriggeredForUrlRef.current !== url && isPlaying) {
+          autoNextTriggeredForUrlRef.current = url;
+          console.log(`[Auto-Next] Triggered navigateEpisode from ${url} to ${navNext}`);
+          // Reset progress memory immediately before navigating
+          state.setCurrentPosition(0);
+          state.setTotalDuration(0);
+          navigateEpisode(navNext);
+        }
       }
     }
-  }, [state.currentPosition, state.totalDuration, navNext, navigateEpisode]);
+  }, [state.currentPosition, state.totalDuration, navNext, navigateEpisode, url, isPlaying]);
 
   const saveCurrentProgress = useCallback(async () => {
     if (state.currentEpisodeUrlRef.current && state.lastKnownPositionRef.current > 0) {
