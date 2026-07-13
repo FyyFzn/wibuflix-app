@@ -37,11 +37,11 @@ export function useServerPlayback(state: any, player: any) {
          ).catch(() => {});
       }
 
-      // 1. Eksekusi Smart-Play secepat kilat TANPA menunggu Scrape UI selesai
-      const smartPlayPromise = fetchSmartPlay(
+      // 1. Eksekusi Smart-Play secepat kilat (Sekarang sekaligus membawa metadata nav_next, nav_prev, dan servers!)
+      const smartPlayRes = await fetchSmartPlay(
         url,
         params.seriUrl as string,
-        undefined, // nextEpisodeUrl (belum tahu karena belum di-scrape)
+        undefined,
         signal,
         params.seriJudul as string,
         params.judul as string,
@@ -52,175 +52,181 @@ export function useServerPlayback(state: any, player: any) {
         return null;
       });
 
-      // 2. Eksekusi Scrape UI (untuk memuat daftar server & tombol Next) di Background
-      const scrapePromise = scrapeVideo(url, params.seriJudul as string, params.judul as string, signal, params.urls as string).catch(e => {
-        console.log('[Background Scrape Error]', e.message);
-        return null;
-      });
+      if (!state.isMounted.current || signal.aborted) return;
 
       let isReady = false;
       let fallbackTriggered = false;
 
-      // Tunggu hasil Smart-Play pertama kali (biasanya instan 50-100ms jika sudah READY/UPLOADING)
-      const smartPlayRes = await smartPlayPromise;
-      if (!state.isMounted.current || signal.aborted) return;
+      if (smartPlayRes && smartPlayRes.success) {
+        // Terapkan metadata langsung dari respons Server-Driven (Thin Client) tanpa butuh scrape!
+        if (!params.judul && smartPlayRes.judul) state.setTitle(formatEpisodeTitle(smartPlayRes.judul));
+        if (smartPlayRes.servers && smartPlayRes.servers.length > 0) {
+          state.setServers(smartPlayRes.servers);
+        }
 
-      if (smartPlayRes && smartPlayRes.success && smartPlayRes.status === 'READY' && smartPlayRes.url) {
-        console.log('[Fast Smart-Play] Video ditemukan! Langsung memutar tanpa menunggu scrape selesai.');
-        isReady = true;
-        state.setPlayerMode('native');
-        state.setNativeVideoUrl(smartPlayRes.url);
-        state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob (Mencegah CORS Preflight)
-        state.setActiveHost('Azure Cloud');
-        state.setActiveServerName('Premium Direct Link');
-        state.setLoading(false); // Sembunyikan tulisan "Mencari server..."
-        state.setPlayerLoading(false); // Sembunyikan tulisan "Menyiapkan video..."
-      } else if (smartPlayRes && smartPlayRes.success && smartPlayRes.status === 'FAILED') {
-        fallbackTriggered = true;
+        if (smartPlayRes.status === 'READY' && smartPlayRes.url) {
+          console.log('[Fast Smart-Play] Video ditemukan! Langsung memutar dari Azure Blob Storage.');
+          isReady = true;
+          state.setPlayerMode('native');
+          state.setNativeVideoUrl(smartPlayRes.url);
+          state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob (Mencegah CORS Preflight)
+          state.setActiveHost('Azure Cloud');
+          state.setActiveServerName('Premium Direct Link');
+          state.setLoading(false); // Sembunyikan tulisan "Mencari server..."
+          state.setPlayerLoading(false); // Sembunyikan tulisan "Menyiapkan video..."
+        } else if (smartPlayRes.status === 'FAILED') {
+          fallbackTriggered = true;
+        }
+
+        // Simpan ke riwayat
+        await simpanKeRiwayat(
+          formatEpisodeTitle((params.judul as string) || smartPlayRes.judul || 'Episode'), url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
+        );
+
+        // Jika ada nav_next dari metadata backend, panggil prefetch window di background
+        if (smartPlayRes.nav_next && !signal.aborted) {
+          console.log(`[Smart-Play] Enriched metadata memiliki nav_next=${smartPlayRes.nav_next}, trigger prefetch window...`);
+          fetchSmartPlay(
+            url,
+            params.seriUrl as string,
+            smartPlayRes.nav_next,
+            new AbortController().signal,
+            params.seriJudul as string,
+            (params.judul || smartPlayRes.judul) as string,
+            params.uniqueId as string,
+            params.urls as string,
+          ).catch(() => {});
+        }
       }
 
-      // 3. Setelah Video Menyala (Atau Gagal), Barulah Tunggu Hasil Scrape UI
-      const json = await scrapePromise;
-      if (!state.isMounted.current || signal.aborted) return;
+      // 2. Fallback Safety Net: Hanya jika servers masih kosong (metadata tidak didapat dari Smart-Play), baru panggil scrapeVideo UI
+      if ((!smartPlayRes || !smartPlayRes.servers || smartPlayRes.servers.length === 0) && !signal.aborted) {
+        console.log('[Smart-Play Fallback] Metadata server kosong di V2 Stream, memuat dari Scrape UI...');
+        const json = await scrapeVideo(url, params.seriJudul as string, params.judul as string, signal, params.urls as string).catch(() => null);
+        if (json && json.status === 'success' && state.isMounted.current && !signal.aborted) {
+          const data = json.data;
+          if (!params.judul && data.judul) state.setTitle(formatEpisodeTitle(data.judul));
+          state.setServers(data.servers || []);
+          if (data.nav_next) {
+            fetchSmartPlay(
+              url,
+              params.seriUrl as string,
+              data.nav_next,
+              new AbortController().signal,
+              params.seriJudul as string,
+              (params.judul || data.judul) as string,
+              params.uniqueId as string,
+              params.urls as string,
+            ).catch(() => {});
+          }
+        }
+      }
 
-      if (!json || json.status !== 'success') {
-         if (!isReady) throw new Error(json?.data?.judul || 'Gagal memuat metadata episode.');
-      } else {
-         const data = json.data;
-         if (state.isMounted.current && !signal.aborted) {
-           if (!params.judul && data.judul) state.setTitle(formatEpisodeTitle(data.judul));
-           state.setServers(data.servers || []);
-           
-           await simpanKeRiwayat(
-              formatEpisodeTitle((params.judul as string) || data.judul), url, params.seriUrl || '', params.gambar || '', 0, 0, 'Azure Cloud', params.seriJudul as string, params.uniqueId as string
-           );
-           
-           if (state.isMounted.current) {
-             state.setLoading(false); // Pastikan layar loading 'Mencari server' mati
-           }
-         }
+      if (state.isMounted.current && !signal.aborted) {
+        state.setLoading(false);
+      }
 
-         // PENTING: Setelah scrape selesai dan menemukan nextEpisodeUrl (nav_next),
-         // langsung panggil smart-play di background untuk memicu prefetch window!
-         if (data.nav_next && !signal.aborted) {
-           console.log(`[Smart-Play] Scrape selesai, trigger prefetch window: nav_next=${data.nav_next}`);
-           fetchSmartPlay(
-             url,
-             params.seriUrl as string,
-             data.nav_next,
-             new AbortController().signal, // sinyal terpisah agar tidak dibatalkan
-             params.seriJudul as string,
-             (params.judul || data.judul) as string,
-             params.uniqueId as string,
-             params.urls as string,
-           ).catch(() => {}); // fire-and-forget
-         }
-
-         // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling dengan Exponential Backoff
-         if (!isReady && !fallbackTriggered) {
-            state.setPlayerLoading(true); // Pastikan UI menampilkan overlay progress
+      // Jika Smart-Play belum READY di awal (misalnya masih mengekstrak URL pertama kali), jalankan Polling dengan Exponential Backoff
+      if (!isReady && !fallbackTriggered) {
+        state.setPlayerLoading(true); // Pastikan UI menampilkan overlay progress
+        
+        const pollSmartPlay = async (maxAttempts = 35): Promise<boolean> => {
+          let delay = 2000;
+          for (let i = 0; i < maxAttempts; i++) {
+            if (!state.isMounted.current || signal.aborted) return false;
+            console.log(`[Smart-Play Poll] Attempt ${i + 1}/${maxAttempts} (delay ${delay}ms) for ${url}`);
             
-            const pollSmartPlay = async (maxAttempts = 35): Promise<boolean> => {
-              let delay = 2000;
-              for (let i = 0; i < maxAttempts; i++) {
-                if (!state.isMounted.current || signal.aborted) return false;
-                console.log(`[Smart-Play Poll] Attempt ${i + 1}/${maxAttempts} (delay ${delay}ms) for ${url}`);
-                
-                try {
-                  const pollRes = await fetchSmartPlay(
-                    url,
-                    params.seriUrl as string,
-                    data.nav_next || undefined,
-                    signal,
-                    params.seriJudul as string,
-                    (params.judul || data.judul) as string,
-                    params.uniqueId as string,
-                    params.urls as string,
-                  );
-                  if (!state.isMounted.current || signal.aborted) return false;
-
-                  // Cek progress upload secara real-time
-                  try {
-                    const progRes = await fetchUploadStatus(url, params.seriUrl as string, params.seriJudul as string, params.uniqueId as string, signal);
-                    if (progRes && progRes.success && progRes.progressMessage) {
-                      state.setUploadProgress(progRes.progressMessage);
-                    }
-                  } catch (err) {}
-
-                  if (pollRes.success) {
-                    if (pollRes.status === 'READY' && pollRes.url) {
-                      state.setPlayerMode('native');
-                      state.setNativeVideoUrl(pollRes.url);
-                      state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob
-                      state.setActiveHost('Azure Cloud');
-                      state.setActiveServerName('Premium Direct Link');
-                      state.setPlayerLoading(false);
-                      return true;
-                    } else if (pollRes.status === 'FAILED') {
-                      return false;
-                    }
-                  } else {
-                    return false;
-                  }
-                } catch (e) {
-                  if (signal.aborted) return false;
-                  return false;
-                }
-
-                // Exponential backoff: 2s, 3s, 4.5s... max 10s dengan proteksi pembatalan abort
-                await new Promise<void>(res => {
-                  const timer = setTimeout(res, delay);
-                  if (signal.aborted) {
-                    clearTimeout(timer);
-                    res();
-                  } else {
-                    signal.addEventListener('abort', () => {
-                      clearTimeout(timer);
-                      res();
-                    }, { once: true });
-                  }
-                });
-                delay = Math.min(delay * 1.5, 10000);
-              }
-              return false;
-            };
-
-            const isSuccess = await pollSmartPlay();
-            if (!isSuccess) {
-              fallbackTriggered = true;
-            } else {
-              isReady = true;
-            }
-         }
-         
-         // Dalam arsitektur Server-Driven (Thin Client), kita TIDAK memutar direct link/webview eksternal.
-         // Jika polling selesai dan file Azure belum siap, tampilkan pesan error yang jelas.
-         if (fallbackTriggered && !isReady) {
-            if (!signal.aborted && state.isMounted.current) {
-              console.warn('[Auto-Failover] Video gagal diproses di Azure Blob. Memicu failover otomatis ke provider alternatif...');
-              state.setError('Mendeteksi kendala pada stream cloud. Sedang memproses failover otomatis ke server alternatif...');
-              fetchReportBroken(
+            try {
+              const pollRes = await fetchSmartPlay(
                 url,
                 params.seriUrl as string,
+                smartPlayRes?.nav_next || undefined,
+                signal,
                 params.seriJudul as string,
+                (params.judul || smartPlayRes?.judul) as string,
                 params.uniqueId as string,
-                params.judul as string,
-                state.activeServerName
-              ).then(() => {
-                if (state.isMounted.current && !signal.aborted && state.retryCount < 1) {
-                  state.setRetryCount(1);
-                  loadEpisode(url, params);
-                } else if (state.isMounted.current) {
-                  state.setError('Gagal memutar video dari semua server cadangan. Silakan coba beberapa saat lagi.');
-                  state.setPlayerLoading(false);
-                }
-              });
-            }
-         }
-         
-         return data;
-      }
+                params.urls as string,
+              );
+              if (!state.isMounted.current || signal.aborted) return false;
 
+              // Cek progress upload secara real-time
+              try {
+                const progRes = await fetchUploadStatus(url, params.seriUrl as string, params.seriJudul as string, params.uniqueId as string, signal);
+                if (progRes && progRes.success && progRes.progressMessage) {
+                  state.setUploadProgress(progRes.progressMessage);
+                }
+              } catch (err) {}
+
+              if (pollRes.success) {
+                if (pollRes.status === 'READY' && pollRes.url) {
+                  state.setPlayerMode('native');
+                  state.setNativeVideoUrl(pollRes.url);
+                  state.setNativeVideoHeaders({}); // JANGAN kirim header kustom untuk Azure Blob
+                  state.setActiveHost('Azure Cloud');
+                  state.setActiveServerName('Premium Direct Link');
+                  state.setPlayerLoading(false);
+                  return true;
+                } else if (pollRes.status === 'FAILED') {
+                  return false;
+                }
+              } else {
+                return false;
+              }
+            } catch (e) {
+              if (signal.aborted) return false;
+              return false;
+            }
+
+            // Exponential backoff: 2s, 3s, 4.5s... max 10s dengan proteksi pembatalan abort
+            await new Promise<void>(res => {
+              const timer = setTimeout(res, delay);
+              if (signal.aborted) {
+                clearTimeout(timer);
+                res();
+              } else {
+                signal.addEventListener('abort', () => {
+                  clearTimeout(timer);
+                  res();
+                }, { once: true });
+              }
+            });
+            delay = Math.min(delay * 1.5, 10000);
+          }
+          return false;
+        };
+
+        const isSuccess = await pollSmartPlay();
+        if (!isSuccess) {
+          fallbackTriggered = true;
+        } else {
+          isReady = true;
+        }
+      }
+      
+      // Dalam arsitektur Server-Driven (Thin Client), kita TIDAK memutar direct link/webview eksternal.
+      // Jika polling selesai dan file Azure belum siap, tampilkan pesan error yang jelas.
+      if (fallbackTriggered && !isReady) {
+        if (!signal.aborted && state.isMounted.current) {
+          console.warn('[Auto-Failover] Video gagal diproses di Azure Blob. Memicu failover otomatis ke provider alternatif...');
+          state.setError('Mendeteksi kendala pada stream cloud. Sedang memproses failover otomatis ke server alternatif...');
+          fetchReportBroken(
+            url,
+            params.seriUrl as string,
+            params.seriJudul as string,
+            params.uniqueId as string,
+            params.judul as string,
+            state.activeServerName
+          ).then(() => {
+            if (state.isMounted.current && !signal.aborted && state.retryCount < 1) {
+              state.setRetryCount(1);
+              loadEpisode(url, params);
+            } else if (state.isMounted.current) {
+              state.setError('Gagal memutar video dari semua server cadangan. Silakan coba beberapa saat lagi.');
+              state.setPlayerLoading(false);
+            }
+          });
+        }
+      }
     } catch (err: any) {
       if (signal.aborted) return;
       state.setError(err.message || 'Gagal memuat video');

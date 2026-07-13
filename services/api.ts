@@ -242,6 +242,10 @@ export interface SmartPlayResponse {
   url?: string;
   message?: string;
   progress?: number;
+  nav_prev?: string | null;
+  nav_next?: string | null;
+  servers?: ServerItem[];
+  judul?: string;
 }
 
 export async function fetchSmartPlay(
@@ -271,7 +275,11 @@ export async function fetchSmartPlay(
       status: json.data.stream_status || 'UPLOADING',
       url: json.data.url,
       message: json.data.message,
-      progress: json.data.progress
+      progress: json.data.progress,
+      nav_prev: json.data.nav_prev || null,
+      nav_next: json.data.nav_next || null,
+      servers: json.data.servers || [],
+      judul: json.data.judul
     };
   }
   return json;
