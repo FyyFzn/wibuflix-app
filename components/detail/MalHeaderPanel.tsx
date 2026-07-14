@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import { MalInfo } from '../../services/api';
 
@@ -11,6 +12,14 @@ interface MalHeaderPanelProps {
 
 export default React.memo(function MalHeaderPanel({ malInfo, coverImage, judulSeri }: MalHeaderPanelProps) {
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
+  const router = useRouter();
+
+  const handleAdminJump = () => {
+    router.push({
+      pathname: '/(tabs)/admin' as any,
+      params: { q: judulSeri },
+    });
+  };
 
   if (!malInfo) {
     return (
@@ -26,6 +35,9 @@ export default React.memo(function MalHeaderPanel({ malInfo, coverImage, judulSe
           <Text style={{ color: Colors.textMuted, marginTop: Spacing.sm }}>
             Informasi detail & metadata lengkap belum tersedia.
           </Text>
+          <TouchableOpacity style={styles.btnQuickAdmin} onPress={handleAdminJump}>
+            <Text style={styles.btnQuickAdminText}>🛠️ Kurasi / Kunci MAL ID</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -93,10 +105,16 @@ export default React.memo(function MalHeaderPanel({ malInfo, coverImage, judulSe
         {malInfo.studios && malInfo.studios.length > 0 && (
           <Text style={styles.studios}>🎬 {malInfo.studios.join(', ')}</Text>
         )}
+
+        {/* Tombol Cepat Kurasi Admin */}
+        <TouchableOpacity style={styles.btnQuickAdmin} onPress={handleAdminJump}>
+          <Text style={styles.btnQuickAdminText}>🛠️ Kurasi Anime Ini (MAL ID / Merge)</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 });
+
 
 const styles = StyleSheet.create({
   malPanel: {
@@ -207,4 +225,20 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: FontSize.sm,
   },
+  btnQuickAdmin: {
+    marginTop: Spacing.sm,
+    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+    borderWidth: 1,
+    borderColor: '#eab308',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+    alignSelf: 'flex-start',
+  },
+  btnQuickAdminText: {
+    color: '#facc15',
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+  },
 });
+

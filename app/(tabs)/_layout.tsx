@@ -49,6 +49,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="cloud-download" size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Kurasi',
+          tabBarIcon: ({ color }) => <Ionicons name="construct" size={24} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
+

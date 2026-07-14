@@ -36,3 +36,11 @@ export {
   queueCancel,
   fetchQueueStatus
 } from './endpoints/queueEndpoints';
+
+export {
+  AdminCatalogItem,
+  adminCatalogSearch,
+  adminMergeAnime,
+  adminForceMalId
+} from './endpoints/adminEndpoints';
+
