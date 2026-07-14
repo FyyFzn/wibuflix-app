@@ -199,6 +199,7 @@ export default function PlayerScreen() {
   // Load episode on mount or params.url change
   useEffect(() => {
     state.isMounted.current = true;
+    autoFailoverAttemptedRef.current = false;
 
     if (params.url) {
       state.setRestoredVideoUrl('');
@@ -231,10 +232,10 @@ export default function PlayerScreen() {
         state.abortControllerRef.current.abort();
       }
       saveCurrentProgress();
-      // Batalkan semua upload/prefetch di backend saat player keluar (dengan cara apapun)
-      cancelUploads();
       const exitUrl = state.currentEpisodeUrlRef?.current || (params.url as string);
       const exitParams = state.currentEpisodeParamsRef?.current || params;
+      // Batalkan upload/prefetch spesifik untuk series/episode saat player keluar
+      cancelUploads(exitUrl, exitParams?.seriUrl, exitParams?.seriJudul, exitParams?.uniqueId);
       if (exitUrl) {
         fetchCancelStream(exitUrl, exitParams?.seriUrl, exitParams?.seriJudul, exitParams?.uniqueId).catch(() => {});
       }
