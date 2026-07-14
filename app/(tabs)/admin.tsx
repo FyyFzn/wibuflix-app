@@ -209,7 +209,6 @@ export default function AdminCurationScreen() {
   };
 
   const renderCatalogRow = ({ item }: { item: AdminCatalogItem }) => {
-
     const isSelected = selectedForMerge.includes(item._id);
     const isPrimary = selectedForMerge[0] === item._id;
     const sourcesCount = item.sources ? Object.values(item.sources).filter((s: any) => s?.url).length : 0;
@@ -222,73 +221,80 @@ export default function AdminCurationScreen() {
 
     return (
       <View style={[styles.card, isSelected && styles.cardSelected, isPrimary && styles.cardPrimary]}>
-        {/* Checkbox Merge */}
-        <TouchableOpacity style={styles.checkboxArea} onPress={() => toggleSelectForMerge(item._id)}>
-          <View style={[styles.checkbox, isSelected && styles.checkboxActive, isPrimary && styles.checkboxPrimary]}>
-            {isSelected && <Ionicons name={isPrimary ? 'star' : 'checkmark'} size={14} color={Colors.white} />}
-          </View>
-        </TouchableOpacity>
+        {/* Bagian Atas: Poster & Info Metadata */}
+        <View style={styles.cardTopSection}>
+          <Image
+            source={{ uri: item.image && !item.image.includes('placehold') ? item.image : 'https://via.placeholder.com/150x220/1e293b/94a3b8?text=No+Cover' }}
+            style={styles.thumb}
+            resizeMode="cover"
+          />
 
-        {/* Thumbnail */}
-        <Image
-          source={{ uri: item.image || 'https://via.placeholder.com/100x150?text=No+Cover' }}
-          style={styles.thumb}
-          resizeMode="cover"
-        />
+          <View style={styles.cardInfo}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+              {item.isLocked && (
+                <View style={styles.lockedBadge}>
+                  <Ionicons name="lock-closed" size={10} color="#34d399" />
+                  <Text style={styles.lockedText}>LOCKED</Text>
+                </View>
+              )}
+            </View>
 
-        {/* Info */}
-        <View style={styles.cardInfo}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-            {item.isLocked && (
-              <View style={styles.lockedBadge}>
-                <Ionicons name="lock-closed" size={10} color={Colors.white} />
-                <Text style={styles.lockedText}>LOCKED</Text>
+            <View style={styles.badgeRow}>
+              <View style={[styles.miniBadge, item.malId ? styles.badgeMalActive : styles.badgeMalEmpty]}>
+                <Text style={styles.miniBadgeText}>MAL: {item.malId || 'Belum Ada'}</Text>
               </View>
+              {item.tmdbId && (
+                <View style={styles.miniBadge}>
+                  <Text style={styles.miniBadgeText}>TMDB: {item.tmdbId}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.serverRow}>
+              <View style={styles.serverDot} />
+              <Text style={styles.metaText} numberOfLines={1}>
+                <Text style={{ fontWeight: '700', color: '#e2e8f0' }}>{sourcesCount} Server:</Text> {providerList}
+              </Text>
+            </View>
+
+            {item.aliases && item.aliases.length > 0 && (
+              <Text style={styles.aliasesText} numberOfLines={1}>
+                Alias: {item.aliases.slice(0, 3).join(', ')}
+              </Text>
             )}
           </View>
+        </View>
 
-          <Text style={styles.metaText} numberOfLines={1}>
-            MAL: <Text style={styles.metaHighlight}>{item.malId || 'Belum Ada'}</Text> | TMDB: <Text style={styles.metaHighlight}>{item.tmdbId || '-'}</Text>
-          </Text>
+        {/* Garis Pemisah Toolbar */}
+        <View style={styles.cardDivider} />
 
-          <Text style={styles.metaText} numberOfLines={1}>
-            <Text style={{ fontWeight: 'bold', color: Colors.accent }}>{sourcesCount} Server:</Text> {providerList}
-          </Text>
+        {/* Toolbar Aksi Kurasi (Full Width Bottom Bar) */}
+        <View style={styles.actionToolbar}>
+          <TouchableOpacity style={styles.toolBtnMal} onPress={() => handleOpenMalEditor(item)}>
+            <Ionicons name="create-outline" size={15} color="#cbd5e1" />
+            <Text style={styles.toolBtnTextMal}>MAL ID</Text>
+          </TouchableOpacity>
 
-          {item.aliases && item.aliases.length > 0 && (
-            <Text style={styles.aliasesText} numberOfLines={1}>
-              Alias: {item.aliases.slice(0, 3).join(', ')}
+          <TouchableOpacity style={styles.toolBtnRename} onPress={() => handleOpenRenameEditor(item)}>
+            <Ionicons name="pencil-outline" size={15} color="#93c5fd" />
+            <Text style={styles.toolBtnTextRename}>Rename</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.toolBtnEnrich} onPress={() => handleQuickEnrich(item)}>
+            <Ionicons name="flash" size={15} color="#6ee7b7" />
+            <Text style={styles.toolBtnTextEnrich}>Enrich</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.toolBtnSelect, isSelected && (isPrimary ? styles.toolBtnSelectPrimary : styles.toolBtnSelectActive)]}
+            onPress={() => toggleSelectForMerge(item._id)}
+          >
+            <Ionicons name={isPrimary ? 'star' : isSelected ? 'checkmark-circle' : 'add-circle-outline'} size={15} color={isSelected ? '#ffffff' : '#94a3b8'} />
+            <Text style={[styles.toolBtnTextSelect, isSelected && { color: '#ffffff' }]}>
+              {isPrimary ? '★ Utama' : isSelected ? '✓ Terpilih' : '+ Merge'}
             </Text>
-          )}
-
-          {/* Tombol Action */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.btnMalEdit} onPress={() => handleOpenMalEditor(item)}>
-              <Ionicons name="create-outline" size={14} color={Colors.white} />
-              <Text style={styles.btnMalText}>MAL ID</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.btnRenameEdit} onPress={() => handleOpenRenameEditor(item)}>
-              <Ionicons name="pencil-outline" size={14} color={Colors.white} />
-              <Text style={styles.btnMalText}>Rename</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.btnEnrichCard} onPress={() => handleQuickEnrich(item)}>
-              <Ionicons name="flash" size={14} color={Colors.white} />
-              <Text style={styles.btnMalText}>Enrich</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-
-              style={[styles.btnSelectMerge, isSelected && styles.btnSelectMergeActive]}
-              onPress={() => toggleSelectForMerge(item._id)}
-            >
-              <Text style={[styles.btnSelectMergeText, isSelected && { color: Colors.white }]}>
-                {isPrimary ? '★ Utama (Primary)' : isSelected ? '✓ Dipilih (Target)' : '+ Pilih untuk Merge'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -597,155 +603,215 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#262626',
-    alignItems: 'flex-start',
+    borderColor: '#1e293b',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   cardSelected: {
     borderColor: '#3b82f6',
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    backgroundColor: '#111e38',
   },
   cardPrimary: {
     borderColor: '#eab308',
-    backgroundColor: 'rgba(234, 179, 8, 0.12)',
+    backgroundColor: '#1e1c14',
   },
-  checkboxArea: {
-    paddingRight: Spacing.sm,
-    paddingVertical: 4,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: Colors.textMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  checkboxPrimary: {
-    backgroundColor: '#eab308',
-    borderColor: '#eab308',
+  cardTopSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   thumb: {
-    width: 65,
-    height: 95,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: '#222',
-    marginRight: Spacing.md,
+    width: 76,
+    height: 110,
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   cardInfo: {
     flex: 1,
+    justifyContent: 'flex-start',
   },
   cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   title: {
     flex: 1,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.bold,
-    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#f8fafc',
     marginRight: 6,
+    lineHeight: 20,
   },
   lockedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#238636',
+    backgroundColor: '#065f46',
+    borderWidth: 1,
+    borderColor: '#059669',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     gap: 3,
   },
   lockedText: {
     fontSize: 9,
-    fontWeight: 'bold',
-    color: Colors.white,
+    fontWeight: '700',
+    color: '#34d399',
   },
-  metaText: {
-    fontSize: FontSize.xxs,
-    color: Colors.textMuted,
-    marginBottom: 2,
-  },
-  metaHighlight: {
-    color: Colors.textDim,
-    fontWeight: '600',
-  },
-  aliasesText: {
-    fontSize: FontSize.xxs,
-    color: '#888',
-    fontStyle: 'italic',
-    marginTop: 2,
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
     marginBottom: 6,
   },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
+  miniBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  btnMalEdit: {
+  badgeMalActive: {
+    backgroundColor: '#1e1b4b',
+    borderColor: '#4338ca',
+  },
+  badgeMalEmpty: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+  },
+  miniBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#cbd5e1',
+  },
+  serverRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2d3748',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
+    gap: 6,
+    marginBottom: 4,
+  },
+  serverDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    flex: 1,
+  },
+  aliasesText: {
+    fontSize: 11,
+    color: '#64748b',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#1e293b',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  actionToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  toolBtnMal: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingVertical: 8,
+    borderRadius: 8,
     gap: 4,
   },
-  btnRenameEdit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e3a8a',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
-    gap: 4,
-  },
-  btnEnrichCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#047857',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
-    gap: 4,
-  },
-  btnMalText: {
-    color: Colors.white,
-    fontSize: FontSize.xxs,
+  toolBtnTextMal: {
+    color: '#e2e8f0',
+    fontSize: 11,
     fontWeight: '600',
   },
-  btnSelectMerge: {
+  toolBtnRename: {
     flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#444',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.sm,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#172554',
+    borderWidth: 1,
+    borderColor: '#1e40af',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
   },
-  btnSelectMergeActive: {
-    backgroundColor: '#3b82f6',
+  toolBtnTextRename: {
+    color: '#93c5fd',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  toolBtnEnrich: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#064e3b',
+    borderWidth: 1,
+    borderColor: '#059669',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  toolBtnTextEnrich: {
+    color: '#6ee7b7',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  toolBtnSelect: {
+    flex: 1.1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  toolBtnSelectActive: {
+    backgroundColor: '#2563eb',
     borderColor: '#3b82f6',
   },
-  btnSelectMergeText: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xxs,
+  toolBtnSelectPrimary: {
+    backgroundColor: '#ca8a04',
+    borderColor: '#eab308',
+  },
+  toolBtnTextSelect: {
+    color: '#94a3b8',
+    fontSize: 11,
     fontWeight: '600',
   },
   center: {
+
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
