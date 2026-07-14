@@ -41,6 +41,9 @@ export {
   AdminCatalogItem,
   adminCatalogSearch,
   adminMergeAnime,
-  adminForceMalId
+  adminForceMalId,
+  adminRenameAnime,
+  adminForceEnrichCard
 } from './endpoints/adminEndpoints';
+
 

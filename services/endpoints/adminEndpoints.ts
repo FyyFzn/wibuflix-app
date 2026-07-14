@@ -82,3 +82,52 @@ export async function adminForceMalId(animeId: string, malId: number | null): Pr
   }
 }
 
+/**
+ * Ubah judul kartu anime di database dan otomatis mengunci kartu (isLocked: true).
+ */
+export async function adminRenameAnime(animeId: string, newTitle: string): Promise<any> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/admin/rename-anime`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ animeId, newTitle }),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.message || `HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    memoryCache.clear();
+    return json;
+  } catch (err: any) {
+    console.error('[adminRenameAnime Error]', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Paksa peremajaan / pengayaan data metadata TMDB/AniList pada 1 atau lebih kartu anime secara instan.
+ */
+export async function adminForceEnrichCard(animeIds: string | string[], forceOverwriteImage: boolean = false): Promise<any> {
+  try {
+    const ids = Array.isArray(animeIds) ? animeIds : [animeIds];
+    const res = await fetch(`${getApiBase()}/api/admin/force-enrich-card`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ animeIds: ids, forceOverwriteImage }),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.message || `HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    memoryCache.clear();
+    return json;
+  } catch (err: any) {
+    console.error('[adminForceEnrichCard Error]', err.message);
+    throw err;
+  }
+}
+
+
+

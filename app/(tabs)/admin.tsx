@@ -28,7 +28,10 @@ import {
   adminCatalogSearch,
   adminMergeAnime,
   adminForceMalId,
+  adminRenameAnime,
+  adminForceEnrichCard,
 } from '../../services/api';
+
 
 export default function AdminCurationScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
@@ -44,6 +47,16 @@ export default function AdminCurationScreen() {
   const [editingItem, setEditingItem] = useState<AdminCatalogItem | null>(null);
   const [inputMalId, setInputMalId] = useState('');
   const [savingMalId, setSavingMalId] = useState(false);
+
+  // State untuk mode Rename / Edit Judul
+  const [renamingItem, setRenamingItem] = useState<AdminCatalogItem | null>(null);
+  const [inputNewTitle, setInputNewTitle] = useState('');
+  const [savingTitle, setSavingTitle] = useState(false);
+
+  // State untuk mode Force Enrich
+  const [enriching, setEnriching] = useState(false);
+
+
 
   const fetchCatalog = useCallback(async (query: string = '') => {
     setLoading(true);
@@ -143,7 +156,60 @@ export default function AdminCurationScreen() {
     }
   };
 
+  const handleOpenRenameEditor = (item: AdminCatalogItem) => {
+    setRenamingItem(item);
+    setInputNewTitle(item.title || '');
+  };
+
+  const handleSaveRename = async () => {
+    if (!renamingItem) return;
+    if (!inputNewTitle.trim()) {
+      Alert.alert('Judul Tidak Boleh Kosong', 'Masukkan judul anime yang valid.');
+      return;
+    }
+    setSavingTitle(true);
+    try {
+      const result = await adminRenameAnime(renamingItem._id, inputNewTitle.trim());
+      Alert.alert('✅ Judul Berhasil Diubah!', result.message);
+      setRenamingItem(null);
+      fetchCatalog(searchQuery);
+    } catch (err: any) {
+      Alert.alert('Gagal Mengubah Judul', err.message || 'Terjadi kesalahan saat mengubah judul anime');
+    } finally {
+      setSavingTitle(false);
+    }
+  };
+
+  const handleQuickEnrich = async (item: AdminCatalogItem) => {
+    setEnriching(true);
+    try {
+      const result = await adminForceEnrichCard([item._id]);
+      Alert.alert('⚡ Force Enrich Berhasil!', result.message);
+      fetchCatalog(searchQuery);
+    } catch (err: any) {
+      Alert.alert('Gagal Force Enrich', err.message || 'Terjadi kesalahan saat memperkaya data kartu');
+    } finally {
+      setEnriching(false);
+    }
+  };
+
+  const handleBulkEnrich = async () => {
+    if (selectedForMerge.length === 0) return;
+    setEnriching(true);
+    try {
+      const result = await adminForceEnrichCard(selectedForMerge);
+      Alert.alert('⚡ Bulk Force Enrich Berhasil!', result.message);
+      setSelectedForMerge([]);
+      fetchCatalog(searchQuery);
+    } catch (err: any) {
+      Alert.alert('Gagal Bulk Enrich', err.message || 'Terjadi kesalahan saat memperkaya data kartu massal');
+    } finally {
+      setEnriching(false);
+    }
+  };
+
   const renderCatalogRow = ({ item }: { item: AdminCatalogItem }) => {
+
     const isSelected = selectedForMerge.includes(item._id);
     const isPrimary = selectedForMerge[0] === item._id;
     const sourcesCount = item.sources ? Object.values(item.sources).filter((s: any) => s?.url).length : 0;
@@ -200,10 +266,21 @@ export default function AdminCurationScreen() {
           <View style={styles.actionRow}>
             <TouchableOpacity style={styles.btnMalEdit} onPress={() => handleOpenMalEditor(item)}>
               <Ionicons name="create-outline" size={14} color={Colors.white} />
-              <Text style={styles.btnMalText}>Force MAL ID</Text>
+              <Text style={styles.btnMalText}>MAL ID</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnRenameEdit} onPress={() => handleOpenRenameEditor(item)}>
+              <Ionicons name="pencil-outline" size={14} color={Colors.white} />
+              <Text style={styles.btnMalText}>Rename</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnEnrichCard} onPress={() => handleQuickEnrich(item)}>
+              <Ionicons name="flash" size={14} color={Colors.white} />
+              <Text style={styles.btnMalText}>Enrich</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
+
               style={[styles.btnSelectMerge, isSelected && styles.btnSelectMergeActive]}
               onPress={() => toggleSelectForMerge(item._id)}
             >
@@ -266,12 +343,20 @@ export default function AdminCurationScreen() {
                 <Text style={styles.btnClearText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={[styles.btnExecuteEnrich, enriching && { opacity: 0.5 }]}
+                onPress={handleBulkEnrich}
+                disabled={enriching}
+              >
+                {enriching ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.btnExecuteText}>⚡ ENRICH</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.btnExecuteMerge, selectedForMerge.length < 2 && { opacity: 0.5 }]}
                 onPress={handleMergeSubmit}
                 disabled={selectedForMerge.length < 2 || merging}
               >
-                {merging ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.btnExecuteText}>⚡ GABUNG</Text>}
+                {merging ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.btnExecuteText}>🧲 GABUNG</Text>}
               </TouchableOpacity>
+
             </View>
           </View>
         )}
@@ -326,7 +411,57 @@ export default function AdminCurationScreen() {
           )}
         </Modal>
 
+        {/* Modal untuk Rename / Edit Judul Kartu */}
+        <Modal
+          transparent={true}
+          visible={!!renamingItem}
+          animationType="fade"
+          onRequestClose={() => setRenamingItem(null)}
+        >
+          {renamingItem && (
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>✏️ Rename Judul Kartu Anime</Text>
+                  <TouchableOpacity onPress={() => setRenamingItem(null)}>
+                    <Ionicons name="close" size={22} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.modalSubtitle} numberOfLines={2}>
+                  Ubah judul untuk <Text style={{ fontWeight: 'bold', color: Colors.white }}>{renamingItem.title}</Text>
+                </Text>
+
+                <Text style={styles.inputLabel}>Judul Baru:</Text>
+                <TextInput
+                  style={styles.malInput}
+                  placeholder="Masukkan judul baru (misal: One Piece (2024))"
+                  placeholderTextColor={Colors.textMuted}
+                  value={inputNewTitle}
+                  onChangeText={setInputNewTitle}
+                />
+                <Text style={styles.helperText}>
+                  💡 Judul lama otomatis disimpan ke dalam daftar alias (<Text style={{ fontWeight: 'bold', color: Colors.accent }}>aliases</Text>) sehingga pencarian dengan judul lama tetap bekerja, dan kartu dikunci (<Text style={{ fontWeight: 'bold', color: Colors.accent }}>LOCKED</Text>) agar tidak tertimpa ulang scraper.
+                </Text>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.btnModalCancel} onPress={() => setRenamingItem(null)}>
+                    <Text style={styles.btnModalCancelText}>Batal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnModalSave} onPress={handleSaveRename} disabled={savingTitle}>
+                    {savingTitle ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <Text style={styles.btnModalSaveText}>✏️ Simpan Judul</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+        </Modal>
+
         {/* Daftar Katalog */}
+
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={Colors.accent} />
@@ -439,6 +574,12 @@ const styles = StyleSheet.create({
   btnClearText: {
     color: Colors.textMuted,
     fontSize: FontSize.xs,
+  },
+  btnExecuteEnrich: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
   },
   btnExecuteMerge: {
     backgroundColor: Colors.accent,
@@ -557,6 +698,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#2d3748',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+    gap: 4,
+  },
+  btnRenameEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e3a8a',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+    gap: 4,
+  },
+  btnEnrichCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#047857',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: BorderRadius.sm,
