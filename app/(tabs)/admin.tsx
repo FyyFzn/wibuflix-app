@@ -17,7 +17,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
@@ -29,7 +31,8 @@ import {
 } from '../../services/api';
 
 export default function AdminCurationScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const params = useLocalSearchParams<{ q?: string }>();
+  const [searchQuery, setSearchQuery] = useState(params.q || '');
   const [loading, setLoading] = useState(false);
   const [catalogItems, setCatalogItems] = useState<AdminCatalogItem[]>([]);
   
@@ -55,8 +58,13 @@ export default function AdminCurationScreen() {
   }, []);
 
   useEffect(() => {
-    fetchCatalog();
-  }, [fetchCatalog]);
+    if (params.q) {
+      setSearchQuery(params.q);
+      fetchCatalog(params.q);
+    } else {
+      fetchCatalog();
+    }
+  }, [params.q, fetchCatalog]);
 
   const handleSearchSubmit = () => {
     fetchCatalog(searchQuery);
@@ -269,47 +277,54 @@ export default function AdminCurationScreen() {
         )}
 
         {/* Modal / Inline Editor untuk Force MAL ID */}
-        {editingItem && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>🛠️ Kunci / Force MAL ID</Text>
-                <TouchableOpacity onPress={() => setEditingItem(null)}>
-                  <Ionicons name="close" size={22} color={Colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.modalSubtitle} numberOfLines={2}>
-                Mengatur ID MyAnimeList untuk <Text style={{ fontWeight: 'bold', color: Colors.white }}>{editingItem.title}</Text>
-              </Text>
+        <Modal
+          transparent={true}
+          visible={!!editingItem}
+          animationType="fade"
+          onRequestClose={() => setEditingItem(null)}
+        >
+          {editingItem && (
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>🛠️ Kunci / Force MAL ID</Text>
+                  <TouchableOpacity onPress={() => setEditingItem(null)}>
+                    <Ionicons name="close" size={22} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.modalSubtitle} numberOfLines={2}>
+                  Mengatur ID MyAnimeList untuk <Text style={{ fontWeight: 'bold', color: Colors.white }}>{editingItem.title}</Text>
+                </Text>
 
-              <Text style={styles.inputLabel}>MyAnimeList ID (Angka):</Text>
-              <TextInput
-                style={styles.malInput}
-                placeholder="Contoh: 58514 (Kosongkan untuk hapus)"
-                placeholderTextColor={Colors.textMuted}
-                keyboardType="numeric"
-                value={inputMalId}
-                onChangeText={setInputMalId}
-              />
-              <Text style={styles.helperText}>
-                💡 Tips: Cari di myanimelist.net/anime/<b>[ID]</b>. ID yang dikunci di sini tidak akan bisa ditimpa atau dirusak oleh scraper otomatis.
-              </Text>
+                <Text style={styles.inputLabel}>MyAnimeList ID (Angka):</Text>
+                <TextInput
+                  style={styles.malInput}
+                  placeholder="Contoh: 58514 (Kosongkan untuk hapus)"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="numeric"
+                  value={inputMalId}
+                  onChangeText={setInputMalId}
+                />
+                <Text style={styles.helperText}>
+                  💡 Tips: Cari di myanimelist.net/anime/<Text style={{ fontWeight: 'bold', color: Colors.accent }}>[ID]</Text>. ID yang dikunci di sini tidak akan bisa ditimpa atau dirusak oleh scraper otomatis.
+                </Text>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.btnModalCancel} onPress={() => setEditingItem(null)}>
-                  <Text style={styles.btnModalCancelText}>Batal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.btnModalSave} onPress={handleSaveMalId} disabled={savingMalId}>
-                  {savingMalId ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
-                  ) : (
-                    <Text style={styles.btnModalSaveText}>🔒 Simpan & Kunci</Text>
-                  )}
-                </TouchableOpacity>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.btnModalCancel} onPress={() => setEditingItem(null)}>
+                    <Text style={styles.btnModalCancelText}>Batal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnModalSave} onPress={handleSaveMalId} disabled={savingMalId}>
+                    {savingMalId ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <Text style={styles.btnModalSaveText}>🔒 Simpan & Kunci</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        )}
+          )}
+        </Modal>
 
         {/* Daftar Katalog */}
         {loading ? (
