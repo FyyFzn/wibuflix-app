@@ -7,7 +7,8 @@ export function cleanSeriesTitle(rawTitle: string): string {
   if (!rawTitle) return '';
   let jt = rawTitle.trim();
   // 1. Hapus nama situs & kata kunci SEO (Sub Indo, Subtitle Indonesia, dll.)
-  jt = jt.replace(/[-–|]\s*(?:Samehadaku|Otakudesu|Kuronime|Neosatsu).*$/i, '');
+  // Hapus semua teks setelah dash, garis miring, atau pipa di akhir string yang kemungkinan nama situs
+  jt = jt.replace(/[-–|]\s*[a-zA-Z0-9\s]+$/i, '');
   jt = jt.replace(/\s*(?:\(?Sub(?:title)?\s*Indo(?:nesia)?\)?)\s*/gi, '');
   // 2. Hapus metadata episode & batch
   jt = jt.replace(/(?:Episode|Eps)\s*\d+\s*-\s*\d+.*$/i, '');

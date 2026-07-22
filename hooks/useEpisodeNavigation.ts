@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getPrimaryUrl } from '../utils/urlFallbackHelper';
 import { fetchEpisodes, EpisodeItem } from '../services/api';
 
 export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: string | undefined, initialNavPrev: string | null, initialNavNext: string | null, urlsString?: string) {
@@ -29,8 +30,8 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
 
       // Helper: dapatkan URL representatif dari episode (support mode merge & legacy)
       const getEpUrl = (ep: EpisodeItem): string => {
-        const raw = ep.url || ep.urls?.samehadaku || ep.urls?.otakudesu || ep.urls?.kuronime || ep.urls?.neosatsu || ep.urls?.nanime || ep.urls?.nimegami || '';
-        return decodeURIComponent(raw);
+        const raw = getPrimaryUrl(ep);
+        return decodeURIComponent(raw || '');
       };
 
       const cleanEpUrl = (u?: string) => {
@@ -43,13 +44,7 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
       const targetNorm = cleanEpUrl(decodedCurrent);
       const currentIndex = episodes.findIndex(e => {
         const urlsToCheck = [
-          e.urls?.kuronime,
-          e.url,
-          e.urls?.samehadaku,
-          e.urls?.otakudesu,
-          e.urls?.neosatsu,
-          e.urls?.nanime,
-          e.urls?.nimegami
+          getPrimaryUrl(e)
         ].filter(Boolean).map(u => decodeURIComponent(u as string));
 
         return urlsToCheck.some(url => {

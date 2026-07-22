@@ -13,6 +13,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack, useNavigation, useFocusEffect } from 'expo-router';
+import { getPrimaryUrl } from '../../utils/urlFallbackHelper';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import EpisodeItemComponent from '../../components/EpisodeItem';
 import DetailSkeleton from '../../components/detail/DetailSkeleton';
@@ -145,14 +146,14 @@ export default function AnimeDetailScreen() {
         keyExtractor={(item, index) =>
           item.num != null
             ? `ep_${item.num}`
-            : (item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || item.urls?.nanime || item.urls?.nimegami || `idx_${index}`)
+            : (getPrimaryUrl(item) || `idx_${index}`)
         }
         initialNumToRender={12}
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={true}
         renderItem={({ item }) => {
-          const realEpUrl = item.url || item.urls?.samehadaku || item.urls?.otakudesu || item.urls?.kuronime || item.urls?.neosatsu || item.urls?.nanime || item.urls?.nimegami || '';
+          const realEpUrl = getPrimaryUrl(item);
           const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
           const isQueued = queuedUrls.has(realEpUrl);
           const prog = progressMap[realEpUrl];

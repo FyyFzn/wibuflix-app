@@ -25,15 +25,15 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
     if (selectedAnime && selectedAnime.sources && selectedAnime.url === url) {
       const otakuId = selectedAnime.sources.otakudesu?.id;
       const otakuUrl = selectedAnime.sources.otakudesu?.url;
-      uObj = {
-        samehadaku: selectedAnime.sources.samehadaku?.url || undefined,
-        otakudesu: (otakuId && otakuId !== 'null' && otakuId !== 'undefined') ? `/anime/${otakuId}` : (otakuUrl || undefined),
-        kuronime: selectedAnime.sources.kuronime?.url || undefined,
-        nanime: selectedAnime.sources.nanime?.url || undefined,
-        neosatsu: selectedAnime.sources.neosatsu?.url || undefined,
-        nimegami: selectedAnime.sources.nimegami?.url || undefined,
-        oploverz: selectedAnime.sources.oploverz?.url || undefined,
-      };
+      uObj = {};
+      Object.entries(selectedAnime.sources).forEach(([provider, data]: [string, any]) => {
+        if (!data) return;
+        if (provider === 'otakudesu' && data.id && data.id !== 'null' && data.id !== 'undefined') {
+          uObj[provider] = `/anime/${data.id}`;
+        } else if (data.url) {
+          uObj[provider] = data.url;
+        }
+      });
     }
     return {
       urlsObj: uObj,

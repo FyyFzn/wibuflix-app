@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, ScrollView } from 'react-native';
 import { styles } from '../../styles/playerStyles';
 import { EpisodeItem, ServerItem } from '../../services/api';
+import { getPrimaryUrl } from '../../utils/urlFallbackHelper';
 
 interface PlayerModalsProps {
   // Episodes Modal
@@ -57,9 +58,9 @@ export default function PlayerModals({
             <Text style={styles.modalTitle}>Daftar Episode</Text>
               <FlatList
               data={episodes}
-              keyExtractor={(item) => item.url || item.judul}
+              keyExtractor={(item) => getPrimaryUrl(item) || item.judul}
               renderItem={({item}) => {
-                const epUrl = item.url || (item.urls ? item.urls.samehadaku || item.urls.otakudesu || item.urls.kuronime || item.urls.nanime || item.urls.neosatsu || item.urls.nimegami : '');
+                const epUrl = getPrimaryUrl(item);
                 return (
                 <TouchableOpacity 
                   style={[styles.modalItem, currentUrl === epUrl && styles.modalItemActive]}

@@ -26,6 +26,7 @@ import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpisodeNavigation } from '../hooks/useEpisodeNavigation';
 import { useProgressSync } from '../hooks/useProgressSync';
 import { getHostName } from '../utils/hostUtils';
+import { getPrimaryUrl, getProviderNameFromUrl } from '../utils/urlFallbackHelper';
 
 export default function PlayerScreen() {
   const router = useRouter();
@@ -85,15 +86,7 @@ export default function PlayerScreen() {
       };
 
       const targetEp = episodes.find(e => {
-        const urlsToCheck = [
-          e.urls?.kuronime,
-          e.url,
-          e.urls?.samehadaku,
-          e.urls?.otakudesu,
-          e.urls?.neosatsu,
-          e.urls?.nanime,
-          e.urls?.nimegami
-        ].filter(Boolean).map(u => decodeURIComponent(u as string));
+        const urlsToCheck = [getPrimaryUrl(e)].filter(Boolean).map(u => decodeURIComponent(u as string));
 
         const targetNorm = cleanEpUrl(url);
         return urlsToCheck.some(epUrl => {
@@ -109,7 +102,7 @@ export default function PlayerScreen() {
       
       let finalUrl = safeUrl;
       if (targetEp) {
-          finalUrl = targetEp.url || targetEp.urls?.samehadaku || targetEp.urls?.otakudesu || targetEp.urls?.kuronime || targetEp.urls?.neosatsu || targetEp.urls?.nanime || targetEp.urls?.nimegami || safeUrl;
+          finalUrl = getPrimaryUrl(targetEp) || safeUrl;
       }
 
       router.setParams({
@@ -372,7 +365,7 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     if (availableSources.length > 0) {
-      const preferred = params.url?.includes('otakudesu') || params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : (params.url?.includes('kuronime') ? 'Kuronime' : (params.url?.includes('nanime') ? 'Nanime' : (params.url?.includes('neosatsu') ? 'Neosatsu' : (params.url?.includes('nimegami') ? 'Nimegami' : 'Samehadaku'))));
+      const preferred = params.seriUrl?.startsWith('/anime/') ? 'Otakudesu' : getProviderNameFromUrl(params.url || '');
       if (availableSources.includes(preferred) && state.serverTab === 'Samehadaku' && preferred !== 'Samehadaku') {
         state.setServerTab(preferred);
       } else if (!availableSources.includes(state.serverTab)) {
