@@ -23,15 +23,13 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
   const { urlsObj, seriUrlsJson } = useMemo(() => {
     let uObj: any = undefined;
     if (selectedAnime && selectedAnime.sources && selectedAnime.url === url) {
-      const otakuId = selectedAnime.sources.otakudesu?.id;
-      const otakuUrl = selectedAnime.sources.otakudesu?.url;
       uObj = {};
       Object.entries(selectedAnime.sources).forEach(([provider, data]: [string, any]) => {
-        if (!data) return;
-        if (provider === 'otakudesu' && data.id && data.id !== 'null' && data.id !== 'undefined') {
-          uObj[provider] = `/anime/${data.id}`;
-        } else if (data.url) {
+        if (data?.url) {
           uObj[provider] = data.url;
+        } else if (data?.id && provider === 'otakudesu') {
+          // Fallback just in case old cached data only has id
+          uObj[provider] = `/anime/${data.id}`;
         }
       });
     }

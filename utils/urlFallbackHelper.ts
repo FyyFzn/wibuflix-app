@@ -13,14 +13,14 @@ export function getPrimaryUrl(item: any): string {
 }
 
 export function getProviderNameFromUrl(url: string): string {
-  if (!url) return 'Samehadaku';
-  const lowerUrl = url.toLowerCase();
-  if (lowerUrl.includes('otakudesu') || lowerUrl.startsWith('/anime/')) return 'Otakudesu';
-  if (lowerUrl.includes('kuronime')) return 'Kuronime';
-  if (lowerUrl.includes('nanime')) return 'Nanime';
-  if (lowerUrl.includes('neosatsu')) return 'Neosatsu';
-  if (lowerUrl.includes('nimegami')) return 'Nimegami';
-  if (lowerUrl.includes('oploverz')) return 'Oploverz';
-  if (lowerUrl.includes('ylnime')) return 'YLnime';
-  return 'Samehadaku';
+  if (!url) return 'Unknown';
+  try {
+    const match = url.match(/https?:\/\/(?:www\.)?([^\.]+)\./i);
+    if (match && match[1]) {
+       return match[1].charAt(0).toUpperCase() + match[1].slice(1);
+    }
+  } catch (e) {}
+  
+  if (url.startsWith('/anime/')) return 'Otakudesu';
+  return 'Unknown';
 }

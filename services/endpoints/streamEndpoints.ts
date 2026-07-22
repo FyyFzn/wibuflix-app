@@ -25,8 +25,13 @@ export interface SmartPlayResponse {
   judul?: string;
 }
 
-export async function fetchEpisodes(targetUrl: string, urls?: { samehadaku?: string; otakudesu?: string; kuronime?: string; nanime?: string; neosatsu?: string; nimegami?: string; oploverz?: string }, signal?: AbortSignal): Promise<EpisodesResponse> {
-  const url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
+export async function fetchEpisodes(targetUrl: string, urls?: Record<string, string>, signal?: AbortSignal): Promise<EpisodesResponse> {
+  let url = `${API.episodes}?url=${encodeURIComponent(targetUrl)}`;
+  if (urls) {
+    Object.keys(urls).forEach(key => {
+      if (urls[key]) url += `&url${key.charAt(0).toUpperCase() + key.slice(1)}=${encodeURIComponent(urls[key])}`;
+    });
+  }
   const cacheKey = `v2_episodes_${targetUrl}`;
   return fetchWithCache<EpisodesResponse>(url, cacheKey, 3600000, signal);
 }
