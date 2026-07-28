@@ -17,6 +17,7 @@ export interface AdminCatalogItem {
   malId?: number;
   tmdbId?: number;
   sources?: Record<string, { url?: string; id?: string }>;
+  sourceUrls?: string[];
   updatedAt?: string;
 }
 

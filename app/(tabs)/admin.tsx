@@ -211,12 +211,15 @@ export default function AdminCurationScreen() {
   const renderCatalogRow = ({ item }: { item: AdminCatalogItem }) => {
     const isSelected = selectedForMerge.includes(item._id);
     const isPrimary = selectedForMerge[0] === item._id;
-    const sourcesCount = item.sources ? Object.values(item.sources).filter((s: any) => s?.url).length : 0;
-    const providerList = item.sources
-      ? Object.entries(item.sources)
-          .filter(([_, val]: any) => val?.url)
-          .map(([key]) => key.toUpperCase())
-          .join(', ')
+    // V2: baca dari sourceUrls array, fallback ke sources V1 jika masih ada
+    const sourceUrlsList: string[] = item.sourceUrls && item.sourceUrls.length > 0
+      ? item.sourceUrls
+      : item.sources ? Object.values(item.sources).map((s: any) => s?.url).filter(Boolean) : [];
+    const sourcesCount = sourceUrlsList.length;
+    const providerList = sourcesCount > 0
+      ? sourceUrlsList.map((u: string) => {
+          try { return new URL(u).hostname.replace('www.', '').split('.')[0].toUpperCase(); } catch { return u; }
+        }).join(', ')
       : 'TIDAK ADA';
 
     return (

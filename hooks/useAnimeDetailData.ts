@@ -21,21 +21,29 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
   const selectedAnime = useAnimeStore((state) => state.selectedAnime);
 
   const { urlsObj, seriUrlsJson } = useMemo(() => {
-    let uObj: any = undefined;
-    if (selectedAnime && selectedAnime.sources && selectedAnime.url === url) {
-      uObj = {};
-      Object.entries(selectedAnime.sources).forEach(([provider, data]: [string, any]) => {
-        if (data?.url) {
-          uObj[provider] = data.url;
-        } else if (data?.id && provider === 'otakudesu') {
-          // Fallback just in case old cached data only has id
-          uObj[provider] = `/anime/${data.id}`;
-        }
+    // V2: sourceUrls adalah array URL langsung
+    if (selectedAnime && selectedAnime.sourceUrls && selectedAnime.sourceUrls.length > 0 && selectedAnime.url === url) {
+      const urlsArray = selectedAnime.sourceUrls;
+      return {
+        urlsObj: urlsArray,
+        seriUrlsJson: JSON.stringify(urlsArray),
+      };
+    }
+    // V1 Legacy fallback: sources adalah object {provider: {url}}
+    if (selectedAnime && (selectedAnime as any).sources && selectedAnime.url === url) {
+      const uObj: Record<string, string> = {};
+      Object.entries((selectedAnime as any).sources).forEach(([provider, data]: [string, any]) => {
+        if (data?.url) uObj[provider] = data.url;
       });
+      const urlsArray = Object.values(uObj);
+      return {
+        urlsObj: urlsArray.length > 0 ? urlsArray : undefined,
+        seriUrlsJson: urlsArray.length > 0 ? JSON.stringify(urlsArray) : sourcesParam,
+      };
     }
     return {
-      urlsObj: uObj,
-      seriUrlsJson: uObj ? JSON.stringify(uObj) : sourcesParam,
+      urlsObj: undefined,
+      seriUrlsJson: sourcesParam,
     };
   }, [selectedAnime, url, sourcesParam]);
 

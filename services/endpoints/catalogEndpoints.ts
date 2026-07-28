@@ -10,6 +10,7 @@ export interface AnimeItem {
   status: string;
   id?: string;
   sources?: any;
+  sourceUrls?: string[];
 }
 
 export interface KatalogResponse {
@@ -29,9 +30,12 @@ export interface HotAnimeResponse {
 
 export interface EpisodeItem {
   judul: string;
+  title?: string;
   num?: number | null;
+  id?: string;
   url?: string;
-  urls?: Record<string, string>;
+  urls?: string[] | Record<string, string>; // V2: Array, V1 legacy: Object
+  available_sources?: string[];
   tanggal?: string;
   malJudul?: string;
 }
