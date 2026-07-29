@@ -117,7 +117,8 @@ export default function BerandaScreen() {
         url: item.url || '',
         gambar: item.gambar || '',
         judul: item.judul || '',
-        sources: item.sources ? JSON.stringify(item.sources) : ''
+        sources: item.sources ? JSON.stringify(item.sources) : '',
+        sourceUrls: item.sourceUrls ? JSON.stringify(item.sourceUrls) : ''
       }
     });
   };

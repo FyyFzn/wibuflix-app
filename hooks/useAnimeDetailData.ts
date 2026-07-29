@@ -6,7 +6,7 @@ import { useAnimeStore } from '../store/animeStore';
 import { ToastAndroid } from 'react-native';
 import { cleanSeriesTitle } from '../utils/titleUtils';
 
-export function useAnimeDetailData(url: string, initialJudul: string, initialGambar: string, sourcesParam?: string) {
+export function useAnimeDetailData(url: string, initialJudul: string, initialGambar: string, sourcesParam?: string, sourceUrlsParam?: string) {
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [malInfo, setMalInfo] = useState<MalInfo | null>(null);
   const [judulSeri, setJudulSeri] = useState(() => cleanSeriesTitle(initialJudul));
@@ -41,11 +41,30 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
         seriUrlsJson: urlsArray.length > 0 ? JSON.stringify(urlsArray) : sourcesParam,
       };
     }
+    
+    // Fallback jika tidak ada di store (misal karena refresh/deep-link)
+    let finalUrlsObj = undefined;
+    let finalSeriUrlsJson = sourcesParam;
+    
+    if (sourceUrlsParam) {
+      try {
+        finalUrlsObj = JSON.parse(sourceUrlsParam);
+        finalSeriUrlsJson = sourceUrlsParam;
+      } catch (e) {}
+    } else if (sourcesParam) {
+      try {
+        const parsed = JSON.parse(sourcesParam);
+        if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+          finalUrlsObj = Object.values(parsed).map((p: any) => p?.url).filter(Boolean);
+        }
+      } catch (e) {}
+    }
+
     return {
-      urlsObj: undefined,
-      seriUrlsJson: sourcesParam,
+      urlsObj: finalUrlsObj,
+      seriUrlsJson: finalSeriUrlsJson,
     };
-  }, [selectedAnime, url, sourcesParam]);
+  }, [selectedAnime, url, sourcesParam, sourceUrlsParam]);
 
   const loadData = useCallback(async () => {
     if (!url) return;

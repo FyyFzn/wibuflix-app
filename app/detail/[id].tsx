@@ -26,7 +26,7 @@ import { WatchHistoryItem } from '../../services/storage';
 export default function AnimeDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ url: string; gambar: string; judul: string; sources?: string }>();
+  const params = useLocalSearchParams<{ url: string; gambar: string; judul: string; sources?: string; sourceUrls?: string }>();
 
   useFocusEffect(
     useCallback(() => {
@@ -64,7 +64,7 @@ export default function AnimeDetailScreen() {
     seriUrlsJson,
     handleQueuePress,
     retry,
-  } = useAnimeDetailData(params.url || '', params.judul || '', params.gambar || '', params.sources);
+  } = useAnimeDetailData(params.url || '', params.judul || '', params.gambar || '', params.sources, params.sourceUrls);
 
   const filteredEpisodes = useMemo(() => {
     let list = [...episodes];
