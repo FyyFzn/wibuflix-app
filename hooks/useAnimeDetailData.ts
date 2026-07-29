@@ -67,7 +67,10 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
   }, [selectedAnime, url, sourcesParam, sourceUrlsParam]);
 
   const loadData = useCallback(async () => {
-    if (!url) return;
+    if (!url && (!urlsObj || urlsObj.length === 0)) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     setJudulSeri(cleanSeriesTitle(initialJudul));
