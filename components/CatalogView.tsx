@@ -168,15 +168,13 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     setSelectedAnime(item);
     
     // Kirim ID/URL secara simpel ke router
-    router.push({
-      pathname: '/detail/[id]',
-      params: {
-        id: item.url.replace(/[^a-zA-Z0-9]/g, ''),
-        url: item.url,
-        gambar: item.gambar,
-        judul: item.judul,
-      },
-    });
+    const safeId = item.url.replace(/[^a-zA-Z0-9]/g, '') || 'unknown';
+    let query = `url=${encodeURIComponent(item.url)}`;
+    if (item.gambar) query += `&gambar=${encodeURIComponent(item.gambar)}`;
+    if (item.judul) query += `&judul=${encodeURIComponent(item.judul)}`;
+    if (item.sources) query += `&sources=${encodeURIComponent(JSON.stringify(item.sources))}`;
+
+    router.push(`/detail/${safeId}?${query}`);
   }, [setSelectedAnime, router]);
 
   const renderItem = useCallback(({ item }: { item: AnimeItem }) => (
