@@ -171,7 +171,7 @@ export default function CatalogView({ category, externalSearchQuery, hideSearchB
     router.push({
       pathname: '/detail/[id]',
       params: {
-        id: encodeURIComponent(item.url).replace(/%/g, '_'),
+        id: item.url.replace(/[^a-zA-Z0-9]/g, ''),
         url: item.url,
         gambar: item.gambar,
         judul: item.judul,
