@@ -111,7 +111,7 @@ export default function BerandaScreen() {
     router.push({
       pathname: '/detail/[id]',
       params: {
-        id: encodeURIComponent(item.url),
+        id: encodeURIComponent(item.url).replace(/%/g, '_'),
         url: item.url,
         gambar: item.gambar,
         judul: item.judul,
