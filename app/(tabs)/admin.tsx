@@ -30,6 +30,8 @@ import {
   adminForceMalId,
   adminRenameAnime,
   adminForceEnrichCard,
+  adminGetAnimeDetails,
+  adminSplitUrl,
 } from '../../services/api';
 
 
@@ -55,6 +57,11 @@ export default function AdminCurationScreen() {
 
   // State untuk mode Force Enrich
   const [enriching, setEnriching] = useState(false);
+
+  // State untuk mode Detail & Split URL
+  const [detailItem, setDetailItem] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [splittingUrl, setSplittingUrl] = useState<string | null>(null);
 
 
 
@@ -208,6 +215,47 @@ export default function AdminCurationScreen() {
     }
   };
 
+  const handleOpenDetails = async (animeId: string) => {
+    setLoadingDetails(true);
+    setDetailItem({ _id: animeId, title: 'Memuat data...' });
+    try {
+      const data = await adminGetAnimeDetails(animeId);
+      setDetailItem(data);
+    } catch (err: any) {
+      Alert.alert('Gagal Mengambil Detail', err.message || 'Terjadi kesalahan');
+      setDetailItem(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const handleSplitUrl = (animeId: string, url: string) => {
+    Alert.alert(
+      'Konfirmasi Pisah URL',
+      'Apakah Anda yakin ingin memisahkan URL ini menjadi kartu mandiri?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Ya, Pisahkan', 
+          style: 'destructive',
+          onPress: async () => {
+            setSplittingUrl(url);
+            try {
+              const result = await adminSplitUrl(animeId, url);
+              Alert.alert('✅ Berhasil', result.message);
+              setDetailItem(null);
+              fetchCatalog(searchQuery);
+            } catch (err: any) {
+              Alert.alert('Gagal Memisahkan URL', err.message || 'Terjadi kesalahan');
+            } finally {
+              setSplittingUrl(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderCatalogRow = ({ item }: { item: AdminCatalogItem }) => {
     const isSelected = selectedForMerge.includes(item._id);
     const isPrimary = selectedForMerge[0] === item._id;
@@ -282,6 +330,11 @@ export default function AdminCurationScreen() {
           <TouchableOpacity style={styles.toolBtnRename} onPress={() => handleOpenRenameEditor(item)}>
             <Ionicons name="pencil-outline" size={15} color="#93c5fd" />
             <Text style={styles.toolBtnTextRename}>Rename</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.toolBtnRename} onPress={() => handleOpenDetails(item._id)}>
+            <Ionicons name="list" size={15} color="#fcd34d" />
+            <Text style={[styles.toolBtnTextRename, { color: '#fcd34d' }]}>Detail</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.toolBtnEnrich} onPress={() => handleQuickEnrich(item)}>
@@ -469,7 +522,81 @@ export default function AdminCurationScreen() {
           )}
         </Modal>
 
-        {/* Daftar Katalog */}
+        {/* Modal untuk Detail Anime & URL Split */}
+        <Modal
+          transparent={true}
+          visible={!!detailItem}
+          animationType="slide"
+          onRequestClose={() => setDetailItem(null)}
+        >
+          {detailItem && (
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>📃 Detail Kartu Anime</Text>
+                  <TouchableOpacity onPress={() => setDetailItem(null)}>
+                    <Ionicons name="close" size={22} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={{ marginBottom: 15, flexDirection: 'row', gap: 12 }}>
+                  <Image 
+                    source={{ uri: detailItem.image && !detailItem.image.includes('placehold') ? detailItem.image : 'https://via.placeholder.com/150x220/1e293b/94a3b8?text=No+Cover' }} 
+                    style={{ width: 60, height: 85, borderRadius: 6, borderWidth: 1, borderColor: Colors.border }} 
+                  />
+                  <View style={{ flex: 1, justifyContent: 'center' }}>
+                    <Text style={{ color: Colors.white, fontWeight: 'bold', fontSize: 14, marginBottom: 4 }} numberOfLines={2}>{detailItem.title}</Text>
+                    <Text style={{ color: Colors.accent, fontSize: 12, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }}>ID: {detailItem._id}</Text>
+                    <Text style={{ color: Colors.textMuted, fontSize: 12 }}>Tipe: {detailItem.type || 'TV'}</Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.inputLabel, { marginBottom: 10 }]}>Daftar Provider / URLs ({detailItem.sourceUrls?.length || 0}):</Text>
+                
+                {loadingDetails ? (
+                  <ActivityIndicator size="small" color={Colors.accent} style={{ marginVertical: 20 }} />
+                ) : (
+                  <ScrollView style={{ maxHeight: 300, marginBottom: 10 }}>
+                    {!detailItem.sourceUrls || detailItem.sourceUrls.length === 0 ? (
+                      <Text style={{ color: Colors.textMuted, fontStyle: 'italic', fontSize: 12 }}>Tidak ada URL provider.</Text>
+                    ) : (
+                      detailItem.sourceUrls.map((url: string, index: number) => {
+                        const isSplitting = splittingUrl === url;
+                        return (
+                          <View key={index} style={{ backgroundColor: '#0d1117', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: Colors.border, flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ flex: 1, paddingRight: 10 }}>
+                              <Text style={{ color: Colors.white, fontSize: 11, marginBottom: 4 }}>
+                                {url.includes('samehadaku') ? '🖥️ Samehadaku' : 
+                                 url.includes('otakudesu') ? '🖥️ Otakudesu' :
+                                 url.includes('neosatsu') ? '🖥️ Neosatsu' : '🖥️ Lainnya'}
+                              </Text>
+                              <Text style={{ color: Colors.textMuted, fontSize: 10 }} numberOfLines={2}>{url}</Text>
+                            </View>
+                            <TouchableOpacity 
+                              style={{ backgroundColor: '#da3633', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 }}
+                              onPress={() => handleSplitUrl(detailItem._id, url)}
+                              disabled={isSplitting}
+                            >
+                              {isSplitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>PISAHKAN</Text>}
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                )}
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.btnModalCancel, { flex: 1, marginRight: 0 }]} onPress={() => setDetailItem(null)}>
+                    <Text style={styles.btnModalCancelText}>Tutup</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+        </Modal>
+
+        {/* Loading Indicator Bawah */}
 
         {loading ? (
           <View style={styles.center}>

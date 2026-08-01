@@ -43,7 +43,9 @@ export {
   adminMergeAnime,
   adminForceMalId,
   adminRenameAnime,
-  adminForceEnrichCard
+  adminForceEnrichCard,
+  adminGetAnimeDetails,
+  adminSplitUrl
 } from './endpoints/adminEndpoints';
 
 

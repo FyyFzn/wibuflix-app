@@ -130,5 +130,46 @@ export async function adminForceEnrichCard(animeIds: string | string[], forceOve
   }
 }
 
+/**
+ * Mendapatkan detail sebuah anime termasuk daftar sourceUrls-nya.
+ */
+export async function adminGetAnimeDetails(animeId: string): Promise<any> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/admin/anime-details/${animeId}`);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || `HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    return json.data;
+  } catch (err: any) {
+    console.error('[adminGetAnimeDetails Error]', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Memisahkan sebuah URL dari kartu anime menjadi kartu baru.
+ */
+export async function adminSplitUrl(animeId: string, urlToSplit: string): Promise<any> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/admin/split-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ animeId, urlToSplit }),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || errJson.message || `HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    memoryCache.clear();
+    return json;
+  } catch (err: any) {
+    console.error('[adminSplitUrl Error]', err.message);
+    throw err;
+  }
+}
+
 
 
