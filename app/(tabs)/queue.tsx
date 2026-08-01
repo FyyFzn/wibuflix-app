@@ -115,7 +115,7 @@ export default function QueueScreen() {
     try {
       // Optimistic update status ke PENDING di memori
       setQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'PENDING', progress: 'Mencoba ulang...' } : q));
-      await queueAdd(item.episodeUrl, item.seriesUrl, item.seriesTitle, item.episodeTitle, item.uniqueId);
+      await queueAdd(item.episodeUrl, item.seriesUrl, item.seriesTitle, item.episodeTitle, item.uniqueId, item.cover);
       loadQueue();
     } catch (e) {
       console.error(e);
@@ -146,7 +146,7 @@ export default function QueueScreen() {
             url: item.episodeUrl,
             judul: item.episodeTitle,
             seriJudul: item.seriesTitle,
-            gambar: '',
+            gambar: item.cover || '',
             seriUrl: item.seriesUrl || '',
             uniqueId: item.uniqueId
           }

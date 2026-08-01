@@ -143,7 +143,7 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
       }
       ToastAndroid.show('Menambahkan ke antrean...', ToastAndroid.SHORT);
       const uniqueId = malInfo?.malId ? `mal-${malInfo.malId}` : undefined;
-      const res = await queueAdd(realUrl, url, judulSeri, judul, uniqueId);
+      const res = await queueAdd(realUrl, url, judulSeri, judul, uniqueId, coverImage);
       if (res.success) {
         setQueuedUrls(prev => {
           const next = new Set(prev);

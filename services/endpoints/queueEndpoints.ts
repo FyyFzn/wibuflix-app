@@ -11,13 +11,14 @@ export interface QueueItem {
   progress?: string;
   createdAt: number;
   uniqueId?: string;
+  cover?: string;
 }
 
-export async function queueAdd(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, episodeTitle?: string, uniqueId?: string): Promise<{ success: boolean, item?: QueueItem }> {
+export async function queueAdd(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, episodeTitle?: string, uniqueId?: string, cover?: string): Promise<{ success: boolean, item?: QueueItem }> {
   const res = await fetch(`${getApiBase()}/api/queue/add`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ episodeUrl, seriesUrl, seriesTitle, episodeTitle, uniqueId })
+    body: JSON.stringify({ episodeUrl, seriesUrl, seriesTitle, episodeTitle, uniqueId, cover })
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
