@@ -308,6 +308,7 @@ export default function PlayerScreen() {
           navNext,
           new AbortController().signal,
           params.seriJudul as string,
+          params.judul as string,
           (params.uniqueId as string) || ''
         ).catch(() => { });
       });
