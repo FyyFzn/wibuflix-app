@@ -101,7 +101,12 @@ export function useAnimeDetailData(url: string, initialJudul: string, initialGam
         setQueuedUrls(qUrls);
       }
     } catch (err: any) {
-      setError(err.message || 'Gagal memuat detail anime');
+      // AbortError terjadi ketika request timeout 30 detik tercapai
+      const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      setError(isTimeout
+        ? 'Server lambat merespons. Coba lagi untuk memuat episode.'
+        : (err.message || 'Gagal memuat detail anime')
+      );
     } finally {
       setLoading(false);
     }

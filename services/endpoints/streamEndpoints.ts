@@ -31,7 +31,17 @@ export async function fetchEpisodes(targetUrl: string, urls?: any, signal?: Abor
     url += `&urls=${encodeURIComponent(typeof urls === 'string' ? urls : JSON.stringify(urls))}`;
   }
   const cacheKey = `v2_episodes_${targetUrl}`;
-  return fetchWithCache<EpisodesResponse>(url, cacheKey, 3600000, signal);
+
+  // Timeout 30 detik — kalau backend hang (scraper lambat), frontend tetap bisa tampil error
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const effectiveSignal = signal || controller.signal;
+
+  try {
+    return await fetchWithCache<EpisodesResponse>(url, cacheKey, 3600000, effectiveSignal);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episodeTitle?: string, signal?: AbortSignal, urls?: string): Promise<ScrapeResponse> {
