@@ -59,12 +59,10 @@ export async function pollSmartPlayUntilReady(options: PollOptions): Promise<boo
         } else if (pollRes.status === 'FAILED') {
           return false;
         }
-      } else {
-        return false;
       }
-    } catch (e) {
+    } catch (e: any) {
       if (signal.aborted) return false;
-      return false;
+      console.warn(`[Smart-Play Poll] Attempt ${i + 1} failed: ${e.message}`);
     }
 
     await new Promise<void>(res => {

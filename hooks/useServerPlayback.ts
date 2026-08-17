@@ -162,8 +162,7 @@ export function useServerPlayback(state: any, player: any) {
             params.judul as string,
             state.activeServerName
           ).then(() => {
-            if (state.isMounted.current && !signal.aborted && state.retryCount < 1) {
-              state.setRetryCount(1);
+            if (state.isMounted.current && !signal.aborted && !isAutoRetry) {
               loadEpisode(url, params, true);
             } else if (state.isMounted.current) {
               state.setError('Gagal memutar video dari semua server cadangan. Silakan coba beberapa saat lagi.');

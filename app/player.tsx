@@ -111,10 +111,10 @@ export default function PlayerScreen() {
         seriUrl: params.seriUrl,
         seriUrls: params.seriUrls,
         sources: params.sources || params.urls,
-        judul: nextJudul || params.judul,
+        judul: nextJudul || '',
         seriJudul: params.seriJudul,
         uniqueId: params.uniqueId,
-        urls: nextUrls || params.urls,
+        urls: nextUrls || '',
         autoFullscreen: params.autoFullscreen
       });
     }, 50);
