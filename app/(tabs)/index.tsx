@@ -11,7 +11,7 @@ import {
 import { useRouter, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, BorderRadius, FontSize, FontWeight } from '../../styles/theme';
-import { fetchKatalog, fetchHotAnime, AnimeItem } from '../../services/api';
+import { fetchKatalog, AnimeItem } from '../../services/api';
 import AnimeCard from '../../components/AnimeCard';
 import LoadingOverlay from '../../components/LoadingOverlay';
 import SearchBar from '../../components/SearchBar';
@@ -29,7 +29,6 @@ export default function BerandaScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  const [hotAnime, setHotAnime] = useState<AnimeItem[]>([]);
   const [latestAnime, setLatestAnime] = useState<AnimeItem[]>([]);
   const [latestToku, setLatestToku] = useState<AnimeItem[]>([]);
   const [randomAnime, setRandomAnime] = useState<AnimeItem[]>([]);
@@ -45,15 +44,13 @@ export default function BerandaScreen() {
       const randomAnimePage = Math.floor(Math.random() * 20) + 1;
       const randomTokuPage = Math.floor(Math.random() * 2) + 1;
 
-      const [hotRes, latestAnimeRes, latestTokuRes, randomAnimeRes, randomTokuRes] = await Promise.allSettled([
-        fetchHotAnime(),
+      const [latestAnimeRes, latestTokuRes, randomAnimeRes, randomTokuRes] = await Promise.allSettled([
         fetchKatalog(1, '', 'anime', '', '', undefined, false, 'latest'),
         fetchKatalog(1, '', 'toku', '', '', undefined, false, 'latest'),
         fetchKatalog(randomAnimePage, '', 'anime', '', '', undefined, false, 'latest'),
         fetchKatalog(randomTokuPage, '', 'toku', '', '', undefined, false, 'latest'),
       ]);
 
-      if (hotRes.status === 'fulfilled') setHotAnime(hotRes.value.data.list || []);
       if (latestAnimeRes.status === 'fulfilled') setLatestAnime(latestAnimeRes.value.data.list || []);
       if (latestTokuRes.status === 'fulfilled') setLatestToku(latestTokuRes.value.data.list || []);
       
@@ -137,19 +134,6 @@ export default function BerandaScreen() {
     </View>
   );
 
-  const renderHotItem = ({ item }: { item: AnimeItem }) => (
-    <View style={styles.animeCardWrapper}>
-      <AnimeCard
-        judul={item.judul}
-        gambar={item.gambar}
-        tipe={item.tipe}
-        skor={item.skor}
-        onPress={() => handleAnimePress(item)}
-        customStyle={styles.animeCardStyle}
-      />
-    </View>
-  );
-
   const renderSection = (title: string, data: any[], renderFn: any, typeKey?: string) => {
     if (data.length === 0) return null;
     return (
@@ -226,7 +210,6 @@ export default function BerandaScreen() {
             />
           }
         >
-          {renderSection("Sedang Populer 🔥", hotAnime, renderHotItem)}
           {renderSection("Anime Terbaru 📺", latestAnime, renderHorizontalItem, "latest_anime")}
           {renderSection("Tokusatsu Terbaru 🏍️", latestToku, renderHorizontalItem, "latest_toku")}
           {renderSection("Rekomendasi Acak 🎲", randomAnime, renderHorizontalItem)}
