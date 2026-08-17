@@ -39,7 +39,7 @@ export default function PlayerLoadingOverlay({
           </Text>
         </View>
       ) : (
-        <Text style={styles.overlayText}>{loading ? 'Mencari server...' : 'Menyiapkan video...'}</Text>
+        <Text style={styles.overlayText}>{loading ? 'Memuat episode...' : 'Menyiapkan video...'}</Text>
       )}
     </View>
   );
