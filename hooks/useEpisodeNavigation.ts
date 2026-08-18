@@ -67,10 +67,13 @@ export function useEpisodeNavigation(seriUrl: string | undefined, currentUrl: st
             const fallback = title.match(/(?:--|__|-\s*|\s+-\s*|\[|\()[\s-_]*0*(\d+(?:\.\d+)?)(?:\b|\s|[-_\]\)\.]|$)/) || title.match(/\b0*(\d+(?:\.\d+)?)\s*(?:\(End\))?\s*$/i);
             return fallback ? parseFloat(fallback[1]) : null;
           };
-          const numFirst = extractEpNum(episodes[0].judul);
-          const numLast = extractEpNum(episodes[episodes.length - 1].judul);
-          if (numFirst !== null && numLast !== null && numLast > numFirst) {
-            isAscending = true;
+          const numberedEps = episodes.filter(e => extractEpNum(e.judul) !== null);
+          if (numberedEps.length > 1) {
+            const numFirst = extractEpNum(numberedEps[0].judul) as number;
+            const numLast = extractEpNum(numberedEps[numberedEps.length - 1].judul) as number;
+            if (numLast > numFirst) {
+              isAscending = true;
+            }
           }
         }
 
