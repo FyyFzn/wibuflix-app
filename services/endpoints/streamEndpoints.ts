@@ -49,9 +49,25 @@ export async function scrapeVideo(targetUrl: string, seriesTitle?: string, episo
   if (urls) url += `&urls=${encodeURIComponent(urls)}`;
   if (seriesTitle) url += `&series=${encodeURIComponent(seriesTitle)}`;
   if (episodeTitle) url += `&episode=${encodeURIComponent(episodeTitle)}`;
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout
+  
+  // Create a combined signal that aborts if either the parent signal aborts or the timeout hits
+  const onParentAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onParentAbort, { once: true });
+  }
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timeoutId);
+    if (signal) signal.removeEventListener('abort', onParentAbort);
+  }
 }
 
 export async function fetchSmartPlay(
@@ -72,23 +88,37 @@ export async function fetchSmartPlay(
   if (uniqueId) url += `&uniqueId=${encodeURIComponent(uniqueId)}`;
   if (urls) url += `&urls=${encodeURIComponent(urls)}`;
 
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json && json.status === 'success' && json.data) {
-    return {
-      success: true,
-      status: json.data.stream_status || 'UPLOADING',
-      url: json.data.url,
-      message: json.data.message,
-      progress: json.data.progress,
-      nav_prev: json.data.nav_prev || null,
-      nav_next: json.data.nav_next || null,
-      servers: json.data.servers || [],
-      judul: json.data.judul
-    };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+  
+  const onParentAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', onParentAbort, { once: true });
   }
-  return json;
+
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json && json.status === 'success' && json.data) {
+      return {
+        success: true,
+        status: json.data.stream_status || 'UPLOADING',
+        url: json.data.url,
+        message: json.data.message,
+        progress: json.data.progress,
+        nav_prev: json.data.nav_prev || null,
+        nav_next: json.data.nav_next || null,
+        servers: json.data.servers || [],
+        judul: json.data.judul
+      };
+    }
+    return json;
+  } finally {
+    clearTimeout(timeoutId);
+    if (signal) signal.removeEventListener('abort', onParentAbort);
+  }
 }
 
 export async function fetchUploadStatus(episodeUrl: string, seriesUrl?: string, seriesTitle?: string, uniqueId?: string, signal?: AbortSignal): Promise<{ success: boolean; progressMessage?: string }> {
