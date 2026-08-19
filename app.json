@@ -37,7 +37,8 @@
           "android": {
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "enableMinifyInReleaseBuilds": true
+            "enableMinifyInReleaseBuilds": true,
+            "AsyncStorage_db_size_in_MB": 50
           }
         }
       ]

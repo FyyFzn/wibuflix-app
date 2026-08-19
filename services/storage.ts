@@ -110,7 +110,18 @@ export async function simpanKeRiwayat(
       riwayat = riwayat.slice(0, 100);
     }
 
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+    try {
+      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+    } catch (writeErr: any) {
+      if (writeErr?.message?.includes('sqlite_full') || writeErr?.message?.includes('database or disk is full')) {
+        console.warn('[Storage] SQLite full detected in simpanKeRiwayat! Trimming history to 30 items...');
+        // Force trim to 30 items to free up space
+        const trimmed = riwayat.slice(0, 30);
+        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed)).catch(console.error);
+      } else {
+        throw writeErr;
+      }
+    }
   } catch (e) {
     console.error('[Storage Error] Gagal menyimpan ke riwayat AsyncStorage:', e);
   }
@@ -153,7 +164,17 @@ export async function updateProgress(
         riwayat[itemIndex].duration = validDuration;
         riwayat[itemIndex].waktu = Date.now();
         if (host) riwayat[itemIndex].host = host;
-        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+        
+        try {
+          await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+        } catch (err: any) {
+          if (err?.message?.includes('sqlite_full') || err?.message?.includes('database or disk is full')) {
+             console.warn('[Storage] SQLite full in History! Trimming to 30 items...');
+             await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat.slice(0, 30))).catch(() => {});
+          } else {
+             throw err;
+          }
+        }
       }
     } catch (e) {
       console.warn('[Storage Error] Gagal update progress di riwayat:', e);
@@ -187,7 +208,19 @@ export async function updateProgress(
         allProgress = newProgress;
       }
 
-      await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(allProgress));
+      try {
+        await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(allProgress));
+      } catch (err: any) {
+        if (err?.message?.includes('sqlite_full') || err?.message?.includes('database or disk is full')) {
+          console.warn('[Storage] SQLite full in Progress DB! Trimming to 30 items...');
+          const emergencyProgress: Record<string, EpisodeProgress> = {};
+          const emergencyKeys = Object.keys(allProgress).sort((a, b) => (allProgress[b]?.waktu || 0) - (allProgress[a]?.waktu || 0)).slice(0, 30);
+          emergencyKeys.forEach(k => { emergencyProgress[k] = allProgress[k]; });
+          await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(emergencyProgress)).catch(() => {});
+        } else {
+          throw err;
+        }
+      }
     } catch (e) {
       console.warn('[Storage Error] Gagal update progress di Progress DB:', e);
     }
