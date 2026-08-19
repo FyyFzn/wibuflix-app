@@ -270,7 +270,7 @@ export async function getAllProgressMap(): Promise<Record<string, EpisodeProgres
 export async function hapusRiwayat(identifier: string): Promise<void> {
   let riwayat = await getRawRiwayat();
   riwayat = riwayat.filter(r => r.seriUrl !== identifier && r.judulSeri !== identifier);
-  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat));
+  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat)).catch(() => {});
 }
 
 // ── Clear all history ───────────────────────────────────────

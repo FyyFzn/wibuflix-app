@@ -176,7 +176,7 @@ export default function PlayerScreen() {
 
   const changeSpeed = async (speed: number) => {
     state.setPlaybackSpeed(speed);
-    await AsyncStorage.setItem('playback_speed', speed.toString());
+    await AsyncStorage.setItem('playback_speed', speed.toString()).catch(() => {});
     state.setShowSpeedModal(false);
   };
 

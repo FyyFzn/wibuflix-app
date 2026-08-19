@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   BackHandler,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack, useNavigation, useFocusEffect } from 'expo-router';
 import { getPrimaryUrl } from '../../utils/urlFallbackHelper';
@@ -152,6 +153,14 @@ export default function AnimeDetailScreen() {
         maxToRenderPerBatch={10}
         windowSize={5}
         removeClippedSubviews={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={retry}
+            colors={[Colors.accent]}
+            tintColor={Colors.accent}
+          />
+        }
         renderItem={({ item }) => {
           const realEpUrl = getPrimaryUrl(item);
           const urlsJson = item.urls ? JSON.stringify(item.urls) : '';
