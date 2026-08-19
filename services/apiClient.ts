@@ -94,7 +94,7 @@ export async function fetchWithCache<T>(url: string, cacheKey: string, ttl: numb
             if (isCacheValid(json)) {
               const freshData = { timestamp: Date.now(), data: json };
               memoryCache.set(cacheKey, freshData);
-              AsyncStorage.setItem(cacheKey, JSON.stringify(freshData));
+              AsyncStorage.setItem(cacheKey, JSON.stringify(freshData)).catch(() => {});
             }
           }).catch(() => {});
           return parsed.data as T;
@@ -110,7 +110,11 @@ export async function fetchWithCache<T>(url: string, cacheKey: string, ttl: numb
   if (isCacheValid(json)) {
     const newData = { timestamp: Date.now(), data: json };
     memoryCache.set(cacheKey, newData);
-    await AsyncStorage.setItem(cacheKey, JSON.stringify(newData));
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(newData)).catch(err => {
+      if (err?.message?.includes('sqlite_full') || err?.message?.includes('database or disk is full')) {
+        console.warn('[Cache] SQLite full! Cache write failed but API data will still be returned.');
+      }
+    });
   }
   return json;
 }
