@@ -402,7 +402,7 @@ export default function PlayerScreen() {
 
           {state.playerMode === 'native' && state.nativeVideoUrl ? (
             <View style={{ flex: 1 }}>
-              <VideoView player={player} style={styles.video} nativeControls={false} />
+              <VideoView key={params.url} player={player} style={styles.video} nativeControls={false} />
               {playerError && (
                 <View style={{ position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'rgba(255,50,50,0.9)', padding: 12, borderRadius: 10, zIndex: 100 }}>
                   <Text style={{ color: 'white', fontSize: 13, fontWeight: 'bold', marginBottom: 4 }}>Gagal Memutar Video</Text>
