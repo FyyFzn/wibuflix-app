@@ -47,16 +47,16 @@ jobs:
         if: github.event_name == 'push' || startsWith(github.event.inputs.action_type, 'update')
         run: |
           echo "🚀 Mengirimkan Over-The-Air (OTA) Update ke branch preview (Android)..."
-          eas update --branch preview --platform android --non-interactive --message "${{ github.event.head_commit.message || 'Automated CI Update' }}"
+          CI=1 eas update --branch preview --platform android --message "${{ github.event.head_commit.message || 'Automated CI Update' }}"
 
       - name: Build Android APK (Preview)
         if: github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.action_type, 'build-preview')
         run: |
           echo "📦 Membangun APK Android di server cloud EAS..."
-          eas build --platform android --profile preview --non-interactive
+          CI=1 eas build --platform android --profile preview
 
       - name: Build Android AAB (Production)
         if: github.event_name == 'workflow_dispatch' && startsWith(github.event.inputs.action_type, 'build-production')
         run: |
           echo "🏢 Membangun App Bundle (AAB) Production di server cloud EAS..."
-          eas build --platform android --profile production --non-interactive
+          CI=1 eas build --platform android --profile production
