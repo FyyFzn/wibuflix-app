@@ -73,7 +73,7 @@ export default function AnimeDetailScreen() {
       list = list.filter(e => e.judul.toLowerCase().includes(searchQuery.toLowerCase()));
     }
     if (sortOrder === 'asc') {
-      list = list.reverse();
+      list = [...list].reverse();
     }
     return list;
   }, [episodes, searchQuery, sortOrder]);
