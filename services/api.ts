@@ -1,6 +1,7 @@
 /**
  * API Service Facade — Ported and Modularized (SRP)
- * Re-exports core API client, cache utilities, and domain-specific endpoints.
+ * Canonical import entry point for all API client, cache utilities, and domain endpoints.
+ * All external consumers must import from this facade rather than individual endpoint modules.
  */
 
 export { getApiBase, API, memoryCache, isCacheValid, fetchWithCache } from './apiClient';
