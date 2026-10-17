@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StatusBar, BackHandler, useWindowDimensions
+  View, Text, TouchableOpacity, StatusBar, useWindowDimensions
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect, useNavigation } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +25,7 @@ import { useDoubleTapSkip } from '../hooks/useDoubleTapSkip';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpisodeNavigation } from '../hooks/useEpisodeNavigation';
 import { useProgressSync } from '../hooks/useProgressSync';
+import { useScreenBackHandler } from '../hooks/useScreenBackHandler';
 import { getHostName } from '../utils/hostUtils';
 import { getPrimaryUrl, getProviderNameFromUrl } from '../utils/urlFallbackHelper';
 
@@ -283,19 +284,14 @@ export default function PlayerScreen() {
     return unsubscribe;
   }, [navigation, stopAllMedia]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (isFullscreenRef.current) {
-          exitFullscreenRef.current();
-          return true;
-        }
-        handleUIBackPressRef.current();
-        return true;
-      });
-      return () => backHandler.remove();
-    }, [])
-  );
+  useScreenBackHandler(() => {
+    if (isFullscreenRef.current) {
+      exitFullscreenRef.current();
+      return true;
+    }
+    handleUIBackPressRef.current();
+    return true;
+  });
 
   // Cross-Source Prefetch logic
   useEffect(() => {
