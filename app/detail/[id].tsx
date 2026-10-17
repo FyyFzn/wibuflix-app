@@ -10,10 +10,9 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  BackHandler,
   RefreshControl,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, Stack, useNavigation, useFocusEffect } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { getPrimaryUrl } from '../../utils/urlFallbackHelper';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import EpisodeItemComponent from '../../components/EpisodeItem';
@@ -22,32 +21,14 @@ import MalHeaderPanel from '../../components/detail/MalHeaderPanel';
 import ResumeWatchBanner from '../../components/detail/ResumeWatchBanner';
 import EpisodeFilterBar from '../../components/detail/EpisodeFilterBar';
 import { useAnimeDetailData } from '../../hooks/useAnimeDetailData';
+import { useScreenBackHandler } from '../../hooks/useScreenBackHandler';
 import { WatchHistoryItem } from '../../services/storage';
 
 export default function AnimeDetailScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const params = useLocalSearchParams<{ url: string; gambar: string; judul: string; sources?: string; sourceUrls?: string }>();
 
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-        } else {
-          try {
-            (navigation as any).navigate('(tabs)' as never);
-          } catch (e) {
-            router.replace('/');
-          }
-        }
-        return true; // Cegah Android keluar aplikasi!
-      };
-
-      const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => backHandler.remove();
-    }, [navigation, router])
-  );
+  useScreenBackHandler();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
