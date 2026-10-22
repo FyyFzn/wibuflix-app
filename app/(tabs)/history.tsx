@@ -12,9 +12,13 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, BorderRadius, FontSize, FontWeight, Spacing } from '../../styles/theme';
 import {
   getRiwayat,
@@ -23,6 +27,9 @@ import {
   formatWaktuYangLalu,
   formatDuration,
   WatchHistoryItem,
+  getSyncToken,
+  setSyncToken,
+  syncHistoryFromCloud,
 } from '../../services/storage';
 import { useTabBackHandler } from '../../hooks/useTabBackHandler';
 
@@ -37,11 +44,33 @@ export default function HistoryScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<WatchHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncModalVisible, setSyncModalVisible] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Reload history when screen is focused
+  // Reload history when screen is focused with background cloud sync
   useFocusEffect(
     useCallback(() => {
-      loadHistory();
+      let isMounted = true;
+
+      const initHistory = async () => {
+        const localData = await getRiwayat();
+        if (isMounted) {
+          setHistory(localData);
+          setLoading(false);
+        }
+
+        const syncedData = await syncHistoryFromCloud();
+        if (isMounted && syncedData) {
+          setHistory(syncedData);
+        }
+      };
+
+      initHistory();
+
+      return () => {
+        isMounted = false;
+      };
     }, [])
   );
 
@@ -50,6 +79,32 @@ export default function HistoryScreen() {
     const data = await getRiwayat();
     setHistory(data);
     setLoading(false);
+
+    const synced = await syncHistoryFromCloud();
+    if (synced) {
+      setHistory(synced);
+    }
+  };
+
+  const openSyncModal = async () => {
+    const currentToken = await getSyncToken();
+    setTokenInput(currentToken);
+    setSyncModalVisible(true);
+  };
+
+  const handleSaveToken = async () => {
+    setIsSyncing(true);
+    try {
+      await setSyncToken(tokenInput);
+      const synced = await syncHistoryFromCloud();
+      setHistory(synced);
+      setSyncModalVisible(false);
+      Alert.alert('Sukses', 'Sync token berhasil disimpan dan riwayat telah disinkronkan.');
+    } catch {
+      Alert.alert('Peringatan', 'Token disimpan namun gagal sinkronisasi ke cloud.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handlePress = (item: WatchHistoryItem) => {
@@ -157,14 +212,23 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header actions */}
-      {history.length > 0 && (
-        <View style={styles.headerActions}>
-          <Text style={styles.countText}>{history.length} item</Text>
-          <TouchableOpacity onPress={handleClearAll}>
-            <Text style={styles.clearAllText}>Hapus Semua</Text>
+      <View style={styles.headerActions}>
+        <Text style={styles.countText}>{history.length > 0 ? `${history.length} item` : 'Riwayat'}</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.syncBtn}
+            onPress={openSyncModal}
+            accessibilityLabel="Sinkronisasi Cloud"
+          >
+            <Ionicons name="cloud-outline" size={20} color={Colors.accent} />
           </TouchableOpacity>
+          {history.length > 0 && (
+            <TouchableOpacity onPress={handleClearAll}>
+              <Text style={styles.clearAllText}>Hapus Semua</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -189,6 +253,59 @@ export default function HistoryScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Modal Sinkronisasi Token */}
+      <Modal
+        visible={syncModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSyncModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="cloud-done-outline" size={24} color={Colors.accent} />
+              <Text style={styles.modalTitle}>Sinkronisasi Riwayat</Text>
+            </View>
+
+            <Text style={styles.modalDescription}>
+              Masukkan Sync Token untuk menyinkronkan riwayat tontonan antara aplikasi mobile dan web.
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Contoh: token_rahasia_kamu"
+              placeholderTextColor={Colors.textMuted}
+              value={tokenInput}
+              onChangeText={setTokenInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalBtnCancel}
+                onPress={() => setSyncModalVisible(false)}
+                disabled={isSyncing}
+              >
+                <Text style={styles.modalBtnCancelText}>Batal</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalBtnSave}
+                onPress={handleSaveToken}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <Text style={styles.modalBtnSaveText}>Simpan & Sync</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -214,6 +331,89 @@ const styles = StyleSheet.create({
   },
   clearAllText: {
     color: Colors.accent,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  syncBtn: {
+    padding: Spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  modalTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.text,
+  },
+  modalDescription: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  modalInput: {
+    backgroundColor: Colors.surface2,
+    color: Colors.text,
+    fontSize: FontSize.md,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.md,
+  },
+  modalBtnCancel: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalBtnCancelText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.medium,
+  },
+  modalBtnSave: {
+    backgroundColor: Colors.accent,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    minWidth: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnSaveText: {
+    color: Colors.white,
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
