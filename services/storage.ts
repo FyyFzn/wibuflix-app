@@ -161,16 +161,26 @@ export async function simpanKeRiwayat(
   uniqueId?: string
 ): Promise<void> {
   try {
-    let baseJudul = cleanSeriesTitle(judul);
-    if (!baseJudul) baseJudul = judul;
-    
-    let finalJudulSeri = cleanSeriesTitle(seriJudul || baseJudul);
-    if (!finalJudulSeri) finalJudulSeri = seriJudul || baseJudul;
-    
-    const judulSeri = finalJudulSeri;
-    
-    const epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
+    let epMatch = judul.match(/(?:Episode|Eps|OVA)\s+(\d+(?:\.\d+)?)/i) || judul.match(/\s+(\d+)\s+Sub/i) || judul.match(/\s+(\d+)$/i);
+    if (!epMatch && url) {
+      epMatch = url.match(/[?&]ep=(\d+(?:\.\d+)?)/i) || url.match(/episode[-_](\d+(?:\.\d+)?)/i) || url.match(/-(\d+(?:\.\d+)?)\/?$/);
+    }
     const nomorEp = epMatch ? epMatch[1] : '';
+
+    let baseJudul = cleanSeriesTitle(judul);
+    if (!baseJudul || baseJudul.toLowerCase() === 'episode') baseJudul = '';
+    let finalJudulSeri = cleanSeriesTitle(seriJudul || baseJudul);
+    if (!finalJudulSeri || finalJudulSeri.toLowerCase() === 'episode') {
+      if (seriUrl) {
+        const slug = seriUrl.replace(/\/$/, '').split('/').pop() || '';
+        finalJudulSeri = cleanSeriesTitle(slug.replace(/[-_]/g, ' '));
+      }
+    }
+    if (!finalJudulSeri || finalJudulSeri.toLowerCase() === 'episode') {
+      finalJudulSeri = seriJudul || baseJudul || 'Anime';
+    }
+
+    const judulSeri = finalJudulSeri;
 
     let riwayat = await getRawRiwayat();
 
