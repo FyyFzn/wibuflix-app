@@ -16,6 +16,7 @@ export const API = {
   v2ReportBroken: `${API_BASE}/api/v2/stream/report-broken`,
   scrape: `${API_BASE}/api/scrape`,
   hot: `${API_BASE}/api/hot`,
+  history: `${API_BASE}/api/history`,
 };
 
 class LRUMemoryCache<K, V extends { timestamp: number }> {

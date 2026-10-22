@@ -7,8 +7,42 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cleanSeriesTitle } from '../utils/titleUtils';
 
 const HISTORY_KEY = 'wibuflix_riwayat';
+const SYNC_TOKEN_KEY = 'wibuflix_sync_token';
 const MAX_HISTORY_ITEMS = 150; // Batasi ketat jumlah riwayat untuk mencegah OOM AsyncStorage (batas 6MB SQLite Android)
 const MAX_HISTORY = MAX_HISTORY_ITEMS;
+
+// ── Sync Token Management ──────────────────────────────
+
+export async function getSyncToken(): Promise<string> {
+  try {
+    return (await AsyncStorage.getItem(SYNC_TOKEN_KEY)) || '';
+  } catch {
+    return '';
+  }
+}
+
+export async function setSyncToken(token: string): Promise<void> {
+  try {
+    if (!token) {
+      await AsyncStorage.removeItem(SYNC_TOKEN_KEY);
+    } else {
+      await AsyncStorage.setItem(SYNC_TOKEN_KEY, token.trim());
+    }
+  } catch (e) {
+    console.warn('[Storage] Gagal menyimpan sync token:', e);
+  }
+}
+
+export async function getSyncHeaders(): Promise<Record<string, string>> {
+  const token = await getSyncToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['x-sync-token'] = token;
+  }
+  return headers;
+}
 
 export interface WatchHistoryItem {
   judulSeri: string;
