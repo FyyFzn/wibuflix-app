@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cleanSeriesTitle } from '../utils/titleUtils';
+import { API } from './api';
 
 const HISTORY_KEY = 'wibuflix_riwayat';
 const SYNC_TOKEN_KEY = 'wibuflix_sync_token';
@@ -42,6 +43,55 @@ export async function getSyncHeaders(): Promise<Record<string, string>> {
     headers['x-sync-token'] = token;
   }
   return headers;
+}
+
+async function pushHistoryToCloud(item: WatchHistoryItem): Promise<void> {
+  try {
+    const headers = await getSyncHeaders();
+    await fetch(API.history, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(item),
+    });
+  } catch {
+    // Non-blocking fire-and-forget sync
+  }
+}
+
+async function pushProgressToCloud(
+  url: string,
+  progress: number,
+  duration: number,
+  host?: string
+): Promise<void> {
+  try {
+    const riwayat = await getRawRiwayat();
+    const existing = riwayat.find(r => r.url === url);
+    const validDuration = duration > 0 ? duration : (existing?.duration || 1);
+    const payload: Partial<WatchHistoryItem> & { url: string; progress: number; duration: number } = existing ? {
+      ...existing,
+      progress: Math.min(progress, validDuration),
+      duration: validDuration,
+      waktu: Date.now(),
+      ...(host ? { host } : {}),
+    } : {
+      judulSeri: url,
+      url,
+      progress: Math.min(progress, validDuration),
+      duration: validDuration,
+      waktu: Date.now(),
+      ...(host ? { host } : {}),
+    };
+
+    const headers = await getSyncHeaders();
+    await fetch(API.history, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Non-blocking fire-and-forget sync
+  }
 }
 
 export interface WatchHistoryItem {
@@ -127,7 +177,7 @@ export async function simpanKeRiwayat(
     // Dedup agresif: Hapus episode lama dari seri yang sama agar riwayat tidak bengkak
     riwayat = riwayat.filter(r => r.url !== url && (seriUrl ? r.seriUrl !== seriUrl : r.judulSeri !== judulSeri));
 
-    riwayat.unshift({
+    const newItem: WatchHistoryItem = {
       judulSeri,
       nomorEp,
       url,
@@ -138,7 +188,9 @@ export async function simpanKeRiwayat(
       duration,
       host,
       uniqueId,
-    });
+    };
+
+    riwayat.unshift(newItem);
 
     if (riwayat.length > 100) {
       riwayat = riwayat.slice(0, 100);
@@ -156,6 +208,8 @@ export async function simpanKeRiwayat(
         throw writeErr;
       }
     }
+
+    pushHistoryToCloud(newItem);
   } catch (e) {
     console.error('[Storage Error] Gagal menyimpan ke riwayat AsyncStorage:', e);
   }
@@ -258,6 +312,8 @@ export async function updateProgress(
     } catch (e) {
       console.warn('[Storage Error] Gagal update progress di Progress DB:', e);
     }
+
+    pushProgressToCloud(url, progress, duration, host);
   } finally {
     isProgressUpdating = false;
     if (pendingProgressUpdate) {
@@ -305,13 +361,82 @@ export async function hapusRiwayat(identifier: string): Promise<void> {
   let riwayat = await getRawRiwayat();
   riwayat = riwayat.filter(r => r.seriUrl !== identifier && r.judulSeri !== identifier);
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(riwayat)).catch(() => {});
+
+  try {
+    const headers = await getSyncHeaders();
+    fetch(`${API.history}/${encodeURIComponent(identifier)}`, {
+      method: 'DELETE',
+      headers,
+    }).catch(() => {});
+  } catch {}
 }
 
 // ── Clear all history ───────────────────────────────────────
 
 export async function clearAllHistory(): Promise<void> {
   await AsyncStorage.removeItem(HISTORY_KEY);
+
+  try {
+    const headers = await getSyncHeaders();
+    fetch(API.history, {
+      method: 'DELETE',
+      headers,
+    }).catch(() => {});
+  } catch {}
 }
+
+// ── Cloud Reconciliation ──────────────────────────────
+
+export async function syncHistoryFromCloud(): Promise<WatchHistoryItem[]> {
+  try {
+    const headers = await getSyncHeaders();
+    const res = await fetch(API.history, { headers });
+    if (!res.ok) {
+      return await getRiwayat();
+    }
+    const json = await res.json();
+    const remoteList: WatchHistoryItem[] = (json && Array.isArray(json.data))
+      ? json.data
+      : (Array.isArray(json) ? json : []);
+
+    const localList = await getRawRiwayat();
+
+    const mergedMap = new Map<string, WatchHistoryItem>();
+
+    const getItemKey = (item: WatchHistoryItem) => {
+      let jt = cleanSeriesTitle(item.judulSeri || '');
+      if (!jt) jt = item.judulSeri;
+      return item.seriUrl || jt || item.url;
+    };
+
+    const allItems = [...localList, ...remoteList];
+    for (const item of allItems) {
+      if (!item || (!item.url && !item.seriUrl && !item.judulSeri)) continue;
+      const key = getItemKey(item);
+      const existing = mergedMap.get(key);
+      if (!existing || (item.waktu || 0) > (existing.waktu || 0)) {
+        mergedMap.set(key, item);
+      }
+    }
+
+    const mergedList = Array.from(mergedMap.values())
+      .sort((a, b) => (b.waktu || 0) - (a.waktu || 0))
+      .slice(0, MAX_HISTORY_ITEMS);
+
+    try {
+      await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(mergedList));
+    } catch (writeErr: any) {
+      console.warn('[Storage] Gagal menyimpan hasil sync ke AsyncStorage:', writeErr);
+    }
+
+    return await getRiwayat();
+  } catch (err) {
+    console.warn('[Storage] syncHistoryFromCloud gagal:', err);
+    return await getRiwayat();
+  }
+}
+
+
 
 // ── Format relative time (same as web version) ─────────────
 
