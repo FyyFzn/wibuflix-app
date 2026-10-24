@@ -29,6 +29,8 @@ import { useScreenBackHandler } from '../hooks/useScreenBackHandler';
 import { getHostName } from '../utils/hostUtils';
 import { getPrimaryUrl, getProviderNameFromUrl } from '../utils/urlFallbackHelper';
 
+import { setAnime4kEnabled } from '../modules/anime4k-effect/src';
+
 export default function PlayerScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -50,6 +52,31 @@ export default function PlayerScreen() {
 
   const { status, error: playerError } = useEvent(player, 'statusChange', { status: player.status, error: undefined });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { videoTrack } = useEvent(player, 'videoTrackChange', { videoTrack: player.videoTrack });
+
+  // Resolution Gate: Monitor video height to auto-toggle Anime4K upscaler
+  useEffect(() => {
+    const height = videoTrack?.size?.height || 0;
+    if (height > 0) {
+      if (height >= 1080) {
+        // Native 1080p: bypass shader pipeline for direct hardware rendering
+        setAnime4kEnabled(false);
+        state.setIsUpscalerActive(false);
+        state.setIs1080pNative(true);
+      } else if (height <= 720) {
+        // <= 720p: enable Anime4K upscale pipeline if preference is enabled
+        const active = state.upscalerEnabled;
+        setAnime4kEnabled(active);
+        state.setIsUpscalerActive(active);
+        state.setIs1080pNative(false);
+      } else {
+        // Between 720p and 1080p
+        setAnime4kEnabled(false);
+        state.setIsUpscalerActive(false);
+        state.setIs1080pNative(false);
+      }
+    }
+  }, [videoTrack, state.upscalerEnabled]);
 
   // 3. Initialize Playback Hook
   const playback = useServerPlayback(state, player);

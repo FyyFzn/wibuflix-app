@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ServerItem } from '../services/api';
+import { setAnime4kEnabled } from '../modules/anime4k-effect/src';
 
 export function formatEpisodeTitle(title?: string): string {
   if (!title) return 'Episode ?';
@@ -42,6 +44,29 @@ export function usePlayerState(initialTitle: string = '') {
   const [savedProgress, setSavedProgress] = useState(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isSwitchingHost, setIsSwitchingHost] = useState(false);
+
+  // Anime4K Upscaler State
+  const [isUpscalerActive, setIsUpscalerActive] = useState(false);
+  const [is1080pNative, setIs1080pNative] = useState(false);
+  const [upscalerEnabled, setUpscalerEnabled] = useState(true);
+
+  // Load upscaler preference from AsyncStorage
+  useEffect(() => {
+    AsyncStorage.getItem('wibuflix_upscaler_enabled').then((val) => {
+      if (val !== null) {
+        setUpscalerEnabled(val === 'true');
+      }
+    }).catch(() => {});
+  }, []);
+
+  const toggleUpscaler = useCallback((enabled: boolean) => {
+    setUpscalerEnabled(enabled);
+    AsyncStorage.setItem('wibuflix_upscaler_enabled', enabled ? 'true' : 'false').catch(() => {});
+    if (!enabled) {
+      setAnime4kEnabled(false);
+      setIsUpscalerActive(false);
+    }
+  }, []);
 
   // Player state (100% Azure Blob / Native Cloud Player)
   const [playerMode, setPlayerMode] = useState<'native' | 'none'>('none');
@@ -102,6 +127,10 @@ export function usePlayerState(initialTitle: string = '') {
     savedProgress, setSavedProgress,
     controlsVisible, setControlsVisible,
     isSwitchingHost, setIsSwitchingHost,
+    isUpscalerActive, setIsUpscalerActive,
+    is1080pNative, setIs1080pNative,
+    upscalerEnabled, setUpscalerEnabled,
+    toggleUpscaler,
     playerMode, setPlayerMode,
     nativeVideoUrl, setNativeVideoUrl,
     retryCount, setRetryCount,
