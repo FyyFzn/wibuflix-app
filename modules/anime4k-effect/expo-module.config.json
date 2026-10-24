@@ -1,0 +1,9 @@
+{
+  "name": "anime4k-effect",
+  "platforms": ["android"],
+  "android": {
+    "modules": [
+      "com.fyy.stream.anime4k.Anime4kEffectModule"
+    ]
+  }
+}

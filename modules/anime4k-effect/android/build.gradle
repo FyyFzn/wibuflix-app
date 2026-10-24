@@ -1,0 +1,26 @@
+plugins {
+  id 'com.android.library'
+  id 'kotlin-android'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.fyy.stream.anime4k'
+version = '1.0.0'
+
+android {
+  namespace "com.fyy.stream.anime4k"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-android'
+  implementation project(':expo-modules-core')
+
+  // Keep in sync with expo-video AndroidX Media3 version (1.9.0)
+  def androidxMedia3Version = "1.9.0"
+  implementation "androidx.media3:media3-effect:${androidxMedia3Version}"
+  implementation "androidx.media3:media3-common:${androidxMedia3Version}"
+}
