@@ -24,6 +24,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withAnime4kEffect",
       "expo-router",
       [
         "expo-screen-orientation",
