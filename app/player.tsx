@@ -440,6 +440,7 @@ export default function PlayerScreen() {
                 playbackSpeed={state.playbackSpeed} activeServerName={state.activeServerName} activeHostItems={activeHostItems}
                 episodes={episodes} navPrev={navPrev} navNext={navNext} skipInfo={skipInfo} rippleAnim={rippleAnim}
                 isSkipOPVisible={isSkipOPVisible} isSkipEDVisible={isSkipEDVisible}
+                isUpscalerActive={state.isUpscalerActive} is1080pNative={state.is1080pNative} upscalerEnabled={state.upscalerEnabled}
                 handleVideoTap={handleVideoTap} setPlayerLayoutWidth={setPlayerLayoutWidth}
                 exitFullscreen={exitFullscreen} enterFullscreen={enterFullscreen}
                 setShowSpeedModal={state.setShowSpeedModal} setShowResModal={state.setShowResModal}
@@ -480,6 +481,7 @@ export default function PlayerScreen() {
           handleSelectResolution={(srv) => playback.handleSelectResolution(srv, params, stopAllMedia, saveCurrentProgress)} getResName={getResName}
           showSpeedModal={state.showSpeedModal} setShowSpeedModal={state.setShowSpeedModal}
           playbackSpeed={state.playbackSpeed} changeSpeed={changeSpeed}
+          upscalerEnabled={state.upscalerEnabled} toggleUpscaler={state.toggleUpscaler}
         />
       </SafeAreaView>
     </>

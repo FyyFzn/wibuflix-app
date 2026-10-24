@@ -25,6 +25,9 @@ interface PlayerNativeControlsProps {
   rippleAnim: Animated.Value;
   isSkipOPVisible: boolean;
   isSkipEDVisible: boolean;
+  isUpscalerActive?: boolean;
+  is1080pNative?: boolean;
+  upscalerEnabled?: boolean;
   
   handleVideoTap: (evt: any) => void;
   setPlayerLayoutWidth: (width: number) => void;
@@ -47,6 +50,7 @@ const PlayerNativeControls = React.memo(function PlayerNativeControls({
   player, status, title, isFullscreen, controlsVisible, isPlaying, currentPosition, totalDuration,
   playbackSpeed, activeServerName, activeHostItems, episodes, navPrev, navNext,
   skipInfo, rippleAnim, isSkipOPVisible, isSkipEDVisible,
+  isUpscalerActive, is1080pNative, upscalerEnabled,
   handleVideoTap, setPlayerLayoutWidth, exitFullscreen, enterFullscreen,
   setShowSpeedModal, setShowResModal, setShowEpisodesModal, getResName,
   navigateEpisode, formatDuration, controlsTimeoutRef, setControlsVisible,
@@ -109,6 +113,21 @@ const PlayerNativeControls = React.memo(function PlayerNativeControls({
               {isFullscreen && <Text style={styles.topBarTitle} numberOfLines={1}>{title}</Text>}
             </View>
             <View style={styles.topRightActions}>
+              {/* Anime4K Super Resolution Indicator */}
+              {isUpscalerActive ? (
+                <View style={[styles.ctrlBtn, { backgroundColor: 'rgba(2, 178, 255, 0.25)', borderColor: Colors.accent, borderWidth: 1 }]}>
+                  <Text style={[styles.ctrlBtnText, { color: Colors.accent, fontWeight: 'bold' }]}>✨ 1080p AI</Text>
+                </View>
+              ) : is1080pNative ? (
+                <View style={[styles.ctrlBtn, { backgroundColor: 'rgba(255, 255, 255, 0.15)' }]}>
+                  <Text style={[styles.ctrlBtnText, { color: Colors.white }]}>1080p Native</Text>
+                </View>
+              ) : !upscalerEnabled ? (
+                <View style={[styles.ctrlBtn, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                  <Text style={[styles.ctrlBtnText, { color: 'rgba(255, 255, 255, 0.6)' }]}>720p Normal</Text>
+                </View>
+              ) : null}
+
               {onReportBroken && (
                 <TouchableOpacity style={[styles.ctrlBtn, { backgroundColor: 'rgba(230, 57, 70, 0.25)', borderColor: '#E63946', borderWidth: 1 }]} onPress={onReportBroken}>
                   <Ionicons name="warning" size={14} color="#E63946" />

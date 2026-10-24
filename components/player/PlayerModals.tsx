@@ -26,12 +26,17 @@ interface PlayerModalsProps {
   setShowSpeedModal: (val: boolean) => void;
   playbackSpeed: number;
   changeSpeed: (speed: number) => void;
+
+  // Upscaler Toggle
+  upscalerEnabled?: boolean;
+  toggleUpscaler?: (val: boolean) => void;
 }
 
 export default function PlayerModals({
   showEpisodesModal, setShowEpisodesModal, episodes, currentUrl, navigateEpisode,
   showResModal, setShowResModal, activeHost, activeHostItems, activeServerName, handleSelectResolution, getResName,
-  showSpeedModal, setShowSpeedModal, playbackSpeed, changeSpeed
+  showSpeedModal, setShowSpeedModal, playbackSpeed, changeSpeed,
+  upscalerEnabled = true, toggleUpscaler
 }: PlayerModalsProps) {
 
   const groupedServers = React.useMemo(() => {
@@ -84,6 +89,21 @@ export default function PlayerModals({
             <Text style={styles.modalTitle}>Server: {activeHost.toUpperCase()}</Text>
             
             <ScrollView style={{ maxHeight: 350 }}>
+              {/* Anime4K Toggle */}
+              {toggleUpscaler && (
+                <View style={[styles.formatBlock, { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', marginBottom: 12 }]}>
+                  <Text style={styles.formatTitle}>AI Upscaling (Anime4K Mode A)</Text>
+                  <TouchableOpacity 
+                    style={[styles.modalItem, upscalerEnabled && styles.modalItemActive, { marginTop: 6 }]}
+                    onPress={() => toggleUpscaler(!upscalerEnabled)}
+                  >
+                    <Text style={[styles.modalItemText, upscalerEnabled && styles.modalItemTextActive]}>
+                      {upscalerEnabled ? '✨ Anime4K Super Resolution: Aktif (1080p)' : 'Anime4K Super Resolution: Nonaktif'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {Object.keys(groupedServers).map(format => (
                 <View key={format} style={styles.formatBlock}>
                   <Text style={styles.formatTitle}>Format: {format}</Text>
